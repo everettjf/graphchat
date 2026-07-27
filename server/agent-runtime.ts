@@ -219,6 +219,7 @@ export class GraphAgentRuntime {
     signal?: AbortSignal,
   ): AsyncGenerator<RunStreamEvent> {
     const runId = nanoid();
+    const startedAt = Date.now();
     const graph = database.getGraph(request.graphId);
     if (!graph) {
       yield {
@@ -333,6 +334,13 @@ export class GraphAgentRuntime {
           nodeId: node.id,
           node: completed,
         });
+        database.recordEvent(request.graphId, "run-completed", {
+          mode: request.mode,
+          provider: this.settings.provider,
+          durationMs: Date.now() - startedAt,
+          contextItems: context.items.length,
+          referenceNodes: request.referenceNodeIds.length,
+        });
       } catch (error) {
         const cancelled =
           Boolean(signal?.aborted) ||
@@ -357,6 +365,11 @@ export class GraphAgentRuntime {
                 : `Generation failed: ${message}`),
         });
         if (cancelled) {
+          database.recordEvent(request.graphId, "run-cancelled", {
+            mode: request.mode,
+            provider: this.settings.provider,
+            durationMs: Date.now() - startedAt,
+          });
           events.push({
             type: "run_cancelled",
             runId,
@@ -365,6 +378,11 @@ export class GraphAgentRuntime {
             node: updated || undefined,
           });
         } else {
+          database.recordEvent(request.graphId, "run-failed", {
+            mode: request.mode,
+            provider: this.settings.provider,
+            durationMs: Date.now() - startedAt,
+          });
           events.push({
             type: "run_failed",
             runId,

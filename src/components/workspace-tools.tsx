@@ -1,6 +1,11 @@
 import { useEffect, useState } from "react";
-import { BarChart3, BookOpenCheck, FileInput, GitCompareArrows, Merge, RefreshCw, RotateCcw } from "lucide-react";
-import type { GraphDocument, GraphMetrics, StudyCard } from "@shared/types";
+import { Activity, BarChart3, BookOpenCheck, FileInput, GitCompareArrows, Merge, RefreshCw, RotateCcw } from "lucide-react";
+import type {
+  GraphDocument,
+  GraphMetrics,
+  ProductValidationReport,
+  StudyCard,
+} from "@shared/types";
 import { api } from "@/lib/api";
 import { useI18n } from "@/i18n";
 import { useWorkspace } from "@/store/workspace";
@@ -28,6 +33,7 @@ export function WorkspaceTools({
 }) {
   const { locale } = useI18n();
   const [metrics, setMetrics] = useState<GraphMetrics | null>(null);
+  const [validation, setValidation] = useState<ProductValidationReport | null>(null);
   const [cards, setCards] = useState<StudyCard[]>([]);
   const [title, setTitle] = useState("");
   const [sourceUrl, setSourceUrl] = useState("");
@@ -42,12 +48,14 @@ export function WorkspaceTools({
   );
 
   const load = async () => {
-    const [nextMetrics, nextCards] = await Promise.all([
+    const [nextMetrics, nextCards, nextValidation] = await Promise.all([
       api.metrics(document.graph.id),
       api.studyCards(document.graph.id),
+      api.validationReport(),
     ]);
     setMetrics(nextMetrics);
     setCards(nextCards);
+    setValidation(nextValidation);
   };
 
   useEffect(() => {
@@ -183,6 +191,55 @@ export function WorkspaceTools({
                 </div>
               ))}
             </div>
+          </section>
+        )}
+
+        {validation && (
+          <section className="mt-6 border-t border-[var(--border)] pt-5">
+            <div className="mb-3 flex items-center gap-2 text-xs font-semibold">
+              <Activity className="size-4" />
+              {locale === "zh" ? "产品验证" : "Product validation"}
+            </div>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {[
+                [
+                  locale === "zh" ? "激活图谱" : "Activated graphs",
+                  `${validation.summary.activatedGraphs}/${validation.summary.eligibleGraphs}`,
+                ],
+                [
+                  locale === "zh" ? "激活率" : "Activation rate",
+                  `${Math.round(validation.summary.activationRate * 100)}%`,
+                ],
+                [
+                  locale === "zh" ? "证据覆盖" : "Evidence coverage",
+                  `${Math.round(validation.summary.evidenceCoverage * 100)}%`,
+                ],
+                [
+                  locale === "zh" ? "7 日回访" : "7-day return",
+                  `${Math.round(validation.summary.sevenDayReturnRate * 100)}%`,
+                ],
+              ].map(([label, value]) => (
+                <div
+                  key={String(label)}
+                  className="rounded-xl border border-[var(--border)] bg-white/60 p-3"
+                >
+                  <div className="font-display text-xl font-semibold">{value}</div>
+                  <div className="text-[10px] text-[var(--muted-light)]">{label}</div>
+                </div>
+              ))}
+            </div>
+            <p className="mt-3 text-[10px] leading-4 text-[var(--muted-light)]">
+              {locale === "zh"
+                ? "数据仅保存在本机；验证报告不包含提示词、正文、标题、来源链接或凭据。"
+                : "Data stays on this device. The validation report excludes prompts, content, titles, source URLs, and credentials."}
+            </p>
+            <a
+              href="/api/validation/export.json"
+              download
+              className="mt-2 inline-block text-xs font-medium text-[#4d775b] hover:underline"
+            >
+              {locale === "zh" ? "下载产品验证报告" : "Download validation report"}
+            </a>
           </section>
         )}
 

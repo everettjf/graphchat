@@ -11,11 +11,14 @@ import type {
   GraphMetrics,
   GraphNode,
   ImportTextInput,
+  ProductValidationGraph,
+  ProductValidationReport,
   ProviderSettings,
   StudyCard,
   UpdateGraphInput,
   UpdateNodeInput,
 } from "../shared/types.js";
+import { APP_VERSION, DATABASE_SCHEMA_VERSION } from "../shared/version.js";
 
 const now = () => new Date().toISOString();
 
@@ -127,6 +130,8 @@ export class GraphDatabase {
       CREATE INDEX IF NOT EXISTS idx_nodes_graph ON nodes(graph_id);
       CREATE INDEX IF NOT EXISTS idx_edges_graph ON edges(graph_id);
       CREATE INDEX IF NOT EXISTS idx_edges_target ON edges(target);
+      CREATE INDEX IF NOT EXISTS idx_graph_events_graph_created
+        ON graph_events(graph_id, created_at);
     `);
     const graphColumns = this.db
       .prepare("PRAGMA table_info(graphs)")
@@ -151,6 +156,7 @@ export class GraphDatabase {
         this.db.exec(`ALTER TABLE nodes ADD COLUMN ${name} ${definition};`);
       }
     }
+    this.db.exec(`PRAGMA user_version = ${DATABASE_SCHEMA_VERSION};`);
   }
 
   private seed() {
@@ -606,6 +612,25 @@ export class GraphDatabase {
         next.updatedAt,
         id,
       );
+    if (
+      existing.knowledgeStatus !== next.knowledgeStatus &&
+      next.knowledgeStatus === "conclusion"
+    ) {
+      this.recordEvent(existing.graphId, "conclusion-created", { nodeId: id });
+    }
+    if (existing.mastery !== next.mastery) {
+      this.recordEvent(existing.graphId, "mastery-changed", {
+        nodeId: id,
+        from: existing.mastery,
+        to: next.mastery,
+      });
+    }
+    if (existing.rating !== next.rating && next.rating !== 0) {
+      this.recordEvent(existing.graphId, "feedback-recorded", {
+        nodeId: id,
+        rating: next.rating,
+      });
+    }
     this.touchGraph(existing.graphId);
     return next;
   }
@@ -887,6 +912,7 @@ export class GraphDatabase {
         nodes: 0, edges: 0, branches: 0, references: 0, conclusions: 0,
         verified: 0, mastered: 0, reusableConclusions: 0, firstBranchAt: null,
         firstSynthesisAt: null, lastOpenedAt: null, activityLast7Days: 0,
+        evidenceCoverage: 0, ratedAnswers: 0, helpfulRate: null,
       };
     }
     const incoming = new Map<string, number>();
@@ -918,17 +944,187 @@ export class GraphDatabase {
       firstSynthesisAt: eventSummary.first_synthesis_at == null ? null : String(eventSummary.first_synthesis_at),
       lastOpenedAt: eventSummary.last_opened_at == null ? null : String(eventSummary.last_opened_at),
       activityLast7Days: Number(eventSummary.activity_7d || 0),
+      evidenceCoverage:
+        graph.nodes.filter((node) => node.knowledgeStatus === "conclusion").length === 0
+          ? 0
+          : graph.nodes.filter((node) =>
+              node.knowledgeStatus === "conclusion" &&
+              (incoming.get(node.id) || 0) >= 2 &&
+              Boolean(node.summary),
+            ).length /
+            graph.nodes.filter((node) => node.knowledgeStatus === "conclusion").length,
+      ratedAnswers: graph.nodes.filter((node) => node.rating !== 0).length,
+      helpfulRate: graph.nodes.some((node) => node.rating !== 0)
+        ? graph.nodes.filter((node) => node.rating > 0).length /
+          graph.nodes.filter((node) => node.rating !== 0).length
+        : null,
     };
   }
 
-  recordEvent(graphId: string, type: string, metadata: Record<string, unknown> = {}) {
+  recordEvent(
+    graphId: string,
+    type: string,
+    metadata: Record<string, unknown> = {},
+    createdAt = now(),
+  ) {
     if (!this.getGraph(graphId)) return false;
     this.db
       .prepare(
         "INSERT INTO graph_events (id, graph_id, type, metadata, created_at) VALUES (?, ?, ?, ?, ?)",
       )
-      .run(nanoid(), graphId, type, JSON.stringify(metadata), now());
+      .run(nanoid(), graphId, type, JSON.stringify(metadata), createdAt);
     return true;
+  }
+
+  getProductValidationReport(): ProductValidationReport {
+    const graphRows = this.db
+      .prepare("SELECT id FROM graphs ORDER BY created_at")
+      .all() as Array<{ id: string }>;
+    const graphs = graphRows
+      .map(({ id }) => this.getGraph(id))
+      .filter((graph): graph is GraphDocument => graph !== null)
+      .map((graph): ProductValidationGraph => {
+        const eventRows = this.db
+          .prepare(
+            "SELECT id, type, metadata, created_at FROM graph_events WHERE graph_id = ? ORDER BY created_at, rowid",
+          )
+          .all(graph.graph.id) as Array<{
+            id: string;
+            type: string;
+            metadata: string;
+            created_at: string;
+          }>;
+        const events = eventRows.map((event) => {
+          let metadata: Record<string, unknown> = {};
+          try {
+            metadata = JSON.parse(event.metadata) as Record<string, unknown>;
+          } catch {
+            // Invalid legacy metadata is ignored, while the event remains countable.
+          }
+          return { ...event, metadata };
+        });
+        const firstAt = (type: string) =>
+          events.find((event) => event.type === type)?.created_at ?? null;
+        const firstOpenedAt = firstAt("graph-opened");
+        const firstBranchAt = firstAt("branch-created");
+        const firstSynthesisAt = firstAt("synthesis-created");
+        const elapsedMinutes = (timestamp: string | null) => {
+          if (!timestamp) return null;
+          const origin = new Date(firstOpenedAt || graph.graph.createdAt).getTime();
+          return Math.max(0, Math.round(((new Date(timestamp).getTime() - origin) / 60_000) * 10) / 10);
+        };
+        const incoming = new Map<string, Set<string>>();
+        for (const edge of graph.edges) {
+          const sources = incoming.get(edge.target) || new Set<string>();
+          sources.add(edge.source);
+          incoming.set(edge.target, sources);
+        }
+        const conclusions = graph.nodes.filter(
+          (node) => node.knowledgeStatus === "conclusion",
+        );
+        const evidenceBacked = conclusions.filter(
+          (node) => (incoming.get(node.id)?.size || 0) >= 2 && Boolean(node.summary),
+        );
+        const activationAt =
+          firstSynthesisAt && evidenceBacked.length > 0
+            ? [
+                firstSynthesisAt,
+                ...evidenceBacked.map((node) => node.updatedAt),
+              ].sort().at(-1) || null
+            : null;
+        const openEvents = events.filter((event) => event.type === "graph-opened");
+        const sessions = new Set(
+          openEvents.map((event) =>
+            typeof event.metadata.sessionId === "string"
+              ? event.metadata.sessionId
+              : `legacy-${event.id}`,
+          ),
+        );
+        const firstOpenMs = firstOpenedAt ? new Date(firstOpenedAt).getTime() : null;
+        const returnedAfter7Days =
+          firstOpenMs !== null &&
+          openEvents.some(
+            (event) => new Date(event.created_at).getTime() - firstOpenMs >= 7 * 86_400_000,
+          );
+        const rated = graph.nodes.filter((node) => node.rating !== 0);
+        const countEvent = (type: string) =>
+          events.filter((event) => event.type === type).length;
+        return {
+          graphId: graph.graph.id,
+          createdAt: graph.graph.createdAt,
+          eligible: events.some((event) =>
+            ["source-imported", "branch-created"].includes(event.type),
+          ),
+          activated: activationAt !== null,
+          activationAt,
+          timeToFirstBranchMinutes: elapsedMinutes(firstBranchAt),
+          timeToFirstSynthesisMinutes: elapsedMinutes(firstSynthesisAt),
+          distinctSessions: sessions.size,
+          returnedAfter7Days,
+          conclusions: conclusions.length,
+          evidenceBackedConclusions: evidenceBacked.length,
+          evidenceCoverage: conclusions.length
+            ? evidenceBacked.length / conclusions.length
+            : 0,
+          completedRuns: countEvent("run-completed"),
+          cancelledRuns: countEvent("run-cancelled"),
+          failedRuns: countEvent("run-failed"),
+          helpfulRate: rated.length
+            ? graph.nodes.filter((node) => node.rating > 0).length / rated.length
+            : null,
+        };
+      });
+    const eligible = graphs.filter((graph) => graph.eligible);
+    const activated = eligible.filter((graph) => graph.activated);
+    const synthesisTimes = eligible
+      .map((graph) => graph.timeToFirstSynthesisMinutes)
+      .filter((value): value is number => value !== null)
+      .sort((a, b) => a - b);
+    const median =
+      synthesisTimes.length === 0
+        ? null
+        : synthesisTimes.length % 2
+          ? synthesisTimes[Math.floor(synthesisTimes.length / 2)]!
+          : (synthesisTimes[synthesisTimes.length / 2 - 1]! +
+              synthesisTimes[synthesisTimes.length / 2]!) /
+            2;
+    const conclusions = eligible.reduce((sum, graph) => sum + graph.conclusions, 0);
+    const evidenceBackedConclusions = eligible.reduce(
+      (sum, graph) => sum + graph.evidenceBackedConclusions,
+      0,
+    );
+    const returned = eligible.filter((graph) => graph.returnedAfter7Days).length;
+    return {
+      schemaVersion: 1,
+      appVersion: APP_VERSION,
+      generatedAt: now(),
+      privacy:
+        "local-only; excludes prompts, content, titles, source URLs, and credentials",
+      definitions: {
+        eligibleGraph: "A graph with at least one imported source or created branch.",
+        activation:
+          "The graph has a synthesis and at least one summarized conclusion with two distinct incoming evidence nodes.",
+        evidenceBackedConclusion:
+          "A summarized conclusion with at least two distinct incoming branch or reference nodes.",
+        returnedAfter7Days:
+          "The graph was opened again at least seven days after its first recorded open.",
+      },
+      summary: {
+        eligibleGraphs: eligible.length,
+        activatedGraphs: activated.length,
+        activationRate: eligible.length ? activated.length / eligible.length : 0,
+        medianTimeToFirstSynthesisMinutes: median,
+        returnedAfter7DaysGraphs: returned,
+        sevenDayReturnRate: eligible.length ? returned / eligible.length : 0,
+        conclusions,
+        evidenceBackedConclusions,
+        evidenceCoverage: conclusions ? evidenceBackedConclusions / conclusions : 0,
+        completedRuns: eligible.reduce((sum, graph) => sum + graph.completedRuns, 0),
+        cancelledRuns: eligible.reduce((sum, graph) => sum + graph.cancelledRuns, 0),
+        failedRuns: eligible.reduce((sum, graph) => sum + graph.failedRuns, 0),
+      },
+      graphs,
+    };
   }
 
   exportGraphMarkdown(graphId: string): string | null {

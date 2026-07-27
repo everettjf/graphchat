@@ -3,7 +3,14 @@ import { expect, test } from "@playwright/test";
 test.describe("Graph Chat", () => {
   test("opens the English-first learning graph and inspects a node", async ({
     page,
+    request,
   }) => {
+    expect(await (await request.get("/health")).json()).toEqual({
+      ok: true,
+      service: "graphchat",
+      version: "0.2.0",
+      databaseSchemaVersion: 2,
+    });
     await page.goto("/");
     await expect(page.locator("html")).toHaveAttribute("lang", "en");
     await expect(page.getByText("Graph Chat", { exact: true })).toBeVisible();
@@ -201,6 +208,7 @@ test.describe("Graph Chat", () => {
     await page.getByRole("button", { name: "Learning workspace" }).click();
     await expect(page.getByRole("heading", { name: "Learning workspace" })).toBeVisible();
     await expect(page.getByText("Local graph metrics")).toBeVisible();
+    await expect(page.getByText("Product validation")).toBeVisible();
 
     await page.getByLabel("Choose source file").setInputFiles({
       name: "sample.pdf",
@@ -220,6 +228,16 @@ test.describe("Graph Chat", () => {
 
     const metrics = await (await request.get("/api/graphs/learning-rag/metrics")).json();
     expect(metrics.nodes).toBeGreaterThanOrEqual(8);
+
+    const validation = await (
+      await request.get("/api/validation/export.json")
+    ).json();
+    expect(validation).toMatchObject({
+      schemaVersion: 1,
+      appVersion: "0.2.0",
+      summary: { eligibleGraphs: 1 },
+    });
+    expect(JSON.stringify(validation)).not.toContain("Reads see the latest write");
 
     const markdown = await request.get("/api/graphs/learning-rag/export.md");
     expect(markdown.ok()).toBeTruthy();

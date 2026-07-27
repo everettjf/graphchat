@@ -7,12 +7,14 @@ import {
   createNodeSchema,
   graphBackupSchema,
   importTextSchema,
+  productEventContextSchema,
   providerSettingsSchema,
   runRequestSchema,
   type ProviderSettings,
   updateGraphSchema,
   updateNodeSchema,
 } from "../shared/types.js";
+import { APP_VERSION, DATABASE_SCHEMA_VERSION } from "../shared/version.js";
 import { GraphAgentRuntime } from "./agent-runtime.js";
 import { FileCredentialStore } from "./credential-store.js";
 import { GraphDatabase } from "./database.js";
@@ -37,7 +39,12 @@ const productionClientDirectory = process.env.GRAPHCHAT_CLIENT_DIR
   ? path.resolve(process.env.GRAPHCHAT_CLIENT_DIR)
   : path.resolve(rootDirectory, "../../dist");
 
-app.get("/health", async () => ({ ok: true, service: "graphchat" }));
+app.get("/health", async () => ({
+  ok: true,
+  service: "graphchat",
+  version: APP_VERSION,
+  databaseSchemaVersion: DATABASE_SCHEMA_VERSION,
+}));
 
 app.get("/api/auth/openai-codex", async (_request, reply) => {
   reply.header("Cache-Control", "no-store");
@@ -135,10 +142,25 @@ app.get<{ Params: { id: string } }>("/api/graphs/:id/metrics", async (request, r
 });
 
 app.post<{ Params: { id: string } }>("/api/graphs/:id/events/open", async (request, reply) => {
-  if (!database.recordEvent(request.params.id, "graph-opened")) {
+  const parsed = productEventContextSchema.safeParse(request.body);
+  if (!parsed.success) {
+    return reply
+      .code(400)
+      .send({ message: "Invalid product event context", issues: parsed.error.issues });
+  }
+  if (!database.recordEvent(request.params.id, "graph-opened", parsed.data)) {
     return reply.code(404).send({ message: "Graph not found" });
   }
   return reply.code(204).send();
+});
+
+app.get("/api/validation/export.json", async (_request, reply) => {
+  reply.header("Cache-Control", "no-store");
+  reply.header(
+    "Content-Disposition",
+    'attachment; filename="graphchat-product-validation.json"',
+  );
+  return database.getProductValidationReport();
 });
 
 app.post<{ Params: { id: string } }>("/api/graphs/:id/undo", async (request, reply) => {
