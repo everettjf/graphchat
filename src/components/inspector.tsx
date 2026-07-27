@@ -14,6 +14,7 @@ import {
   WandSparkles,
   X,
 } from "lucide-react";
+import { useEffect, useState } from "react";
 import type { GraphDocument, GraphNode, UpdateNodeInput } from "@shared/types";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
@@ -28,11 +29,13 @@ export function Inspector({
   document,
   onDelete,
   onUpdate,
+  embedded = false,
 }: {
   node: GraphNode | null;
   document: GraphDocument;
   onDelete: (id: string) => void;
   onUpdate: (id: string, input: UpdateNodeInput) => void;
+  embedded?: boolean;
 }) {
   const { locale, t } = useI18n();
   const {
@@ -42,8 +45,15 @@ export function Inspector({
     setInspectorOpen,
     inspectorOpen,
   } = useWorkspace();
+  const [activeTab, setActiveTab] = useState<
+    "conversation" | "details" | "context"
+  >("conversation");
 
-  if (!node || !inspectorOpen) return null;
+  useEffect(() => {
+    setActiveTab("conversation");
+  }, [node?.id]);
+
+  if (!node || (!embedded && !inspectorOpen)) return null;
   const incoming = document.edges.filter((edge) => edge.target === node.id);
   const outgoing = document.edges.filter((edge) => edge.source === node.id);
   const isReferenced = referenceNodeIds.includes(node.id);
@@ -55,20 +65,27 @@ export function Inspector({
 
   return (
     <aside
-      className="inspector-shell z-20 flex h-full w-[382px] shrink-0 flex-col border-l border-[var(--border)] bg-[#fbfaf6]/94 backdrop-blur-xl max-xl:absolute max-xl:inset-y-0 max-xl:right-0 max-xl:shadow-2xl max-sm:w-full"
+      className={cn(
+        "z-20 flex h-full flex-col bg-[#fbfaf6]/94 backdrop-blur-xl",
+        embedded
+          ? "content-shell min-w-0 flex-1"
+          : "inspector-shell w-[382px] shrink-0 border-l border-[var(--border)] max-xl:absolute max-xl:inset-y-0 max-xl:right-0 max-xl:shadow-2xl max-sm:w-full",
+      )}
       data-testid="node-inspector"
     >
       <header className="flex h-16 shrink-0 items-center justify-between border-b border-[var(--border)] px-5">
         <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="size-8"
-            aria-label={t("inspector.close")}
-            onClick={() => setInspectorOpen(false)}
-          >
-            <ArrowLeft className="size-4" />
-          </Button>
+          {!embedded && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-8"
+              aria-label={t("inspector.close")}
+              onClick={() => setInspectorOpen(false)}
+            >
+              <ArrowLeft className="size-4" />
+            </Button>
+          )}
           <span className="text-xs font-semibold text-[var(--muted)]">
             {t("inspector.title")}
           </span>
@@ -83,19 +100,22 @@ export function Inspector({
           >
             <Copy className="size-3.5" />
           </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="size-8 xl:hidden"
-            onClick={() => setInspectorOpen(false)}
-            aria-label={t("inspector.close")}
-          >
-            <X className="size-4" />
-          </Button>
+          {!embedded && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-8 xl:hidden"
+              onClick={() => setInspectorOpen(false)}
+              aria-label={t("inspector.close")}
+            >
+              <X className="size-4" />
+            </Button>
+          )}
         </div>
       </header>
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-6 py-6">
+      <div className={cn("min-h-0 flex-1 overflow-y-auto px-6 py-6", embedded && "px-[clamp(24px,6vw,88px)]")}>
+        <div className={cn(embedded && "mx-auto w-full max-w-[820px]")}>
         <div className="mb-4 flex flex-wrap items-center gap-2">
           <Badge className="border-[#cfe1d4] bg-[#edf6ef] text-[#417255]">
             {node.kind === "summary"
@@ -112,6 +132,39 @@ export function Inspector({
           {node.title}
         </h1>
 
+        {embedded && (
+          <div
+            className="mt-5 flex gap-1 border-b border-[var(--border)]"
+            role="tablist"
+            aria-label={locale === "zh" ? "内容面板" : "Content panel"}
+          >
+            {[
+              ["conversation", locale === "zh" ? "对话" : "Conversation"],
+              ["details", locale === "zh" ? "详情" : "Details"],
+              ["context", locale === "zh" ? "上下文" : "Context"],
+            ].map(([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                role="tab"
+                aria-selected={activeTab === id}
+                data-testid={`content-tab-${id}`}
+                className={cn(
+                  "-mb-px border-b-2 border-transparent px-3 py-2 text-[11px] font-medium text-[var(--muted)] transition",
+                  activeTab === id && "border-[#668b72] text-[#45614d]",
+                )}
+                onClick={() =>
+                  setActiveTab(id as "conversation" | "details" | "context")
+                }
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {activeTab === "conversation" && (
+          <>
         {node.selectedText && (
           <div className="mt-5 rounded-2xl border border-[#e2ddcb] bg-[#f8f3df]/70 p-4">
             <div className="mb-2 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.13em] text-[#897e5e]">
@@ -132,7 +185,11 @@ export function Inspector({
           </div>
         )}
 
-        <div className="mt-6 border-t border-[var(--border)] pt-5" onMouseUp={captureSelection}>
+        <div
+          className="mt-6 border-t border-[var(--border)] pt-5"
+          onMouseUp={captureSelection}
+          data-testid="conversation-content"
+        >
           {node.status === "streaming" && !node.content ? (
             <div className="space-y-3 py-2">
               <div className="h-3 w-2/3 animate-pulse rounded bg-black/10" />
@@ -156,8 +213,10 @@ export function Inspector({
             <p className="text-xs leading-5 text-[#42634d]">{node.summary}</p>
           </div>
         )}
+          </>
+        )}
 
-        {node.contextSnapshot && (
+        {activeTab === "context" && node.contextSnapshot && (
           <section className="mt-7 rounded-2xl border border-[#ddd7e8] bg-[#f4f0f8] p-4">
             <div className="mb-2 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.13em] text-[#6d6282]">
               <Braces className="size-3.5" />
@@ -189,7 +248,16 @@ export function Inspector({
             )}
           </section>
         )}
+        {activeTab === "context" && !node.contextSnapshot && (
+          <div className="mt-7 rounded-2xl border border-dashed border-[var(--border)] p-6 text-center text-xs leading-5 text-[var(--muted)]">
+            {locale === "zh"
+              ? "这个节点没有保存模型上下文。手工笔记和旧节点通常不会包含上下文快照。"
+              : "This node has no saved model context. Manual notes and legacy nodes usually do not include a context snapshot."}
+          </div>
+        )}
 
+        {activeTab === "details" && (
+          <>
         <section className="mt-7 border-t border-[var(--border)] pt-5">
           <div className="mb-3 text-[10px] font-bold uppercase tracking-[0.13em] text-[var(--muted-light)]">
             {locale === "zh" ? "知识资产" : "Knowledge asset"}
@@ -317,9 +385,18 @@ export function Inspector({
             {node.provider || "manual"}
           </span>
         </div>
+          </>
+        )}
+        </div>
       </div>
 
-      <footer className="shrink-0 border-t border-[var(--border)] bg-white/55 p-4">
+      <footer
+        className={cn(
+          "shrink-0 border-t border-[var(--border)] bg-white/55 p-4",
+          embedded && "pb-24",
+        )}
+      >
+        <div className={cn(embedded && "mx-auto w-full max-w-[820px]")}>
         <div className="grid grid-cols-[1fr_auto] gap-2">
           <Button
             variant="default"
@@ -349,6 +426,7 @@ export function Inspector({
         >
           <Trash2 className="size-3.5" /> {t("inspector.delete")}
         </Button>
+        </div>
       </footer>
     </aside>
   );

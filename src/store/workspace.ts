@@ -34,7 +34,7 @@ export const useWorkspace = create<WorkspaceState>((set) => ({
   sidebarOpen: false,
   inspectorOpen: true,
   mode: "answer",
-  selectNode: (id) => set({ selectedNodeId: id, inspectorOpen: Boolean(id) }),
+  selectNode: (id) => set({ selectedNodeId: id }),
   toggleReference: (id) =>
     set((state) => ({
       referenceNodeIds: state.referenceNodeIds.includes(id)

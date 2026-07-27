@@ -142,7 +142,11 @@ export function Composer({
             {references.map((node) => (
               <ContextChip key={node.id} icon={Link2} label={node.title} accent />
             ))}
-            {selectedText && <ContextChip icon={Quote} label={`“${selectedText.slice(0, 32)}${selectedText.length > 32 ? "…" : ""}”`} quote />}
+            {selectedText && (
+              <span data-testid="selection-context">
+                <ContextChip icon={Quote} label={`“${selectedText.slice(0, 32)}${selectedText.length > 32 ? "…" : ""}”`} quote />
+              </span>
+            )}
             <button
               className="ml-auto grid size-7 place-items-center rounded-lg text-[var(--muted-light)] hover:bg-black/5 hover:text-[var(--ink)]"
               onClick={closeComposer}
