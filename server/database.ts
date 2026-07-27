@@ -6,9 +6,13 @@ import type {
   CreateNodeInput,
   GraphDocument,
   GraphEdge,
+  GraphBackup,
   GraphMeta,
+  GraphMetrics,
   GraphNode,
+  ImportTextInput,
   ProviderSettings,
+  StudyCard,
   UpdateGraphInput,
   UpdateNodeInput,
 } from "../shared/types.js";
@@ -45,6 +49,7 @@ function bool(value: unknown): boolean {
 
 export class GraphDatabase {
   private readonly db: SQLiteDatabase;
+  private historyEnabled = false;
 
   constructor(dataDirectory = process.env.GRAPHCHAT_DATA_DIR || ".graphchat") {
     const absoluteDirectory = path.resolve(dataDirectory);
@@ -54,6 +59,7 @@ export class GraphDatabase {
     this.migrate();
     this.recoverInterruptedRuns();
     this.seed();
+    this.historyEnabled = true;
   }
 
   private migrate() {
@@ -74,6 +80,13 @@ export class GraphDatabase {
         prompt TEXT NOT NULL DEFAULT '',
         content TEXT NOT NULL DEFAULT '',
         summary TEXT NOT NULL DEFAULT '',
+        tags TEXT NOT NULL DEFAULT '[]',
+        knowledge_status TEXT NOT NULL DEFAULT 'exploring',
+        mastery TEXT NOT NULL DEFAULT 'new',
+        source_url TEXT NOT NULL DEFAULT '',
+        credibility INTEGER,
+        rating INTEGER NOT NULL DEFAULT 0,
+        context_snapshot TEXT,
         selected_text TEXT,
         x REAL NOT NULL,
         y REAL NOT NULL,
@@ -97,6 +110,20 @@ export class GraphDatabase {
         key TEXT PRIMARY KEY,
         value TEXT NOT NULL
       );
+      CREATE TABLE IF NOT EXISTS graph_revisions (
+        id TEXT PRIMARY KEY,
+        graph_id TEXT NOT NULL REFERENCES graphs(id) ON DELETE CASCADE,
+        label TEXT NOT NULL,
+        snapshot TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS graph_events (
+        id TEXT PRIMARY KEY,
+        graph_id TEXT NOT NULL REFERENCES graphs(id) ON DELETE CASCADE,
+        type TEXT NOT NULL,
+        metadata TEXT NOT NULL DEFAULT '{}',
+        created_at TEXT NOT NULL
+      );
       CREATE INDEX IF NOT EXISTS idx_nodes_graph ON nodes(graph_id);
       CREATE INDEX IF NOT EXISTS idx_edges_graph ON edges(graph_id);
       CREATE INDEX IF NOT EXISTS idx_edges_target ON edges(target);
@@ -106,6 +133,23 @@ export class GraphDatabase {
       .all() as Array<{ name: string }>;
     if (!graphColumns.some((column) => column.name === "archived_at")) {
       this.db.exec("ALTER TABLE graphs ADD COLUMN archived_at TEXT;");
+    }
+    const nodeColumns = this.db
+      .prepare("PRAGMA table_info(nodes)")
+      .all() as Array<{ name: string }>;
+    const additions = [
+      ["tags", "TEXT NOT NULL DEFAULT '[]'"],
+      ["knowledge_status", "TEXT NOT NULL DEFAULT 'exploring'"],
+      ["mastery", "TEXT NOT NULL DEFAULT 'new'"],
+      ["source_url", "TEXT NOT NULL DEFAULT ''"],
+      ["credibility", "INTEGER"],
+      ["rating", "INTEGER NOT NULL DEFAULT 0"],
+      ["context_snapshot", "TEXT"],
+    ] as const;
+    for (const [name, definition] of additions) {
+      if (!nodeColumns.some((column) => column.name === name)) {
+        this.db.exec(`ALTER TABLE nodes ADD COLUMN ${name} ${definition};`);
+      }
     }
   }
 
@@ -135,8 +179,18 @@ export class GraphDatabase {
         graph.archivedAt,
       );
 
+    const assetDefaults = {
+      tags: [] as string[],
+      knowledgeStatus: "exploring" as const,
+      mastery: "new" as const,
+      sourceUrl: "",
+      credibility: null,
+      rating: 0,
+      contextSnapshot: null,
+    };
     const nodes: GraphNode[] = [
       {
+        ...assetDefaults,
         id: "root-rag",
         graphId: graph.id,
         kind: "answer",
@@ -156,6 +210,7 @@ export class GraphDatabase {
         updatedAt: timestamp,
       },
       {
+        ...assetDefaults,
         id: "embedding",
         graphId: graph.id,
         kind: "concept",
@@ -175,6 +230,7 @@ export class GraphDatabase {
         updatedAt: timestamp,
       },
       {
+        ...assetDefaults,
         id: "vector-space",
         graphId: graph.id,
         kind: "answer",
@@ -194,6 +250,7 @@ export class GraphDatabase {
         updatedAt: timestamp,
       },
       {
+        ...assetDefaults,
         id: "vector-db",
         graphId: graph.id,
         kind: "concept",
@@ -213,6 +270,7 @@ export class GraphDatabase {
         updatedAt: timestamp,
       },
       {
+        ...assetDefaults,
         id: "similarity",
         graphId: graph.id,
         kind: "answer",
@@ -232,6 +290,7 @@ export class GraphDatabase {
         updatedAt: timestamp,
       },
       {
+        ...assetDefaults,
         id: "synthesis",
         graphId: graph.id,
         kind: "summary",
@@ -254,9 +313,10 @@ export class GraphDatabase {
 
     const insertNode = this.db.prepare(`
       INSERT INTO nodes (
-        id, graph_id, kind, title, prompt, content, summary, selected_text,
-        x, y, status, provider, model, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        id, graph_id, kind, title, prompt, content, summary, tags,
+        knowledge_status, mastery, source_url, credibility, rating, context_snapshot,
+        selected_text, x, y, status, provider, model, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     for (const node of nodes) {
       insertNode.run(
@@ -267,6 +327,13 @@ export class GraphDatabase {
         node.prompt,
         node.content,
         node.summary,
+        JSON.stringify(node.tags),
+        node.knowledgeStatus,
+        node.mastery,
+        node.sourceUrl,
+        node.credibility,
+        node.rating,
+        node.contextSnapshot == null ? null : JSON.stringify(node.contextSnapshot),
         node.selectedText,
         node.x,
         node.y,
@@ -435,16 +502,24 @@ export class GraphDatabase {
   }
 
   createNode(input: CreateNodeInput, provider: string | null = null, model: string | null = null): GraphNode {
+    this.recordRevision(input.graphId, "create-node");
     const timestamp = now();
     const node: GraphNode = {
       id: nanoid(),
       graphId: input.graphId,
-      kind: input.kind,
+      kind: input.kind ?? "question",
       title: input.title,
-      prompt: input.prompt,
-      content: input.content,
-      summary: input.summary,
-      selectedText: input.selectedText,
+      prompt: input.prompt ?? "",
+      content: input.content ?? "",
+      summary: input.summary ?? "",
+      tags: input.tags ?? [],
+      knowledgeStatus: input.knowledgeStatus ?? "exploring",
+      mastery: input.mastery ?? "new",
+      sourceUrl: input.sourceUrl ?? "",
+      credibility: input.credibility ?? null,
+      rating: input.rating ?? 0,
+      contextSnapshot: input.contextSnapshot ?? null,
+      selectedText: input.selectedText ?? null,
       x: input.x,
       y: input.y,
       status: input.content ? "complete" : "idle",
@@ -456,9 +531,10 @@ export class GraphDatabase {
     this.db
       .prepare(`
         INSERT INTO nodes (
-          id, graph_id, kind, title, prompt, content, summary, selected_text,
-          x, y, status, provider, model, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          id, graph_id, kind, title, prompt, content, summary, tags,
+          knowledge_status, mastery, source_url, credibility, rating, context_snapshot,
+          selected_text, x, y, status, provider, model, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `)
       .run(
         node.id,
@@ -468,6 +544,13 @@ export class GraphDatabase {
         node.prompt,
         node.content,
         node.summary,
+        JSON.stringify(node.tags),
+        node.knowledgeStatus,
+        node.mastery,
+        node.sourceUrl,
+        node.credibility,
+        node.rating,
+        node.contextSnapshot == null ? null : JSON.stringify(node.contextSnapshot),
         node.selectedText,
         node.x,
         node.y,
@@ -478,10 +561,16 @@ export class GraphDatabase {
         node.updatedAt,
       );
     if (input.parentNodeId) this.createEdge(input.graphId, input.parentNodeId, node.id, "branch", "继续追问");
-    for (const referenceNodeId of input.referenceNodeIds) {
+    for (const referenceNodeId of input.referenceNodeIds ?? []) {
       if (referenceNodeId !== input.parentNodeId) {
         this.createEdge(input.graphId, referenceNodeId, node.id, "reference", "引用");
       }
+    }
+    if (input.parentNodeId) {
+      this.recordEvent(input.graphId, "branch-created", { nodeId: node.id });
+    }
+    if ((input.referenceNodeIds?.length || 0) >= 2 || node.kind === "summary") {
+      this.recordEvent(input.graphId, "synthesis-created", { nodeId: node.id });
     }
     this.touchGraph(input.graphId);
     return node;
@@ -490,17 +579,25 @@ export class GraphDatabase {
   updateNode(id: string, input: UpdateNodeInput & { provider?: string | null; model?: string | null }): GraphNode | null {
     const existing = this.getNode(id);
     if (!existing) return null;
+    this.recordRevision(existing.graphId, "update-node");
     const next = { ...existing, ...input, updatedAt: now() };
     this.db
       .prepare(`
-        UPDATE nodes SET title=?, prompt=?, content=?, summary=?, x=?, y=?,
-          status=?, provider=?, model=?, updated_at=? WHERE id=?
+        UPDATE nodes SET title=?, prompt=?, content=?, summary=?, tags=?,
+          knowledge_status=?, mastery=?, source_url=?, credibility=?, rating=?,
+          x=?, y=?, status=?, provider=?, model=?, updated_at=? WHERE id=?
       `)
       .run(
         next.title,
         next.prompt,
         next.content,
         next.summary,
+        JSON.stringify(next.tags),
+        next.knowledgeStatus,
+        next.mastery,
+        next.sourceUrl,
+        next.credibility,
+        next.rating,
         next.x,
         next.y,
         next.status,
@@ -516,25 +613,49 @@ export class GraphDatabase {
   deleteNode(id: string): boolean {
     const existing = this.getNode(id);
     if (!existing) return false;
+    this.recordRevision(existing.graphId, "delete-node");
     this.db.prepare("DELETE FROM nodes WHERE id = ?").run(id);
     this.touchGraph(existing.graphId);
     return true;
   }
 
   searchNodes(graphId: string, query: string, limit = 6): GraphNode[] {
-    const pattern = `%${query.replaceAll("%", "\\%").replaceAll("_", "\\_")}%`;
-    return (
-      this.db
-        .prepare(`
-          SELECT * FROM nodes
-          WHERE graph_id = ?
-            AND (title LIKE ? ESCAPE '\\' OR prompt LIKE ? ESCAPE '\\'
-              OR content LIKE ? ESCAPE '\\' OR summary LIKE ? ESCAPE '\\')
-          ORDER BY updated_at DESC
-          LIMIT ?
-        `)
-        .all(graphId, pattern, pattern, pattern, pattern, limit) as Record<string, unknown>[]
-    ).map(this.mapNode);
+    const normalized = query.trim().toLocaleLowerCase();
+    if (!normalized) return [];
+    const queryTokens = new Set(
+      normalized.match(/[\p{L}\p{N}-]{2,}/gu) || [normalized],
+    );
+    const rows = this.db
+      .prepare("SELECT * FROM nodes WHERE graph_id = ?")
+      .all(graphId) as Record<string, unknown>[];
+    return rows
+      .map(this.mapNode)
+      .map((node) => {
+        const title = node.title.toLocaleLowerCase();
+        const prompt = node.prompt.toLocaleLowerCase();
+        const summary = node.summary.toLocaleLowerCase();
+        const content = node.content.toLocaleLowerCase();
+        const tags = node.tags.join(" ").toLocaleLowerCase();
+        const source = node.sourceUrl.toLocaleLowerCase();
+        const documentTokens = new Set(
+          `${title} ${prompt} ${summary} ${content} ${tags}`
+            .match(/[\p{L}\p{N}-]{2,}/gu) || [],
+        );
+        const overlap = [...queryTokens].filter((token) => documentTokens.has(token)).length;
+        const tokenScore = queryTokens.size ? (overlap / queryTokens.size) * 30 : 0;
+        const fieldScore =
+          title === normalized ? 100 :
+          title.includes(normalized) ? 60 :
+          tags.includes(normalized) ? 50 :
+          summary.includes(normalized) ? 35 :
+          prompt.includes(normalized) ? 25 :
+          content.includes(normalized) || source.includes(normalized) ? 10 : 0;
+        return { node, score: fieldScore + tokenScore + node.rating * 2 };
+      })
+      .filter(({ score }) => score > 0)
+      .sort((a, b) => b.score - a.score || b.node.updatedAt.localeCompare(a.node.updatedAt))
+      .slice(0, limit)
+      .map(({ node }) => node);
   }
 
   createEdge(
@@ -596,14 +717,308 @@ export class GraphDatabase {
     return interrupted.length;
   }
 
-  exportAll() {
+  exportAll(): GraphBackup & { exportedAt: string } {
     return {
-      version: 1,
+      version: 2,
       exportedAt: now(),
-      graphs: [...this.listGraphs(), ...this.listArchivedGraphs()].map((graph) =>
-        this.getGraph(graph.id),
-      ),
+      graphs: [...this.listGraphs(), ...this.listArchivedGraphs()]
+        .map((graph) => this.getGraph(graph.id))
+        .filter((graph): graph is GraphDocument => graph !== null),
     };
+  }
+
+  importText(input: ImportTextInput): GraphNode[] {
+    const graph = this.getGraph(input.graphId);
+    if (!graph) throw new Error("GRAPH_NOT_FOUND");
+    const sections = input.format === "markdown"
+      ? input.content.split(/(?=^#{1,3}\s+)/m)
+      : input.content.split(/\n\s*\n/);
+    const chunks = sections.map((section) => section.trim()).filter(Boolean);
+    const created: GraphNode[] = [];
+    let parentNodeId: string | null = null;
+    for (const [index, chunk] of chunks.slice(0, 200).entries()) {
+      const lines = chunk.split("\n");
+      const heading = lines[0]?.match(/^#{1,3}\s+(.+)/)?.[1]?.trim();
+      const content = heading ? lines.slice(1).join("\n").trim() : chunk;
+      const node = this.createNode({
+        graphId: input.graphId,
+        parentNodeId,
+        referenceNodeIds: [],
+        kind: "note",
+        title: heading || (index === 0 ? input.title : `${input.title} · ${index + 1}`),
+        prompt: "",
+        content,
+        summary: content.slice(0, 240),
+        tags: ["imported"],
+        knowledgeStatus: "exploring",
+        mastery: "new",
+        sourceUrl: input.sourceUrl,
+        credibility: null,
+        rating: 0,
+        selectedText: null,
+        x: 40 + index * 340,
+        y: 700 + (index % 2) * 180,
+      });
+      created.push(node);
+      parentNodeId = node.id;
+    }
+    this.recordEvent(input.graphId, "source-imported", {
+      count: created.length,
+      format: input.format,
+    });
+    return created;
+  }
+
+  restoreBackup(backup: GraphBackup): GraphDocument[] {
+    const restored: GraphDocument[] = [];
+    for (const source of backup.graphs) {
+      const created = this.createGraph({
+        title: `${source.graph.title} (restored)`,
+        description: source.graph.description,
+      });
+      const nodeIds = new Map<string, string>();
+      for (const node of source.nodes) {
+        const restoredNode = this.createNode({
+          graphId: created.graph.id,
+          parentNodeId: null,
+          referenceNodeIds: [],
+          kind: node.kind,
+          title: node.title,
+          prompt: node.prompt,
+          content: node.content,
+          summary: node.summary,
+          tags: node.tags,
+          knowledgeStatus: node.knowledgeStatus,
+          mastery: node.mastery,
+          sourceUrl: node.sourceUrl,
+          credibility: node.credibility,
+          rating: node.rating,
+          contextSnapshot: node.contextSnapshot,
+          selectedText: node.selectedText,
+          x: node.x,
+          y: node.y,
+        }, node.provider, node.model);
+        this.updateNode(restoredNode.id, { status: node.status });
+        nodeIds.set(node.id, restoredNode.id);
+      }
+      for (const edge of source.edges) {
+        const sourceId = nodeIds.get(edge.source);
+        const targetId = nodeIds.get(edge.target);
+        if (sourceId && targetId) {
+          this.createEdge(created.graph.id, sourceId, targetId, edge.kind, edge.label);
+        }
+      }
+      restored.push(this.getGraph(created.graph.id)!);
+    }
+    return restored;
+  }
+
+  suggestMetadata(nodeId: string) {
+    const node = this.getNode(nodeId);
+    if (!node) return null;
+    const stopwords = new Set([
+      "about", "after", "also", "because", "been", "being", "from", "have",
+      "into", "more", "that", "their", "then", "there", "these", "they",
+      "this", "through", "using", "what", "when", "where", "which", "with",
+      "一个", "这个", "可以", "以及", "通过", "进行", "用于", "需要", "解释",
+    ]);
+    const words = `${node.title} ${node.summary} ${node.content}`
+      .toLocaleLowerCase()
+      .match(/[\p{L}\p{N}-]{3,}/gu) || [];
+    const counts = new Map<string, number>();
+    for (const word of words) {
+      if (stopwords.has(word) || /^\d+$/.test(word)) continue;
+      counts.set(word, (counts.get(word) || 0) + 1);
+    }
+    const tags = [...counts.entries()]
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+      .slice(0, 5)
+      .map(([word]) => word);
+    return {
+      tags: [...new Set([...node.tags, ...tags])].slice(0, 8),
+      summary: node.summary || node.content.replace(/\s+/g, " ").trim().slice(0, 240),
+      knowledgeStatus: node.kind === "summary" ? "conclusion" as const : node.knowledgeStatus,
+    };
+  }
+
+  getStudyCards(graphId: string, limit = 20): StudyCard[] {
+    const graph = this.getGraph(graphId);
+    if (!graph) return [];
+    const rank = { new: 0, learning: 1, mastered: 2 };
+    return graph.nodes
+      .filter((node) => node.status === "complete" && Boolean(node.summary || node.content))
+      .sort((a, b) => rank[a.mastery] - rank[b.mastery] || b.updatedAt.localeCompare(a.updatedAt))
+      .flatMap((node): StudyCard[] => {
+        const answer = node.summary || node.content;
+        return [
+          {
+            nodeId: node.id,
+            kind: "recall",
+            question: node.prompt || `Explain: ${node.title}`,
+            answer,
+            mastery: node.mastery,
+            sourceUrl: node.sourceUrl,
+          },
+          {
+            nodeId: node.id,
+            kind: "concept",
+            question: `Which concept does this describe?\n${answer.slice(0, 180)}`,
+            answer: node.title,
+            mastery: node.mastery,
+            sourceUrl: node.sourceUrl,
+          },
+          {
+            nodeId: node.id,
+            kind: "counterexample",
+            question: `State a counterexample, failure mode, or boundary case for: ${node.title}`,
+            answer: `Compare your answer with the source explanation:\n${answer}`,
+            mastery: node.mastery,
+            sourceUrl: node.sourceUrl,
+          },
+        ];
+      })
+      .slice(0, limit);
+  }
+
+  getMetrics(graphId: string): GraphMetrics {
+    const graph = this.getGraph(graphId);
+    if (!graph) {
+      return {
+        nodes: 0, edges: 0, branches: 0, references: 0, conclusions: 0,
+        verified: 0, mastered: 0, reusableConclusions: 0, firstBranchAt: null,
+        firstSynthesisAt: null, lastOpenedAt: null, activityLast7Days: 0,
+      };
+    }
+    const incoming = new Map<string, number>();
+    for (const edge of graph.edges) incoming.set(edge.target, (incoming.get(edge.target) || 0) + 1);
+    const eventSummary = this.db
+      .prepare(`
+        SELECT
+          MIN(CASE WHEN type = 'branch-created' THEN created_at END) AS first_branch_at,
+          MIN(CASE WHEN type = 'synthesis-created' THEN created_at END) AS first_synthesis_at,
+          MAX(CASE WHEN type = 'graph-opened' THEN created_at END) AS last_opened_at,
+          SUM(CASE WHEN julianday(created_at) >= julianday('now', '-7 days') THEN 1 ELSE 0 END) AS activity_7d
+        FROM graph_events WHERE graph_id = ?
+      `)
+      .get(graphId) as Record<string, unknown>;
+    return {
+      nodes: graph.nodes.length,
+      edges: graph.edges.length,
+      branches: graph.edges.filter((edge) => edge.kind === "branch").length,
+      references: graph.edges.filter((edge) => edge.kind === "reference").length,
+      conclusions: graph.nodes.filter((node) => node.knowledgeStatus === "conclusion").length,
+      verified: graph.nodes.filter((node) => node.knowledgeStatus === "verified").length,
+      mastered: graph.nodes.filter((node) => node.mastery === "mastered").length,
+      reusableConclusions: graph.nodes.filter((node) =>
+        node.knowledgeStatus === "conclusion" &&
+        (incoming.get(node.id) || 0) >= 2 &&
+        Boolean(node.summary),
+      ).length,
+      firstBranchAt: eventSummary.first_branch_at == null ? null : String(eventSummary.first_branch_at),
+      firstSynthesisAt: eventSummary.first_synthesis_at == null ? null : String(eventSummary.first_synthesis_at),
+      lastOpenedAt: eventSummary.last_opened_at == null ? null : String(eventSummary.last_opened_at),
+      activityLast7Days: Number(eventSummary.activity_7d || 0),
+    };
+  }
+
+  recordEvent(graphId: string, type: string, metadata: Record<string, unknown> = {}) {
+    if (!this.getGraph(graphId)) return false;
+    this.db
+      .prepare(
+        "INSERT INTO graph_events (id, graph_id, type, metadata, created_at) VALUES (?, ?, ?, ?, ?)",
+      )
+      .run(nanoid(), graphId, type, JSON.stringify(metadata), now());
+    return true;
+  }
+
+  exportGraphMarkdown(graphId: string): string | null {
+    const graph = this.getGraph(graphId);
+    if (!graph) return null;
+    const nodeById = new Map(graph.nodes.map((node) => [node.id, node]));
+    const lines = [
+      "---",
+      `title: "${graph.graph.title.replaceAll('"', '\\"')}"`,
+      "type: graphchat-graph",
+      "---",
+      "",
+      `# ${graph.graph.title}`,
+      "",
+      graph.graph.description,
+      "",
+    ];
+    for (const node of graph.nodes) {
+      lines.push(`## ${node.title}`, "");
+      lines.push(
+        `- ID: \`${node.id}\``,
+        `- Type: ${node.kind}`,
+        `- Knowledge status: ${node.knowledgeStatus}`,
+        `- Mastery: ${node.mastery}`,
+      );
+      if (node.tags.length) lines.push(`- Tags: ${node.tags.map((tag) => `#${tag.replace(/\s+/g, "-")}`).join(" ")}`);
+      if (node.sourceUrl) lines.push(`- Source: ${node.sourceUrl}`);
+      const outgoing = graph.edges
+        .filter((edge) => edge.source === node.id)
+        .map((edge) => {
+          const target = nodeById.get(edge.target);
+          return target ? `${edge.kind}: [[${target.title}]]` : null;
+        })
+        .filter((value): value is string => value !== null);
+      if (outgoing.length) lines.push(`- Links: ${outgoing.join("; ")}`);
+      lines.push("");
+      if (node.prompt) lines.push(`> ${node.prompt}`, "");
+      lines.push(node.content || node.summary, "");
+    }
+    return lines.join("\n");
+  }
+
+  undoGraph(graphId: string): GraphDocument | null {
+    const revision = this.db
+      .prepare(
+        "SELECT id, snapshot FROM graph_revisions WHERE graph_id = ? ORDER BY created_at DESC, rowid DESC LIMIT 1",
+      )
+      .get(graphId) as { id: string; snapshot: string } | undefined;
+    if (!revision) return null;
+    const snapshot = JSON.parse(revision.snapshot) as GraphDocument;
+    this.historyEnabled = false;
+    try {
+      this.db.prepare("DELETE FROM nodes WHERE graph_id = ?").run(graphId);
+      const insertNode = this.db.prepare(`
+        INSERT INTO nodes (
+          id, graph_id, kind, title, prompt, content, summary, tags,
+          knowledge_status, mastery, source_url, credibility, rating, context_snapshot,
+          selected_text, x, y, status, provider, model, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `);
+      for (const node of snapshot.nodes) {
+        insertNode.run(
+          node.id, graphId, node.kind, node.title, node.prompt, node.content,
+          node.summary, JSON.stringify(node.tags), node.knowledgeStatus, node.mastery,
+          node.sourceUrl, node.credibility, node.rating,
+          node.contextSnapshot == null ? null : JSON.stringify(node.contextSnapshot),
+          node.selectedText,
+          node.x, node.y, node.status, node.provider, node.model, node.createdAt, node.updatedAt,
+        );
+      }
+      const insertEdge = this.db.prepare("INSERT INTO edges VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+      for (const edge of snapshot.edges) {
+        insertEdge.run(
+          edge.id, graphId, edge.source, edge.target, edge.kind, edge.label,
+          edge.includeInContext ? 1 : 0, edge.createdAt,
+        );
+      }
+      this.db.prepare("DELETE FROM graph_revisions WHERE id = ?").run(revision.id);
+      this.touchGraph(graphId);
+      return this.getGraph(graphId);
+    } finally {
+      this.historyEnabled = true;
+    }
+  }
+
+  canUndo(graphId: string): boolean {
+    const row = this.db
+      .prepare("SELECT COUNT(*) AS count FROM graph_revisions WHERE graph_id = ?")
+      .get(graphId) as { count: number };
+    return Number(row.count) > 0;
   }
 
   close() {
@@ -614,6 +1029,24 @@ export class GraphDatabase {
     this.db.prepare("UPDATE graphs SET updated_at = ? WHERE id = ?").run(now(), id);
   }
 
+  private recordRevision(graphId: string, label: string) {
+    if (!this.historyEnabled) return;
+    const snapshot = this.getGraph(graphId);
+    if (!snapshot) return;
+    this.db
+      .prepare(
+        "INSERT INTO graph_revisions (id, graph_id, label, snapshot, created_at) VALUES (?, ?, ?, ?, ?)",
+      )
+      .run(nanoid(), graphId, label, JSON.stringify(snapshot), now());
+    const oldRows = this.db
+      .prepare(
+        "SELECT id FROM graph_revisions WHERE graph_id = ? ORDER BY created_at DESC, rowid DESC LIMIT -1 OFFSET 100",
+      )
+      .all(graphId) as Array<{ id: string }>;
+    const remove = this.db.prepare("DELETE FROM graph_revisions WHERE id = ?");
+    for (const row of oldRows) remove.run(row.id);
+  }
+
   private mapNode = (row: Record<string, unknown>): GraphNode => ({
     id: String(row.id),
     graphId: String(row.graph_id),
@@ -622,6 +1055,26 @@ export class GraphDatabase {
     prompt: String(row.prompt),
     content: String(row.content),
     summary: String(row.summary),
+    tags: (() => {
+      try {
+        return JSON.parse(String(row.tags || "[]")) as string[];
+      } catch {
+        return [];
+      }
+    })(),
+    knowledgeStatus: (row.knowledge_status || "exploring") as GraphNode["knowledgeStatus"],
+    mastery: (row.mastery || "new") as GraphNode["mastery"],
+    sourceUrl: String(row.source_url || ""),
+    credibility: row.credibility == null ? null : Number(row.credibility),
+    rating: Number(row.rating || 0),
+    contextSnapshot: (() => {
+      if (row.context_snapshot == null) return null;
+      try {
+        return JSON.parse(String(row.context_snapshot)) as GraphNode["contextSnapshot"];
+      } catch {
+        return null;
+      }
+    })(),
     selectedText: row.selected_text == null ? null : String(row.selected_text),
     x: Number(row.x),
     y: Number(row.y),

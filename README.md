@@ -167,6 +167,13 @@ Set `GRAPHCHAT_DATA_DIR` to change the data location. On platforms that support 
 
 ## Development and verification
 
+For end-to-end acceptance of importing, branching, synthesis, knowledge
+metadata, review, metrics, and export, see
+[`docs/CORE_TESTING.md`](./docs/CORE_TESTING.md).
+
+The versioned JSON backup and knowledge-asset fields are documented in
+[`docs/GRAPHCHAT_FORMAT.md`](./docs/GRAPHCHAT_FORMAT.md).
+
 ```bash
 bun run typecheck  # TypeScript client and server
 bun run test       # unit, database, credential, and Pi runtime tests

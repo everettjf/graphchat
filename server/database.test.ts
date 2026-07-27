@@ -63,6 +63,74 @@ describe("GraphDatabase", () => {
     database.close();
   });
 
+  it("imports structured notes and exposes study, metrics, metadata, and markdown export", () => {
+    const database = createDatabase();
+    const imported = database.importText({
+      graphId: "learning-rag",
+      title: "CAP theorem notes",
+      format: "markdown",
+      sourceUrl: "https://example.com/cap",
+      content: "# Consistency\n\nEvery read sees the latest write.\n\n# Availability\n\nEvery request receives a response.",
+    });
+    expect(imported).toHaveLength(2);
+    expect(imported[0]).toMatchObject({
+      title: "Consistency",
+      tags: ["imported"],
+      sourceUrl: "https://example.com/cap",
+      mastery: "new",
+    });
+
+    const updated = database.updateNode(imported[1]!.id, {
+      knowledgeStatus: "conclusion",
+      mastery: "mastered",
+      rating: 1,
+      tags: ["distributed-systems", "cap"],
+    });
+    expect(updated).toMatchObject({
+      knowledgeStatus: "conclusion",
+      mastery: "mastered",
+      rating: 1,
+    });
+    expect(database.searchNodes("learning-rag", "distributed-systems")).toHaveLength(1);
+    expect(database.getStudyCards("learning-rag").some((card) => card.nodeId === imported[0]!.id)).toBe(true);
+    expect(database.getMetrics("learning-rag")).toMatchObject({
+      nodes: 8,
+      conclusions: 1,
+      mastered: 1,
+      firstBranchAt: expect.any(String),
+      activityLast7Days: expect.any(Number),
+    });
+    expect(database.exportGraphMarkdown("learning-rag")).toContain(
+      "Source: https://example.com/cap",
+    );
+    database.close();
+  });
+
+  it("suggests metadata, ranks structured matches, restores backups, and undoes mutations", () => {
+    const database = createDatabase();
+    const before = database.getGraph("learning-rag")!;
+    const suggestion = database.suggestMetadata("embedding");
+    expect(suggestion?.tags.length).toBeGreaterThan(0);
+    expect(suggestion?.summary).toContain("embedding");
+
+    database.updateNode("embedding", {
+      title: "Exact retrieval target",
+      tags: ["semantic-search"],
+    });
+    expect(database.searchNodes("learning-rag", "Exact retrieval target")[0]?.id).toBe("embedding");
+    expect(database.canUndo("learning-rag")).toBe(true);
+    expect(database.undoGraph("learning-rag")?.nodes.find((node) => node.id === "embedding")?.title)
+      .toBe(before.nodes.find((node) => node.id === "embedding")?.title);
+
+    const backup = database.exportAll();
+    const restored = database.restoreBackup(backup);
+    expect(restored).toHaveLength(1);
+    expect(restored[0]?.graph.title).toContain("(restored)");
+    expect(restored[0]?.nodes).toHaveLength(before.nodes.length);
+    expect(restored[0]?.edges).toHaveLength(before.edges.length);
+    database.close();
+  });
+
   it("never persists an API-key presence flag with provider settings", () => {
     const database = createDatabase();
     database.saveSettings({

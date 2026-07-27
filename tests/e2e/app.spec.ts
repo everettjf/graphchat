@@ -189,8 +189,79 @@ test.describe("Graph Chat", () => {
     const response = await request.get("/api/export");
     expect(response.ok()).toBeTruthy();
     const body = await response.json();
-    expect(body.version).toBe(1);
+    expect(body.version).toBe(2);
     expect(body.graphs[0].nodes.length).toBeGreaterThanOrEqual(6);
+  });
+
+  test("imports source notes, compares knowledge assets, studies them, and exports markdown", async ({
+    page,
+    request,
+  }) => {
+    await page.goto("/");
+    await page.getByRole("button", { name: "Learning workspace" }).click();
+    await expect(page.getByRole("heading", { name: "Learning workspace" })).toBeVisible();
+    await expect(page.getByText("Local graph metrics")).toBeVisible();
+
+    await page.getByLabel("Choose source file").setInputFiles({
+      name: "sample.pdf",
+      mimeType: "application/pdf",
+      buffer: createTextPdf("Hello PDF import"),
+    });
+    await expect(page.getByRole("textbox", { name: "Content", exact: true }))
+      .toHaveValue(/Hello PDF import/);
+
+    await page.getByLabel("Source title").fill("CAP theorem");
+    await page.getByLabel("Source URL (optional)").fill("https://example.com/cap");
+    await page
+      .getByRole("textbox", { name: "Content", exact: true })
+      .fill("# Consistency\n\nReads see the latest write.\n\n# Availability\n\nRequests receive a response.");
+    await page.getByRole("button", { name: "Import into graph" }).click();
+    await expect(page.getByText("Explain: Consistency")).toBeVisible();
+
+    const metrics = await (await request.get("/api/graphs/learning-rag/metrics")).json();
+    expect(metrics.nodes).toBeGreaterThanOrEqual(8);
+
+    const markdown = await request.get("/api/graphs/learning-rag/export.md");
+    expect(markdown.ok()).toBeTruthy();
+    expect(await markdown.text()).toContain("Source: https://example.com/cap");
+
+    await page.getByText("Close", { exact: true }).click();
+    await page.getByRole("heading", { name: "Consistency", exact: true }).click();
+    await page.getByLabel("Knowledge status").selectOption("verified");
+    await page.getByLabel("Mastery").selectOption("learning");
+    await page.getByRole("button", { name: "Helpful", exact: true }).click();
+
+    await expect
+      .poll(async () => {
+        const exported = await (await request.get("/api/export")).json();
+        return exported.graphs[0].nodes.find(
+          (node: { title: string }) => node.title === "Consistency",
+        );
+      })
+      .toMatchObject({
+        knowledgeStatus: "verified",
+        mastery: "learning",
+        rating: 1,
+      });
+
+    await page.getByRole("button", { name: "Suggest tags and summary" }).click();
+    await expect
+      .poll(async () => {
+        const exported = await (await request.get("/api/export")).json();
+        return exported.graphs[0].nodes.find(
+          (node: { title: string }) => node.title === "Consistency",
+        )?.tags.length;
+      })
+      .toBeGreaterThan(1);
+
+    await page.getByRole("button", { name: "Undo", exact: true }).click();
+    await expect(page.getByText("Last graph change undone")).toBeVisible();
+
+    const backup = await (await request.get("/api/export")).json();
+    const restoredResponse = await request.post("/api/restore", { data: backup });
+    expect(restoredResponse.status()).toBe(201);
+    const restored = await restoredResponse.json();
+    expect(restored.graphs[0].graph.title).toContain("(restored)");
   });
 
   test("creates, switches, renames, archives, and restores knowledge graphs", async ({
@@ -252,3 +323,28 @@ test.describe("Graph Chat", () => {
     ).toBeVisible();
   });
 });
+
+function createTextPdf(text: string): Buffer {
+  const stream = `BT\n/F1 18 Tf\n72 720 Td\n(${text.replace(/[()\\]/g, "\\$&")}) Tj\nET`;
+  const objects = [
+    "<< /Type /Catalog /Pages 2 0 R >>",
+    "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+    "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>",
+    `<< /Length ${Buffer.byteLength(stream)} >>\nstream\n${stream}\nendstream`,
+    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+  ];
+  let pdf = "%PDF-1.4\n";
+  const offsets = [0];
+  objects.forEach((body, index) => {
+    offsets.push(Buffer.byteLength(pdf));
+    pdf += `${index + 1} 0 obj\n${body}\nendobj\n`;
+  });
+  const xrefOffset = Buffer.byteLength(pdf);
+  pdf += `xref\n0 ${objects.length + 1}\n`;
+  pdf += "0000000000 65535 f \n";
+  for (const offset of offsets.slice(1)) {
+    pdf += `${String(offset).padStart(10, "0")} 00000 n \n`;
+  }
+  pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
+  return Buffer.from(pdf);
+}

@@ -4,6 +4,8 @@ import {
   PanelRightClose,
   PanelRightOpen,
   Sparkles,
+  Undo2,
+  Wrench,
 } from "lucide-react";
 import type { GraphDocument, ProviderSettings } from "@shared/types";
 import { Button } from "./ui/button";
@@ -16,10 +18,14 @@ export function Topbar({
   document,
   settings,
   onFitView,
+  onOpenTools,
+  onUndo,
 }: {
   document: GraphDocument;
   settings: ProviderSettings;
   onFitView: () => void;
+  onOpenTools: () => void;
+  onUndo: () => void;
 }) {
   const { setSidebarOpen, inspectorOpen, setInspectorOpen } = useWorkspace();
   const { locale, setLocale, t } = useI18n();
@@ -88,6 +94,28 @@ export function Topbar({
         <Tooltip content={t("topbar.fit")}>
           <Button variant="ghost" size="icon" className="size-8" onClick={onFitView}>
             <Maximize2 className="size-3.5" />
+          </Button>
+        </Tooltip>
+        <Tooltip content={locale === "zh" ? "撤销上一步图谱修改" : "Undo last graph change"}>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-8"
+            onClick={onUndo}
+            aria-label={locale === "zh" ? "撤销" : "Undo"}
+          >
+            <Undo2 className="size-3.5" />
+          </Button>
+        </Tooltip>
+        <Tooltip content={locale === "zh" ? "学习工作台" : "Learning workspace"}>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-8"
+            onClick={onOpenTools}
+            aria-label={locale === "zh" ? "学习工作台" : "Learning workspace"}
+          >
+            <Wrench className="size-3.5" />
           </Button>
         </Tooltip>
         <Tooltip

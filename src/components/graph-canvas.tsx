@@ -12,6 +12,7 @@ import {
   applyNodeChanges,
   type ReactFlowInstance,
 } from "@xyflow/react";
+import { Focus, LayoutGrid, Network } from "lucide-react";
 import "@xyflow/react/dist/style.css";
 import type { GraphDocument, GraphNode } from "@shared/types";
 import { GraphNodeCard, type GraphNodeData } from "./graph-node-card";
@@ -36,10 +37,30 @@ export function GraphCanvas({ document, setDocument, onFlowReady }: GraphCanvasP
   const search = useWorkspace((state) => state.search.trim().toLocaleLowerCase());
   const selectNode = useWorkspace((state) => state.selectNode);
   const flowRef = useRef<GraphFlowInstance | null>(null);
+  const [collapsedRoots, setCollapsedRoots] = useState<Set<string>>(new Set());
+
+  const hiddenNodeIds = useMemo(() => {
+    const hidden = new Set<string>();
+    const outgoing = new Map<string, string[]>();
+    for (const edge of document.edges) {
+      if (edge.kind !== "branch") continue;
+      outgoing.set(edge.source, [...(outgoing.get(edge.source) || []), edge.target]);
+    }
+    for (const root of collapsedRoots) {
+      const queue = [...(outgoing.get(root) || [])];
+      while (queue.length) {
+        const id = queue.shift()!;
+        if (hidden.has(id)) continue;
+        hidden.add(id);
+        queue.push(...(outgoing.get(id) || []));
+      }
+    }
+    return hidden;
+  }, [collapsedRoots, document.edges]);
 
   const projectedNodes = useMemo<Node<GraphNodeData>[]>(
     () =>
-      document.nodes.map((node) => {
+      document.nodes.filter((node) => !hiddenNodeIds.has(node.id)).map((node) => {
         const kindLabel =
           node.kind === "concept"
             ? `${t("node.concept")} ${t("sidebar.insightCards")}`
@@ -60,7 +81,7 @@ export function GraphCanvas({ document, setDocument, onFlowReady }: GraphCanvasP
           },
         };
       }),
-    [document.nodes, referenceNodeIds, search, selectedNodeId, t],
+    [document.nodes, hiddenNodeIds, referenceNodeIds, search, selectedNodeId, t],
   );
   const [nodes, setNodes] = useState(projectedNodes);
 
@@ -76,7 +97,9 @@ export function GraphCanvas({ document, setDocument, onFlowReady }: GraphCanvasP
 
   const edges = useMemo<Edge[]>(
     () =>
-      document.edges.map((edge) => ({
+      document.edges
+        .filter((edge) => !hiddenNodeIds.has(edge.source) && !hiddenNodeIds.has(edge.target))
+        .map((edge) => ({
         id: edge.id,
         source: edge.source,
         target: edge.target,
@@ -104,7 +127,7 @@ export function GraphCanvas({ document, setDocument, onFlowReady }: GraphCanvasP
         labelBgPadding: [5, 3],
         labelBgBorderRadius: 6,
       })),
-    [document.edges, document.nodes],
+    [document.edges, document.nodes, hiddenNodeIds],
   );
 
   const onNodesChange = useCallback(
@@ -139,13 +162,96 @@ export function GraphCanvas({ document, setDocument, onFlowReady }: GraphCanvasP
   }, []);
 
   return (
-    <div className="h-full w-full" data-testid="graph-canvas">
+    <div className="relative h-full w-full" data-testid="graph-canvas">
+      <div className="absolute left-4 top-4 z-10 flex gap-2">
+        <button
+          type="button"
+          className="flex h-8 items-center gap-1.5 rounded-lg border border-[var(--border)] bg-white/85 px-2.5 text-[10px] font-medium text-[var(--muted)] shadow-sm"
+          onClick={() => {
+            if (!selectedNodeId) return;
+            setCollapsedRoots((current) => {
+              const next = new Set(current);
+              if (next.has(selectedNodeId)) next.delete(selectedNodeId);
+              else next.add(selectedNodeId);
+              return next;
+            });
+          }}
+          disabled={!selectedNodeId}
+          title={t("topbar.fit")}
+        >
+          <Network className="size-3" />
+          {collapsedRoots.has(selectedNodeId || "") ? "Expand" : "Collapse"}
+        </button>
+        <button
+          type="button"
+          className="flex h-8 items-center gap-1.5 rounded-lg border border-[var(--border)] bg-white/85 px-2.5 text-[10px] font-medium text-[var(--muted)] shadow-sm"
+          onClick={() => {
+            if (!selectedNodeId) return;
+            void flowRef.current?.fitView({
+              nodes: [{ id: selectedNodeId }],
+              padding: 1.2,
+              duration: 350,
+              maxZoom: 1.15,
+            });
+          }}
+          disabled={!selectedNodeId}
+        >
+          <Focus className="size-3" /> Focus
+        </button>
+        <button
+          type="button"
+          className="flex h-8 items-center gap-1.5 rounded-lg border border-[var(--border)] bg-white/85 px-2.5 text-[10px] font-medium text-[var(--muted)] shadow-sm"
+          onClick={() => {
+            const incoming = new Set(
+              document.edges
+                .filter((edge) => edge.kind === "branch")
+                .map((edge) => edge.target),
+            );
+            const roots = document.nodes.filter((node) => !incoming.has(node.id));
+            const children = new Map<string, string[]>();
+            for (const edge of document.edges) {
+              if (edge.kind !== "branch") continue;
+              children.set(edge.source, [...(children.get(edge.source) || []), edge.target]);
+            }
+            const positions = new Map<string, { x: number; y: number }>();
+            const queue = roots.map((node, index) => ({ id: node.id, depth: 0, lane: index }));
+            const depthCounts = new Map<number, number>();
+            while (queue.length) {
+              const current = queue.shift()!;
+              const order = depthCounts.get(current.depth) || 0;
+              depthCounts.set(current.depth, order + 1);
+              positions.set(current.id, { x: 60 + current.depth * 360, y: 40 + order * 220 });
+              for (const child of children.get(current.id) || []) {
+                queue.push({ id: child, depth: current.depth + 1, lane: order });
+              }
+            }
+            const nextNodes = document.nodes.map((node) => ({
+              ...node,
+              ...(positions.get(node.id) || {}),
+            }));
+            setDocument((current) => ({ ...current, nodes: nextNodes }));
+            void Promise.all(
+              nextNodes.map((node) => api.updateNode(node.id, { x: node.x, y: node.y })),
+            ).then(() => flowRef.current?.fitView({ padding: 0.18, duration: 450 }));
+          }}
+        >
+          <LayoutGrid className="size-3" /> Layout
+        </button>
+      </div>
       <ReactFlow
         nodes={nodes}
         edges={edges}
         nodeTypes={nodeTypes}
         onNodesChange={onNodesChange}
         onNodeClick={(_, node) => selectNode(node.id)}
+        onNodeDoubleClick={(_, node) => {
+          setCollapsedRoots((current) => {
+            const next = new Set(current);
+            if (next.has(node.id)) next.delete(node.id);
+            else next.add(node.id);
+            return next;
+          });
+        }}
         onPaneClick={() => selectNode(null)}
         onNodeDragStop={savePosition}
         onInit={(instance) => {

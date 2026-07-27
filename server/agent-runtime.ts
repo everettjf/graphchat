@@ -75,7 +75,8 @@ Rules:
 3. Use clear headings, analogies, and concrete examples. Keep analogies distinct from strict definitions.
 4. Cite graph information as [Node: ID] so the user can trace it.
 5. End with a short "Back to the main thread" summary explaining how this helps the original question.
-6. Never modify the graph yourself. Graph tools are read-only; suggest useful new cards in prose.`,
+6. Never modify the graph yourself. Graph tools are read-only; suggest useful new cards in prose.
+7. For synthesis requests, use four explicit sections: Consensus, Conflicts, Evidence by source node, and Open questions. Do not hide uncertainty or merge incompatible claims.`,
 } as const;
 
 function summarize(content: string): string {
@@ -108,9 +109,22 @@ The selected context gives us these clues:
 
 ${sourceLines}
 
-### How they converge
+### Consensus
 
 These branches are not isolated answers. One often describes how something is represented, while another explains the role it plays in a system. To combine them, identify the shared object, separate each step's responsibility, and then restate the result as one causal chain.
+
+### Conflicts
+
+Treat differences in definitions, scope, or assumptions as unresolved until the cited nodes support a reconciliation. Absence of a conflict in the selected context is not proof that none exists.
+
+### Evidence by source node
+
+${sourceLines}
+
+### Open questions
+
+- Which claim still depends on an unstated assumption?
+- What observation or counterexample would distinguish the branches?
 
 A useful check is: **What is the input, what transformation happens, and who uses the output?** If you can explain all three, the branches have genuinely converged instead of merely sitting next to each other.
 
@@ -237,6 +251,7 @@ export class GraphAgentRuntime {
         prompt: request.prompt,
         content: "",
         summary: "",
+        contextSnapshot: context,
         selectedText: request.selectedText,
         x: request.position.x,
         y: request.position.y,
@@ -384,7 +399,7 @@ export class GraphAgentRuntime {
       const faux = fauxProvider({
         provider: "graphchat-demo",
         models: [{ id: "graphchat-guide", name: "Graph Chat Guide", contextWindow: 128_000, maxTokens: 8_000 }],
-        tokensPerSecond: 90,
+        tokensPerSecond: 180,
         tokenSize: { min: 2, max: 8 },
       });
       const finalAnswer = buildDemoAnswer(request, context);

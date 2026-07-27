@@ -3,6 +3,23 @@ import { z } from "zod";
 export const nodeKinds = ["question", "answer", "concept", "summary", "note"] as const;
 export const edgeKinds = ["branch", "reference", "supports", "contradicts"] as const;
 export const nodeStatuses = ["idle", "streaming", "complete", "cancelled", "error"] as const;
+export const knowledgeStatuses = ["exploring", "verified", "conclusion", "outdated"] as const;
+export const masteryLevels = ["new", "learning", "mastered"] as const;
+
+export const contextItemSchema = z.object({
+  nodeId: z.string(),
+  title: z.string(),
+  reason: z.enum(["main-path", "reference", "selection"]),
+  detail: z.enum(["full", "summary", "selection"]),
+  content: z.string(),
+  estimatedTokens: z.number(),
+});
+
+export const contextSnapshotSchema = z.object({
+  items: z.array(contextItemSchema),
+  estimatedTokens: z.number(),
+  omittedNodeIds: z.array(z.string()),
+});
 
 export const graphNodeSchema = z.object({
   id: z.string(),
@@ -12,6 +29,13 @@ export const graphNodeSchema = z.object({
   prompt: z.string().default(""),
   content: z.string().default(""),
   summary: z.string().default(""),
+  tags: z.array(z.string()).default([]),
+  knowledgeStatus: z.enum(knowledgeStatuses).default("exploring"),
+  mastery: z.enum(masteryLevels).default("new"),
+  sourceUrl: z.string().default(""),
+  credibility: z.number().int().min(1).max(5).nullable().default(null),
+  rating: z.number().int().min(-1).max(1).default(0),
+  contextSnapshot: contextSnapshotSchema.nullable().default(null),
   selectedText: z.string().nullable().default(null),
   x: z.number(),
   y: z.number(),
@@ -64,22 +88,33 @@ export const createNodeSchema = z.object({
   prompt: z.string().default(""),
   content: z.string().default(""),
   summary: z.string().default(""),
+  tags: z.array(z.string()).default([]),
+  knowledgeStatus: z.enum(knowledgeStatuses).default("exploring"),
+  mastery: z.enum(masteryLevels).default("new"),
+  sourceUrl: z.string().default(""),
+  credibility: z.number().int().min(1).max(5).nullable().default(null),
+  rating: z.number().int().min(-1).max(1).default(0),
+  contextSnapshot: contextSnapshotSchema.nullable().default(null),
   selectedText: z.string().nullable().default(null),
   x: z.number(),
   y: z.number(),
 });
 
-export const updateNodeSchema = graphNodeSchema
-  .pick({
-    title: true,
-    prompt: true,
-    content: true,
-    summary: true,
-    x: true,
-    y: true,
-    status: true,
-  })
-  .partial();
+export const updateNodeSchema = z.object({
+  title: z.string(),
+  prompt: z.string(),
+  content: z.string(),
+  summary: z.string(),
+  tags: z.array(z.string()),
+  knowledgeStatus: z.enum(knowledgeStatuses),
+  mastery: z.enum(masteryLevels),
+  sourceUrl: z.string(),
+  credibility: z.number().int().min(1).max(5).nullable(),
+  rating: z.number().int().min(-1).max(1),
+  x: z.number(),
+  y: z.number(),
+  status: z.enum(nodeStatuses),
+}).partial();
 
 export const createGraphSchema = z.object({
   title: z.string().trim().min(1).max(120),
@@ -102,31 +137,64 @@ export const runRequestSchema = z.object({
   locale: z.enum(["en", "zh"]).default("en"),
 });
 
+export const importTextSchema = z.object({
+  graphId: z.string(),
+  title: z.string().trim().min(1).max(120),
+  content: z.string().min(1).max(1_000_000),
+  sourceUrl: z.string().trim().max(2_000).default(""),
+  format: z.enum(["markdown", "text"]).default("markdown"),
+});
+
+export const graphBackupSchema = z.object({
+  version: z.number().int().min(1),
+  graphs: z.array(graphDocumentSchema),
+});
+
 export type GraphNode = z.infer<typeof graphNodeSchema>;
 export type GraphEdge = z.infer<typeof graphEdgeSchema>;
 export type GraphMeta = z.infer<typeof graphMetaSchema>;
 export type GraphDocument = z.infer<typeof graphDocumentSchema>;
 export type ProviderSettings = z.infer<typeof providerSettingsSchema>;
-export type CreateNodeInput = z.infer<typeof createNodeSchema>;
+export type CreateNodeInput = z.input<typeof createNodeSchema>;
 export type UpdateNodeInput = z.infer<typeof updateNodeSchema>;
 export type CreateGraphInput = z.infer<typeof createGraphSchema>;
 export type UpdateGraphInput = z.infer<typeof updateGraphSchema>;
 export type RunRequest = z.infer<typeof runRequestSchema>;
+export type ImportTextInput = z.infer<typeof importTextSchema>;
+export type GraphBackup = z.infer<typeof graphBackupSchema>;
 
-export type ContextItem = {
+export type MetadataSuggestion = {
+  tags: string[];
+  summary: string;
+  knowledgeStatus: GraphNode["knowledgeStatus"];
+};
+
+export type StudyCard = {
   nodeId: string;
-  title: string;
-  reason: "main-path" | "reference" | "selection";
-  detail: "full" | "summary" | "selection";
-  content: string;
-  estimatedTokens: number;
+  kind: "recall" | "concept" | "counterexample";
+  question: string;
+  answer: string;
+  mastery: GraphNode["mastery"];
+  sourceUrl: string;
 };
 
-export type ContextSnapshot = {
-  items: ContextItem[];
-  estimatedTokens: number;
-  omittedNodeIds: string[];
+export type GraphMetrics = {
+  nodes: number;
+  edges: number;
+  branches: number;
+  references: number;
+  conclusions: number;
+  verified: number;
+  mastered: number;
+  reusableConclusions: number;
+  firstBranchAt: string | null;
+  firstSynthesisAt: string | null;
+  lastOpenedAt: string | null;
+  activityLast7Days: number;
 };
+
+export type ContextItem = z.infer<typeof contextItemSchema>;
+export type ContextSnapshot = z.infer<typeof contextSnapshotSchema>;
 
 export type RunStreamEvent =
   | {
