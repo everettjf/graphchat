@@ -27,19 +27,45 @@ import { Input, Label } from "./ui/field";
 import { useWorkspace } from "@/store/workspace";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { useI18n, type TranslationKey } from "@/i18n";
 
 const providers = [
-  { id: "demo", label: "本地演示", description: "无需密钥，立即体验完整交互", icon: Sparkles },
+  {
+    id: "demo",
+    label: "settings.demo",
+    description: "settings.demoDescription",
+    icon: Sparkles,
+  },
   {
     id: "openai-codex",
-    label: "ChatGPT",
-    description: "使用 ChatGPT 订阅登录 Codex",
+    label: null,
+    description: "settings.chatgptDescription",
     icon: BadgeCheck,
   },
-  { id: "openai", label: "OpenAI", description: "通过 Pi 使用 OpenAI API", icon: Cpu },
-  { id: "openrouter", label: "OpenRouter", description: "一个密钥连接多种模型", icon: Server },
-  { id: "ollama", label: "Ollama", description: "模型和数据完全留在本机", icon: Laptop },
-  { id: "custom", label: "自定义", description: "任何 OpenAI-compatible 服务", icon: ExternalLink },
+  {
+    id: "openai",
+    label: null,
+    description: "settings.openaiDescription",
+    icon: Cpu,
+  },
+  {
+    id: "openrouter",
+    label: null,
+    description: "settings.openrouterDescription",
+    icon: Server,
+  },
+  {
+    id: "ollama",
+    label: null,
+    description: "settings.ollamaDescription",
+    icon: Laptop,
+  },
+  {
+    id: "custom",
+    label: "settings.custom",
+    description: "settings.customDescription",
+    icon: ExternalLink,
+  },
 ] as const;
 
 const defaultModels: Record<ProviderSettings["provider"], string> = {
@@ -58,6 +84,7 @@ export function SettingsDialog({
   settings: ProviderSettings;
   onSaved: (settings: ProviderSettings) => void;
 }) {
+  const { t } = useI18n();
   const { settingsOpen, setSettingsOpen } = useWorkspace();
   const [draft, setDraft] = useState(settings);
   const [apiKey, setApiKey] = useState("");
@@ -79,7 +106,10 @@ export function SettingsDialog({
         if (active) setCodexAuth(status);
       } catch {
         if (active) {
-          setCodexAuth({ state: "error", message: "无法读取 ChatGPT 登录状态。" });
+          setCodexAuth({
+            state: "error",
+            message: t("settings.authReadFailed"),
+          });
         }
       }
     };
@@ -89,7 +119,7 @@ export function SettingsDialog({
       active = false;
       window.clearInterval(interval);
     };
-  }, [settingsOpen]);
+  }, [settingsOpen, t]);
 
   const startCodexLogin = async () => {
     setAuthBusy(true);
@@ -99,7 +129,10 @@ export function SettingsDialog({
     } catch (loginError) {
       setCodexAuth({
         state: "error",
-        message: loginError instanceof Error ? loginError.message : "无法启动 ChatGPT 登录。",
+        message:
+          loginError instanceof Error
+            ? loginError.message
+            : t("settings.authStartFailed"),
       });
     } finally {
       setAuthBusy(false);
@@ -124,7 +157,9 @@ export function SettingsDialog({
       setApiKey("");
       setSettingsOpen(false);
     } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : "保存失败");
+      setError(
+        saveError instanceof Error ? saveError.message : t("settings.saveFailed"),
+      );
     } finally {
       setSaving(false);
     }
@@ -134,11 +169,8 @@ export function SettingsDialog({
     <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
       <DialogContent className="w-[min(94vw,680px)]">
         <DialogHeader>
-          <DialogTitle>模型与运行方式</DialogTitle>
-          <DialogDescription>
-            Pi agent harness 统一模型、工具循环与流式事件。API Key 只留在当前进程；ChatGPT OAuth
-            凭据只保存在本机。
-          </DialogDescription>
+          <DialogTitle>{t("settings.title")}</DialogTitle>
+          <DialogDescription>{t("settings.description")}</DialogDescription>
         </DialogHeader>
 
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
@@ -170,9 +202,19 @@ export function SettingsDialog({
                 }
               >
                 <Icon className={cn("mb-2 size-4", active ? "text-[#4b7c59]" : "text-[var(--muted-light)]")} />
-                <span className="block text-[11px] font-semibold text-[var(--ink)]">{provider.label}</span>
+                <span className="block text-[11px] font-semibold text-[var(--ink)]">
+                  {provider.label
+                    ? t(provider.label as TranslationKey)
+                    : provider.id === "openai-codex"
+                      ? "ChatGPT"
+                      : provider.id === "openrouter"
+                        ? "OpenRouter"
+                        : provider.id === "ollama"
+                          ? "Ollama"
+                          : "OpenAI"}
+                </span>
                 <span className="mt-1 hidden text-[9px] leading-4 text-[var(--muted-light)] sm:block">
-                  {provider.description}
+                  {t(provider.description as TranslationKey)}
                 </span>
                 {active && <Check className="absolute right-2.5 top-2.5 size-3.5 text-[#4b7c59]" />}
               </button>
@@ -191,7 +233,7 @@ export function SettingsDialog({
 
         <div className="mt-5 grid gap-4 sm:grid-cols-2">
           <div>
-            <Label htmlFor="model">模型 ID</Label>
+            <Label htmlFor="model">{t("settings.modelId")}</Label>
             <Input
               id="model"
               value={draft.model}
@@ -224,7 +266,11 @@ export function SettingsDialog({
                 type="password"
                 value={apiKey}
                 onChange={(event) => setApiKey(event.target.value)}
-                placeholder={settings.hasApiKey ? "已在当前进程中设置" : "仅保留到服务关闭"}
+                placeholder={
+                  settings.hasApiKey
+                    ? t("settings.keySaved")
+                    : t("settings.keySession")
+                }
                 autoComplete="off"
               />
             </div>
@@ -233,16 +279,15 @@ export function SettingsDialog({
 
         <div className="mt-5 rounded-2xl border border-[#d8e6db] bg-[#eff5f0] p-4 text-xs leading-5 text-[#496652]">
           <strong className="mb-1 flex items-center gap-1.5 text-[11px] text-[#36513e]">
-            <ShieldCheck className="size-3.5" /> 本地优先说明
+            <ShieldCheck className="size-3.5" /> {t("settings.localFirst")}
           </strong>
-          对话和图谱保存在本地 SQLite。使用云模型或 ChatGPT
-          订阅时，只有本次运行明确选中的上下文会发送给模型；使用 Ollama 时数据不会离开本机。
+          {t("settings.localFirstBody")}
         </div>
 
         {error && <p className="mt-3 text-xs text-red-600">{error}</p>}
         <div className="mt-5 flex justify-end gap-2">
           <Button variant="ghost" onClick={() => setSettingsOpen(false)}>
-            取消
+            {t("settings.cancel")}
           </Button>
           <Button
             onClick={() => void save()}
@@ -252,7 +297,7 @@ export function SettingsDialog({
               (draft.provider === "openai-codex" && codexAuth.state !== "authenticated")
             }
           >
-            {saving ? "正在保存…" : "保存设置"}
+            {saving ? t("settings.saving") : t("settings.save")}
           </Button>
         </div>
       </DialogContent>
@@ -271,21 +316,22 @@ function CodexLoginPanel({
   onLogin: () => void;
   onLogout: () => void;
 }) {
+  const { t } = useI18n();
   return (
     <div className="mt-5 rounded-2xl border border-[#d9d7e7] bg-[#f4f2fa] p-4">
       <div className="flex items-start justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 text-xs font-semibold text-[#39344f]">
             <BadgeCheck className="size-4 text-[#6f63a6]" />
-            使用 ChatGPT 订阅
+            {t("settings.subscription")}
           </div>
           <p className="mt-1 text-[10px] leading-4 text-[#716b85]">
-            由 Pi 发起 OpenAI 设备码登录。Graph Chat 不会看到你的密码。
+            {t("settings.subscriptionBody")}
           </p>
         </div>
         {status.state === "authenticated" ? (
           <Button variant="ghost" size="sm" onClick={onLogout} disabled={busy}>
-            <LogOut className="size-3.5" /> 退出登录
+            <LogOut className="size-3.5" /> {t("settings.signOut")}
           </Button>
         ) : (
           <Button size="sm" onClick={onLogin} disabled={busy || status.state === "pending"}>
@@ -294,14 +340,17 @@ function CodexLoginPanel({
             ) : (
               <LogIn className="size-3.5" />
             )}
-            {status.state === "pending" ? "等待确认" : "使用 ChatGPT 登录"}
+            {status.state === "pending"
+              ? t("settings.waiting")
+              : t("settings.signIn")}
           </Button>
         )}
       </div>
 
       {status.state === "authenticated" && (
         <div className="mt-3 flex items-center gap-2 rounded-xl border border-[#cde2d3] bg-[#edf7ef] px-3 py-2.5 text-[11px] font-medium text-[#3f6c4c]">
-          <Check className="size-3.5" /> 已连接 · {status.source}
+          <Check className="size-3.5" />{" "}
+          {t("settings.connected", { source: status.source })}
         </div>
       )}
 
@@ -317,7 +366,7 @@ function CodexLoginPanel({
               size="sm"
               onClick={() => void navigator.clipboard.writeText(status.userCode)}
             >
-              <Copy className="size-3.5" /> 复制
+              <Copy className="size-3.5" /> {t("settings.copy")}
             </Button>
             <a
               href={status.verificationUri}
@@ -325,7 +374,7 @@ function CodexLoginPanel({
               rel="noreferrer"
               className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-[#6c60a0] px-3 text-[11px] font-semibold text-white hover:bg-[#5d528f]"
             >
-              打开 OpenAI 登录页 <ExternalLink className="size-3" />
+              {t("settings.openLogin")} <ExternalLink className="size-3" />
             </a>
           </div>
         </div>

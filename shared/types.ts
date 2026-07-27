@@ -2,7 +2,7 @@ import { z } from "zod";
 
 export const nodeKinds = ["question", "answer", "concept", "summary", "note"] as const;
 export const edgeKinds = ["branch", "reference", "supports", "contradicts"] as const;
-export const nodeStatuses = ["idle", "streaming", "complete", "error"] as const;
+export const nodeStatuses = ["idle", "streaming", "complete", "cancelled", "error"] as const;
 
 export const graphNodeSchema = z.object({
   id: z.string(),
@@ -39,6 +39,7 @@ export const graphMetaSchema = z.object({
   description: z.string(),
   createdAt: z.string(),
   updatedAt: z.string(),
+  archivedAt: z.string().nullable().default(null),
 });
 
 export const graphDocumentSchema = z.object({
@@ -80,6 +81,16 @@ export const updateNodeSchema = graphNodeSchema
   })
   .partial();
 
+export const createGraphSchema = z.object({
+  title: z.string().trim().min(1).max(120),
+  description: z.string().trim().max(300).default(""),
+});
+
+export const updateGraphSchema = createGraphSchema.partial().refine(
+  (value) => value.title !== undefined || value.description !== undefined,
+  "At least one graph field is required",
+);
+
 export const runRequestSchema = z.object({
   graphId: z.string(),
   parentNodeId: z.string().nullable(),
@@ -88,6 +99,7 @@ export const runRequestSchema = z.object({
   selectedText: z.string().nullable().default(null),
   position: z.object({ x: z.number(), y: z.number() }),
   mode: z.enum(["answer", "explore", "synthesize"]).default("answer"),
+  locale: z.enum(["en", "zh"]).default("en"),
 });
 
 export type GraphNode = z.infer<typeof graphNodeSchema>;
@@ -97,6 +109,8 @@ export type GraphDocument = z.infer<typeof graphDocumentSchema>;
 export type ProviderSettings = z.infer<typeof providerSettingsSchema>;
 export type CreateNodeInput = z.infer<typeof createNodeSchema>;
 export type UpdateNodeInput = z.infer<typeof updateNodeSchema>;
+export type CreateGraphInput = z.infer<typeof createGraphSchema>;
+export type UpdateGraphInput = z.infer<typeof updateGraphSchema>;
 export type RunRequest = z.infer<typeof runRequestSchema>;
 
 export type ContextItem = {
@@ -115,12 +129,43 @@ export type ContextSnapshot = {
 };
 
 export type RunStreamEvent =
-  | { type: "run_started"; node: GraphNode; context: ContextSnapshot }
-  | { type: "text_delta"; delta: string }
-  | { type: "tool_started"; tool: string; label: string }
-  | { type: "tool_finished"; tool: string; summary: string }
-  | { type: "run_finished"; node: GraphNode }
-  | { type: "run_failed"; message: string };
+  | {
+      type: "run_started";
+      runId: string;
+      nodeId: string;
+      node: GraphNode;
+      context: ContextSnapshot;
+    }
+  | { type: "text_delta"; runId: string; nodeId: string; delta: string }
+  | {
+      type: "tool_started";
+      runId: string;
+      nodeId: string;
+      tool: string;
+      label: string;
+    }
+  | {
+      type: "tool_finished";
+      runId: string;
+      nodeId: string;
+      tool: string;
+      summary: string;
+    }
+  | { type: "run_finished"; runId: string; nodeId: string; node: GraphNode }
+  | {
+      type: "run_cancelled";
+      runId: string;
+      nodeId: string;
+      message: string;
+      node?: GraphNode;
+    }
+  | {
+      type: "run_failed";
+      runId: string | null;
+      nodeId: string | null;
+      message: string;
+      node?: GraphNode;
+    };
 
 export type CodexAuthStatus =
   | { state: "signed_out" }

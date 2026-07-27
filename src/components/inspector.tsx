@@ -17,6 +17,7 @@ import { Badge } from "./ui/badge";
 import { Markdown } from "./markdown";
 import { useWorkspace } from "@/store/workspace";
 import { cn, formatRelativeTime } from "@/lib/utils";
+import { useI18n } from "@/i18n";
 
 export function Inspector({
   node,
@@ -27,6 +28,7 @@ export function Inspector({
   document: GraphDocument;
   onDelete: (id: string) => void;
 }) {
+  const { locale, t } = useI18n();
   const {
     referenceNodeIds,
     toggleReference,
@@ -47,7 +49,7 @@ export function Inspector({
 
   return (
     <aside
-      className="inspector-shell z-20 flex h-full w-[382px] shrink-0 flex-col border-l border-[var(--border)] bg-[#fbfaf6]/94 backdrop-blur-xl max-xl:absolute max-xl:inset-y-0 max-xl:right-0 max-xl:shadow-2xl"
+      className="inspector-shell z-20 flex h-full w-[382px] shrink-0 flex-col border-l border-[var(--border)] bg-[#fbfaf6]/94 backdrop-blur-xl max-xl:absolute max-xl:inset-y-0 max-xl:right-0 max-xl:shadow-2xl max-sm:w-full"
       data-testid="node-inspector"
     >
       <header className="flex h-16 shrink-0 items-center justify-between border-b border-[var(--border)] px-5">
@@ -56,12 +58,14 @@ export function Inspector({
             variant="ghost"
             size="icon"
             className="size-8"
-            aria-label="关闭详情"
+            aria-label={t("inspector.close")}
             onClick={() => setInspectorOpen(false)}
           >
             <ArrowLeft className="size-4" />
           </Button>
-          <span className="text-xs font-semibold text-[var(--muted)]">节点详情</span>
+          <span className="text-xs font-semibold text-[var(--muted)]">
+            {t("inspector.title")}
+          </span>
         </div>
         <div className="flex items-center gap-1">
           <Button
@@ -69,7 +73,7 @@ export function Inspector({
             size="icon"
             className="size-8"
             onClick={() => void navigator.clipboard.writeText(node.content)}
-            aria-label="复制内容"
+            aria-label={t("inspector.copy")}
           >
             <Copy className="size-3.5" />
           </Button>
@@ -78,7 +82,7 @@ export function Inspector({
             size="icon"
             className="size-8 xl:hidden"
             onClick={() => setInspectorOpen(false)}
-            aria-label="关闭详情"
+            aria-label={t("inspector.close")}
           >
             <X className="size-4" />
           </Button>
@@ -88,10 +92,14 @@ export function Inspector({
       <div className="min-h-0 flex-1 overflow-y-auto px-6 py-6">
         <div className="mb-4 flex flex-wrap items-center gap-2">
           <Badge className="border-[#cfe1d4] bg-[#edf6ef] text-[#417255]">
-            {node.kind === "summary" ? "汇聚节点" : node.kind === "concept" ? "概念解释" : "AI 回答"}
+            {node.kind === "summary"
+              ? t("inspector.summaryKind")
+              : node.kind === "concept"
+                ? t("inspector.conceptKind")
+                : t("inspector.answerKind")}
           </Badge>
           <span className="text-[10px] text-[var(--muted-light)]">
-            {formatRelativeTime(node.updatedAt)}
+            {formatRelativeTime(node.updatedAt, locale)}
           </span>
         </div>
         <h1 className="font-display text-[26px] font-semibold leading-8 tracking-[-0.025em] text-[var(--ink)]">
@@ -101,7 +109,7 @@ export function Inspector({
         {node.selectedText && (
           <div className="mt-5 rounded-2xl border border-[#e2ddcb] bg-[#f8f3df]/70 p-4">
             <div className="mb-2 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.13em] text-[#897e5e]">
-              <Quote className="size-3.5" /> 追问源自
+              <Quote className="size-3.5" /> {t("inspector.fromSelection")}
             </div>
             <p className="text-xs italic leading-5 text-[#665f4c]">“{node.selectedText}”</p>
           </div>
@@ -110,7 +118,7 @@ export function Inspector({
         {node.prompt && (
           <div className="mt-5">
             <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.13em] text-[var(--muted-light)]">
-              你的问题
+              {t("inspector.yourQuestion")}
             </div>
             <p className="rounded-2xl bg-black/[0.035] px-4 py-3 text-sm leading-6 text-[var(--ink)]">
               {node.prompt}
@@ -125,6 +133,10 @@ export function Inspector({
               <div className="h-3 w-full animate-pulse rounded bg-black/[0.07]" />
               <div className="h-3 w-5/6 animate-pulse rounded bg-black/[0.07]" />
             </div>
+          ) : node.status === "cancelled" && !node.content ? (
+            <p className="rounded-2xl bg-[#f6eee9] px-4 py-3 text-xs leading-5 text-[#865748]">
+              {t("inspector.cancelledBody")}
+            </p>
           ) : (
             <Markdown>{node.content}</Markdown>
           )}
@@ -133,7 +145,7 @@ export function Inspector({
         {node.summary && (
           <div className="mt-7 rounded-2xl border border-[#d7e6da] bg-[#edf5ee] p-4">
             <div className="mb-2 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.13em] text-[#4d775b]">
-              <CheckCircle2 className="size-3.5" /> 带回主线
+              <CheckCircle2 className="size-3.5" /> {t("inspector.backToMain")}
             </div>
             <p className="text-xs leading-5 text-[#42634d]">{node.summary}</p>
           </div>
@@ -142,13 +154,21 @@ export function Inspector({
         <section className="mt-7">
           <div className="mb-3 flex items-center justify-between">
             <span className="text-[10px] font-bold uppercase tracking-[0.13em] text-[var(--muted-light)]">
-              图谱关系
+              {t("inspector.relationships")}
             </span>
             <Network className="size-3.5 text-[var(--muted-light)]" />
           </div>
           <div className="grid grid-cols-2 gap-2">
-            <RelationStat icon={GitBranch} value={incoming.length} label="上游来源" />
-            <RelationStat icon={Link2} value={outgoing.length} label="下游连接" />
+            <RelationStat
+              icon={GitBranch}
+              value={incoming.length}
+              label={t("inspector.incoming")}
+            />
+            <RelationStat
+              icon={Link2}
+              value={outgoing.length}
+              label={t("inspector.outgoing")}
+            />
           </div>
         </section>
 
@@ -170,13 +190,17 @@ export function Inspector({
             onClick={() => openComposer()}
             className="justify-start"
           >
-            <MessageSquarePlus className="size-4" /> 从这里继续追问
+            <MessageSquarePlus className="size-4" /> {t("inspector.continue")}
           </Button>
           <Button
             variant={isReferenced ? "soft" : "outline"}
             size="icon"
             onClick={() => toggleReference(node.id)}
-            aria-label={isReferenced ? "取消引用" : "加入联合提问"}
+            aria-label={
+              isReferenced
+                ? t("inspector.removeReference")
+                : t("inspector.addReference")
+            }
           >
             <Link2 className="size-4" />
           </Button>
@@ -187,7 +211,7 @@ export function Inspector({
           className={cn("mt-2 w-full text-[var(--muted-light)] hover:text-red-600")}
           onClick={() => onDelete(node.id)}
         >
-          <Trash2 className="size-3.5" /> 删除这个节点
+          <Trash2 className="size-3.5" /> {t("inspector.delete")}
         </Button>
       </footer>
     </aside>

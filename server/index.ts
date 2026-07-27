@@ -3,10 +3,12 @@ import { fileURLToPath } from "node:url";
 import fastifyStatic from "@fastify/static";
 import Fastify from "fastify";
 import {
+  createGraphSchema,
   createNodeSchema,
   providerSettingsSchema,
   runRequestSchema,
   type ProviderSettings,
+  updateGraphSchema,
   updateNodeSchema,
 } from "../shared/types.js";
 import { GraphAgentRuntime } from "./agent-runtime.js";
@@ -29,7 +31,9 @@ const credentialStore = new FileCredentialStore(path.join(dataDirectory, "auth.j
 const runtime = new GraphAgentRuntime(database.getSettings(), credentialStore);
 const codexAuth = new OpenAICodexAuthManager(credentialStore);
 const rootDirectory = path.dirname(fileURLToPath(import.meta.url));
-const productionClientDirectory = path.resolve(rootDirectory, "../../dist");
+const productionClientDirectory = process.env.GRAPHCHAT_CLIENT_DIR
+  ? path.resolve(process.env.GRAPHCHAT_CLIENT_DIR)
+  : path.resolve(rootDirectory, "../../dist");
 
 app.get("/health", async () => ({ ok: true, service: "graphchat" }));
 
@@ -50,14 +54,70 @@ app.delete("/api/auth/openai-codex", async (_request, reply) => {
 
 app.get("/api/bootstrap", async () => {
   const graphs = database.listGraphs();
+  const archivedGraphs = database.listArchivedGraphs();
   const activeGraph = graphs[0] ? database.getGraph(graphs[0].id) : null;
   const settings = database.getSettings();
   return {
     graphs,
+    archivedGraphs,
     activeGraph,
     settings: { ...settings, hasApiKey: runtime.hasApiKey(settings.provider) },
   };
 });
+
+app.post("/api/graphs", async (request, reply) => {
+  const parsed = createGraphSchema.safeParse(request.body);
+  if (!parsed.success) {
+    return reply
+      .code(400)
+      .send({ message: "Invalid graph", issues: parsed.error.issues });
+  }
+  return reply.code(201).send(database.createGraph(parsed.data));
+});
+
+app.patch<{ Params: { id: string } }>(
+  "/api/graphs/:id",
+  async (request, reply) => {
+    const parsed = updateGraphSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply
+        .code(400)
+        .send({ message: "Invalid graph update", issues: parsed.error.issues });
+    }
+    const graph = database.updateGraph(request.params.id, parsed.data);
+    if (!graph) return reply.code(404).send({ message: "Graph not found" });
+    return graph;
+  },
+);
+
+app.delete<{ Params: { id: string } }>(
+  "/api/graphs/:id",
+  async (request, reply) => {
+    try {
+      const graph = database.archiveGraph(request.params.id);
+      if (!graph) return reply.code(404).send({ message: "Graph not found" });
+      return graph;
+    } catch (error) {
+      if (error instanceof Error && error.message === "LAST_ACTIVE_GRAPH") {
+        return reply
+          .code(409)
+          .send({ message: "Keep at least one active knowledge graph." });
+      }
+      throw error;
+    }
+  },
+);
+
+app.post<{ Params: { id: string } }>(
+  "/api/graphs/:id/restore",
+  async (request, reply) => {
+    const graph = database.restoreGraph(request.params.id);
+    if (!graph) {
+      return reply.code(404).send({ message: "Archived graph not found" });
+    }
+    return graph;
+  },
+);
 
 app.get<{ Params: { id: string } }>("/api/graphs/:id", async (request, reply) => {
   const graph = database.getGraph(request.params.id);
@@ -128,7 +188,11 @@ app.post("/api/runs", async (request, reply) => {
   }
 });
 
-if (process.env.NODE_ENV === "production" || process.argv[1]?.includes("dist-server")) {
+if (
+  process.env.GRAPHCHAT_CLIENT_DIR ||
+  process.env.NODE_ENV === "production" ||
+  process.argv[1]?.includes("dist-server")
+) {
   await app.register(fastifyStatic, {
     root: productionClientDirectory,
     wildcard: false,

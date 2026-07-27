@@ -1,0 +1,73 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Verify tag and package version
+        run: |
+          test "v$(node -p "require('./package.json').version")" = "$GITHUB_REF_NAME"
+
+      - name: Build application
+        run: bun run build
+
+      - name: Build release archives
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#v}"
+          mkdir -p release
+
+          build_target() {
+            target="$1"
+            platform="$2"
+            executable="$3"
+            folder="graphchat-${version}-${platform}"
+            mkdir -p "release/${folder}"
+            bun build ./scripts/graphchat.mjs --compile --target="${target}" --outfile="release/${folder}/${executable}"
+            cp -R dist "release/${folder}/dist"
+            cp README.md README.zh-CN.md LICENSE "release/${folder}/"
+            if [[ "${platform}" == windows-* ]]; then
+              (cd release && zip -qr "${folder}.zip" "${folder}")
+            else
+              tar -C release -czf "release/${folder}.tar.gz" "${folder}"
+            fi
+            rm -rf "release/${folder}"
+          }
+
+          build_target bun-windows-x64-baseline windows-x64 graphchat.exe
+          build_target bun-linux-x64-baseline linux-x64 graphchat
+          build_target bun-darwin-x64 macos-x64 graphchat
+          build_target bun-darwin-arm64 macos-arm64 graphchat
+
+          npm pack --pack-destination release
+          (cd release && sha256sum *.zip *.tar.gz *.tgz > SHA256SUMS.txt)
+
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" release/* \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "Graph Chat $GITHUB_REF_NAME" \
+            --generate-notes

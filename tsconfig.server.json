@@ -11,5 +11,6 @@
     "types": ["node"],
     "sourceMap": true
   },
-  "include": ["server", "shared"]
+  "include": ["server", "shared"],
+  "exclude": ["server/**/*.test.ts"]
 }

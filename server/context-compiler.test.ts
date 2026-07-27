@@ -4,7 +4,14 @@ import { compileContext } from "./context-compiler.js";
 
 const timestamp = "2026-01-01T00:00:00.000Z";
 const graph: GraphDocument = {
-  graph: { id: "g", title: "G", description: "", createdAt: timestamp, updatedAt: timestamp },
+  graph: {
+    id: "g",
+    title: "G",
+    description: "",
+    createdAt: timestamp,
+    updatedAt: timestamp,
+    archivedAt: null,
+  },
   nodes: ["a", "b", "c"].map((id, index) => ({
     id,
     graphId: "g",

@@ -17,6 +17,7 @@ import type { GraphDocument, GraphNode } from "@shared/types";
 import { GraphNodeCard, type GraphNodeData } from "./graph-node-card";
 import { useWorkspace } from "@/store/workspace";
 import { api } from "@/lib/api";
+import { useI18n } from "@/i18n";
 
 const nodeTypes = { graphNode: GraphNodeCard };
 
@@ -29,6 +30,7 @@ type GraphCanvasProps = {
 export type GraphFlowInstance = ReactFlowInstance<Node<GraphNodeData>, Edge>;
 
 export function GraphCanvas({ document, setDocument, onFlowReady }: GraphCanvasProps) {
+  const { t } = useI18n();
   const selectedNodeId = useWorkspace((state) => state.selectedNodeId);
   const referenceNodeIds = useWorkspace((state) => state.referenceNodeIds);
   const search = useWorkspace((state) => state.search.trim().toLocaleLowerCase());
@@ -39,7 +41,11 @@ export function GraphCanvas({ document, setDocument, onFlowReady }: GraphCanvasP
     () =>
       document.nodes.map((node) => {
         const kindLabel =
-          node.kind === "concept" ? "概念 理解卡" : node.kind === "summary" ? "汇聚 总结" : "回答";
+          node.kind === "concept"
+            ? `${t("node.concept")} ${t("sidebar.insightCards")}`
+            : node.kind === "summary"
+              ? t("node.summary")
+              : t("node.answer");
         const haystack =
           `${node.title} ${node.prompt} ${node.content} ${node.summary} ${node.kind} ${kindLabel}`.toLocaleLowerCase();
         return {
@@ -54,7 +60,7 @@ export function GraphCanvas({ document, setDocument, onFlowReady }: GraphCanvasP
           },
         };
       }),
-    [document.nodes, referenceNodeIds, search, selectedNodeId],
+    [document.nodes, referenceNodeIds, search, selectedNodeId, t],
   );
   const [nodes, setNodes] = useState(projectedNodes);
 

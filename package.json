@@ -1,19 +1,33 @@
 {
-  "name": "graphchat",
-  "version": "0.1.0",
-  "private": true,
+  "name": "@everettjf/graphchat",
+  "version": "0.1.1",
+  "private": false,
   "packageManager": "bun@1.3.14",
   "type": "module",
   "description": "A local-first, graph-native AI learning workspace.",
   "license": "MIT",
   "author": "Everett",
-  "homepage": "https://everettjf.github.io/graphchat/",
+  "homepage": "https://xnu.app/graphchat/",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/everettjf/graphchat.git"
   },
   "bugs": {
     "url": "https://github.com/everettjf/graphchat/issues"
+  },
+  "bin": {
+    "graphchat": "./scripts/graphchat.mjs"
+  },
+  "files": [
+    "dist",
+    "dist-server",
+    "scripts/graphchat.mjs",
+    "README.md",
+    "README.zh-CN.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public"
   },
   "keywords": [
     "ai",
@@ -32,9 +46,12 @@
     "dev:server": "tsx watch server/index.ts",
     "dev:client": "vite",
     "docs:preview": "node scripts/serve-docs.mjs",
-    "build": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.server.json --noEmit && vite build && tsc -p tsconfig.server.json",
+    "build": "node scripts/clean-build.mjs && tsc -p tsconfig.json --noEmit && tsc -p tsconfig.server.json --noEmit && vite build && tsc -p tsconfig.server.json",
     "start": "node dist-server/server/index.js",
     "start:bun": "bun dist-server/server/index.js",
+    "graphchat": "bun run build && bun ./scripts/graphchat.mjs",
+    "prepack": "bun run build",
+    "release:current": "bun run build && bun build ./scripts/graphchat.mjs --compile --outfile ./release/graphchat",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.server.json --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",

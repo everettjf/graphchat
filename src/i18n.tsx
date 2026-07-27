@@ -1,0 +1,330 @@
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
+
+export type Locale = "en" | "zh";
+
+const english = {
+  "language.english": "EN",
+  "language.chinese": "中文",
+  "app.loading": "Opening your knowledge graph…",
+  "app.openFailed": "Unable to open Graph Chat",
+  "app.serviceUnavailable": "The local service is temporarily unavailable.",
+  "app.retry": "Retry",
+  "app.answerSaved": "Answer saved to the knowledge graph",
+  "app.cancelled": "Generation cancelled.",
+  "app.requestFailed": "Request failed",
+  "app.deleteConfirm": "Delete this node and its relationships? This cannot be undone.",
+  "edge.continue": "Follow-up",
+  "edge.reference": "Reference",
+  "sidebar.close": "Close sidebar",
+  "sidebar.newStart": "New learning thread",
+  "sidebar.searchPlaceholder": "Search nodes…",
+  "sidebar.searchLabel": "Search graph nodes",
+  "sidebar.primaryNav": "Primary navigation",
+  "sidebar.knowledgeGraph": "Knowledge graph",
+  "sidebar.insightCards": "Insight cards",
+  "sidebar.graphs": "Knowledge graphs",
+  "sidebar.recent": "Recently viewed",
+  "sidebar.export": "Export all data",
+  "sidebar.settings": "Models & settings",
+  "sidebar.localOnly": "Data stays on this device",
+  "graph.new": "New graph",
+  "graph.edit": "Edit graph",
+  "graph.createTitle": "Create a knowledge graph",
+  "graph.editTitle": "Edit knowledge graph",
+  "graph.title": "Title",
+  "graph.description": "Description",
+  "graph.titlePlaceholder": "What do you want to learn?",
+  "graph.descriptionPlaceholder": "Optional context for this learning space",
+  "graph.create": "Create graph",
+  "graph.save": "Save changes",
+  "graph.archive": "Archive graph",
+  "graph.archiveConfirm":
+    "Archive “{title}”? Its nodes stay in the local database and can be restored later.",
+  "graph.archived": "Archived",
+  "graph.restore": "Restore {title}",
+  "graph.lastActive": "Keep at least one active knowledge graph.",
+  "graph.actionFailed": "Unable to update the knowledge graph.",
+  "topbar.openNav": "Open navigation",
+  "topbar.localDemo": "Local demo",
+  "topbar.stats": "{nodes} nodes · {edges} relationships",
+  "topbar.fit": "Fit graph",
+  "topbar.hideDetails": "Hide details",
+  "topbar.showDetails": "Show details",
+  "composer.compiling": "Compiling graph context",
+  "composer.organizing": "Organizing answer",
+  "composer.mainPath": "Main path: {title}",
+  "composer.newStart": "New learning thread",
+  "composer.collapse": "Collapse composer",
+  "composer.followPlaceholder": "Continue from this node, or select text inside an answer…",
+  "composer.startPlaceholder": "Start with something you want to truly understand…",
+  "composer.askLabel": "Ask Graph Chat",
+  "composer.quick": "Quick answer",
+  "composer.explore": "Explore graph",
+  "composer.synthesize": "Synthesize branches",
+  "composer.stop": "Stop generation",
+  "composer.send": "Send",
+  "composer.shortcut": "Enter to send · Shift + Enter for a new line",
+  "node.question": "Question",
+  "node.answer": "Answer",
+  "node.concept": "Concept",
+  "node.summary": "Synthesis",
+  "node.note": "Note",
+  "node.thinking": "Thinking",
+  "node.cancelled": "Cancelled",
+  "node.failed": "Failed",
+  "node.cancelledBody": "This generation was cancelled. You can retry from this node.",
+  "node.waiting": "Waiting for an answer…",
+  "node.localDemo": "Local demo",
+  "node.manualNote": "Manual note",
+  "node.referenced": "Referenced",
+  "inspector.close": "Close details",
+  "inspector.title": "Node details",
+  "inspector.copy": "Copy content",
+  "inspector.summaryKind": "Synthesis node",
+  "inspector.conceptKind": "Concept explanation",
+  "inspector.answerKind": "AI answer",
+  "inspector.fromSelection": "Follow-up from",
+  "inspector.yourQuestion": "Your question",
+  "inspector.cancelledBody": "This generation was cancelled. You can retry from this node.",
+  "inspector.backToMain": "Back to the main thread",
+  "inspector.relationships": "Graph relationships",
+  "inspector.incoming": "Upstream sources",
+  "inspector.outgoing": "Downstream links",
+  "inspector.continue": "Continue from here",
+  "inspector.removeReference": "Remove reference",
+  "inspector.addReference": "Add to synthesis",
+  "inspector.delete": "Delete this node",
+  "settings.title": "Models & runtime",
+  "settings.description":
+    "The Pi agent harness manages models, tool loops, and streaming events. API keys stay in this process; ChatGPT OAuth credentials stay on this device.",
+  "settings.demo": "Local demo",
+  "settings.demoDescription": "Try the complete interaction without credentials",
+  "settings.chatgptDescription": "Use a ChatGPT subscription to access Codex",
+  "settings.openaiDescription": "Use the OpenAI API through Pi",
+  "settings.openrouterDescription": "Connect to many models with one key",
+  "settings.ollamaDescription": "Keep models and data on this device",
+  "settings.custom": "Custom",
+  "settings.customDescription": "Any OpenAI-compatible service",
+  "settings.authReadFailed": "Unable to read ChatGPT sign-in status.",
+  "settings.authStartFailed": "Unable to start ChatGPT sign-in.",
+  "settings.saveFailed": "Unable to save settings",
+  "settings.modelId": "Model ID",
+  "settings.keySaved": "Already set in this process",
+  "settings.keySession": "Kept until the service stops",
+  "settings.localFirst": "Local-first boundary",
+  "settings.localFirstBody":
+    "Conversations and graphs are stored in local SQLite. Cloud models receive only the context explicitly selected for the current run. With Ollama, data stays on this device.",
+  "settings.cancel": "Cancel",
+  "settings.saving": "Saving…",
+  "settings.save": "Save settings",
+  "settings.subscription": "Use your ChatGPT subscription",
+  "settings.subscriptionBody":
+    "Pi starts OpenAI device-code sign-in. Graph Chat never sees your password.",
+  "settings.signOut": "Sign out",
+  "settings.waiting": "Waiting for confirmation",
+  "settings.signIn": "Sign in with ChatGPT",
+  "settings.connected": "Connected · {source}",
+  "settings.copy": "Copy",
+  "settings.openLogin": "Open OpenAI sign-in page",
+  "dialog.close": "Close",
+} as const;
+
+const chinese: Record<keyof typeof english, string> = {
+  "language.english": "EN",
+  "language.chinese": "中文",
+  "app.loading": "正在打开你的知识图…",
+  "app.openFailed": "无法打开 Graph Chat",
+  "app.serviceUnavailable": "本地服务暂时不可用。",
+  "app.retry": "重试",
+  "app.answerSaved": "回答已保存到知识图",
+  "app.cancelled": "生成已取消。",
+  "app.requestFailed": "请求失败",
+  "app.deleteConfirm": "删除这个节点及与它相连的关系？此操作无法撤销。",
+  "edge.continue": "继续追问",
+  "edge.reference": "引用",
+  "sidebar.close": "关闭侧边栏",
+  "sidebar.newStart": "新建学习起点",
+  "sidebar.searchPlaceholder": "搜索节点…",
+  "sidebar.searchLabel": "搜索图谱节点",
+  "sidebar.primaryNav": "主要导航",
+  "sidebar.knowledgeGraph": "知识图",
+  "sidebar.insightCards": "理解卡",
+  "sidebar.graphs": "知识图",
+  "sidebar.recent": "最近浏览",
+  "sidebar.export": "导出全部数据",
+  "sidebar.settings": "模型与设置",
+  "sidebar.localOnly": "数据仅保存在本机",
+  "graph.new": "新建知识图",
+  "graph.edit": "编辑知识图",
+  "graph.createTitle": "新建知识图",
+  "graph.editTitle": "编辑知识图",
+  "graph.title": "标题",
+  "graph.description": "描述",
+  "graph.titlePlaceholder": "你想学习什么？",
+  "graph.descriptionPlaceholder": "可选：描述这个学习空间",
+  "graph.create": "创建知识图",
+  "graph.save": "保存修改",
+  "graph.archive": "归档知识图",
+  "graph.archiveConfirm":
+    "归档“{title}”？其中的节点仍会保留在本地数据库中，之后可以恢复。",
+  "graph.archived": "已归档",
+  "graph.restore": "恢复 {title}",
+  "graph.lastActive": "至少保留一张活跃知识图。",
+  "graph.actionFailed": "无法更新知识图。",
+  "topbar.openNav": "打开导航",
+  "topbar.localDemo": "本地演示",
+  "topbar.stats": "{nodes} 个节点 · {edges} 条关系",
+  "topbar.fit": "适应画布",
+  "topbar.hideDetails": "收起详情",
+  "topbar.showDetails": "显示详情",
+  "composer.compiling": "正在编译图谱上下文",
+  "composer.organizing": "正在组织回答",
+  "composer.mainPath": "主线：{title}",
+  "composer.newStart": "新的学习起点",
+  "composer.collapse": "收起输入框",
+  "composer.followPlaceholder": "从当前节点继续追问，或选中回答中的文字…",
+  "composer.startPlaceholder": "开始探索一个你想真正理解的问题…",
+  "composer.askLabel": "向 Graph Chat 提问",
+  "composer.quick": "快速回答",
+  "composer.explore": "探索图谱",
+  "composer.synthesize": "汇聚分支",
+  "composer.stop": "停止生成",
+  "composer.send": "发送",
+  "composer.shortcut": "Enter 发送 · Shift + Enter 换行",
+  "node.question": "问题",
+  "node.answer": "回答",
+  "node.concept": "概念",
+  "node.summary": "汇聚",
+  "node.note": "笔记",
+  "node.thinking": "正在思考",
+  "node.cancelled": "已取消",
+  "node.failed": "生成失败",
+  "node.cancelledBody": "这次生成已取消，可以从此节点重试。",
+  "node.waiting": "等待回答…",
+  "node.localDemo": "本地演示",
+  "node.manualNote": "手动笔记",
+  "node.referenced": "已引用",
+  "inspector.close": "关闭详情",
+  "inspector.title": "节点详情",
+  "inspector.copy": "复制内容",
+  "inspector.summaryKind": "汇聚节点",
+  "inspector.conceptKind": "概念解释",
+  "inspector.answerKind": "AI 回答",
+  "inspector.fromSelection": "追问源自",
+  "inspector.yourQuestion": "你的问题",
+  "inspector.cancelledBody": "这次生成已取消。你可以从这个节点重新提问。",
+  "inspector.backToMain": "带回主线",
+  "inspector.relationships": "图谱关系",
+  "inspector.incoming": "上游来源",
+  "inspector.outgoing": "下游连接",
+  "inspector.continue": "从这里继续追问",
+  "inspector.removeReference": "取消引用",
+  "inspector.addReference": "加入联合提问",
+  "inspector.delete": "删除这个节点",
+  "settings.title": "模型与运行方式",
+  "settings.description":
+    "Pi agent harness 统一模型、工具循环与流式事件。API Key 只留在当前进程；ChatGPT OAuth 凭据只保存在本机。",
+  "settings.demo": "本地演示",
+  "settings.demoDescription": "无需密钥，立即体验完整交互",
+  "settings.chatgptDescription": "使用 ChatGPT 订阅登录 Codex",
+  "settings.openaiDescription": "通过 Pi 使用 OpenAI API",
+  "settings.openrouterDescription": "一个密钥连接多种模型",
+  "settings.ollamaDescription": "模型和数据完全留在本机",
+  "settings.custom": "自定义",
+  "settings.customDescription": "任何 OpenAI-compatible 服务",
+  "settings.authReadFailed": "无法读取 ChatGPT 登录状态。",
+  "settings.authStartFailed": "无法启动 ChatGPT 登录。",
+  "settings.saveFailed": "保存失败",
+  "settings.modelId": "模型 ID",
+  "settings.keySaved": "已在当前进程中设置",
+  "settings.keySession": "仅保留到服务关闭",
+  "settings.localFirst": "本地优先说明",
+  "settings.localFirstBody":
+    "对话和图谱保存在本地 SQLite。使用云模型或 ChatGPT 订阅时，只有本次运行明确选中的上下文会发送给模型；使用 Ollama 时数据不会离开本机。",
+  "settings.cancel": "取消",
+  "settings.saving": "正在保存…",
+  "settings.save": "保存设置",
+  "settings.subscription": "使用 ChatGPT 订阅",
+  "settings.subscriptionBody": "由 Pi 发起 OpenAI 设备码登录。Graph Chat 不会看到你的密码。",
+  "settings.signOut": "退出登录",
+  "settings.waiting": "等待确认",
+  "settings.signIn": "使用 ChatGPT 登录",
+  "settings.connected": "已连接 · {source}",
+  "settings.copy": "复制",
+  "settings.openLogin": "打开 OpenAI 登录页",
+  "dialog.close": "关闭",
+};
+
+export type TranslationKey = keyof typeof english;
+type Replacements = Record<string, string | number>;
+
+function resolveInitialLocale(): Locale {
+  const query = new URLSearchParams(window.location.search).get("lang");
+  if (query === "zh" || query === "en") return query;
+  const saved = window.localStorage.getItem("graphchat-language");
+  return saved === "zh" ? "zh" : "en";
+}
+
+function format(template: string, replacements?: Replacements) {
+  if (!replacements) return template;
+  return Object.entries(replacements).reduce(
+    (value, [key, replacement]) =>
+      value.replaceAll(`{${key}}`, String(replacement)),
+    template,
+  );
+}
+
+type I18nValue = {
+  locale: Locale;
+  setLocale: (locale: Locale) => void;
+  t: (key: TranslationKey, replacements?: Replacements) => string;
+};
+
+const I18nContext = createContext<I18nValue | null>(null);
+
+export function I18nProvider({ children }: { children: ReactNode }) {
+  const [locale, setLocaleState] = useState<Locale>(resolveInitialLocale);
+
+  const setLocale = useCallback((next: Locale) => {
+    setLocaleState(next);
+    window.localStorage.setItem("graphchat-language", next);
+    const url = new URL(window.location.href);
+    if (next === "zh") url.searchParams.set("lang", "zh");
+    else url.searchParams.delete("lang");
+    window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
+  }, []);
+
+  useEffect(() => {
+    document.documentElement.lang = locale === "zh" ? "zh-CN" : "en";
+    document.title =
+      locale === "zh"
+        ? "Graph Chat — 在分支中学习，在图谱中记忆"
+        : "Graph Chat — Learn in branches. Remember in graphs.";
+  }, [locale]);
+
+  const value = useMemo<I18nValue>(
+    () => ({
+      locale,
+      setLocale,
+      t: (key, replacements) =>
+        format((locale === "zh" ? chinese : english)[key], replacements),
+    }),
+    [locale, setLocale],
+  );
+
+  return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;
+}
+
+export function useI18n() {
+  const value = useContext(I18nContext);
+  if (!value) throw new Error("useI18n must be used inside I18nProvider");
+  return value;
+}

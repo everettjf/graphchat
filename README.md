@@ -27,7 +27,7 @@
     <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-strict-3178c6?style=flat-square&logo=typescript&logoColor=white" />
     <img alt="React" src="https://img.shields.io/badge/React-19-149eca?style=flat-square&logo=react&logoColor=white" />
     <img alt="Pi" src="https://img.shields.io/badge/agent-Pi-7567a8?style=flat-square" />
-    <img alt="Tests" src="https://img.shields.io/badge/tests-16%20passing-3c7c56?style=flat-square" />
+    <img alt="Tests" src="https://img.shields.io/badge/tests-27%20passing-3c7c56?style=flat-square" />
   </p>
 </div>
 
@@ -57,16 +57,31 @@ Starting question ──→ AI answer ──→ New concept A ──→ Deeper e
 | Capability | Current implementation |
 | --- | --- |
 | Graph-native learning | Infinite React Flow canvas, branch edges, cross-branch references, dragging, and search |
+| Multiple knowledge graphs | Create, switch, rename, archive, and restore independent learning spaces |
 | Precise follow-ups | Continue from any node or branch from selected text inside an answer |
 | Branch synthesis | Reference multiple nodes so the model can compare, combine, or find a shared mechanism |
 | Agent runtime | Pi agent core, streaming events, tool calls, automatic retry, and cancellation |
 | ChatGPT subscription | Pi `openai-codex` device-code OAuth with automatic token refresh |
 | Other models | OpenAI API, OpenRouter, Ollama, and OpenAI-compatible endpoints |
 | Local data | Bun/Node SQLite, WAL, JSON export, and no external database |
+| English and Chinese | English-first application and documentation with a persistent Chinese switch |
+| Resilient runs | Run-scoped streaming, explicit cancellation, and interrupted-run recovery |
 | Privacy boundary | API keys stay in process; OAuth credentials stay in a private local file |
 | Engineering quality | Strict TypeScript, Vitest, database and Pi runtime tests, and Playwright E2E |
 
 ## Quick start
+
+### Standalone release
+
+The easiest path needs no Bun, Node.js, or database installation:
+
+1. Download the archive for your platform from [the latest GitHub release](https://github.com/everettjf/graphchat/releases/latest).
+2. Extract it.
+3. Run `graphchat` (`graphchat.exe` on Windows).
+
+Graph Chat opens `http://127.0.0.1:4317` in your browser and stores its data in `.graphchat/`.
+
+### Run from source
 
 Bun 1.3+ is recommended. Node.js 22.19+ is also fully supported.
 
@@ -74,10 +89,12 @@ Bun 1.3+ is recommended. Node.js 22.19+ is also fully supported.
 git clone https://github.com/everettjf/graphchat.git
 cd graphchat
 bun install
-bun run dev
+bun run graphchat
 ```
 
-Open [http://localhost:5173](http://localhost:5173). On first launch, Graph Chat creates a sample learning graph about RAG. The default local demo needs no credentials and never contacts an external model.
+The `graphchat` launcher builds the application, starts the local service, and opens it in your browser. For hot-reload development, use `bun run dev` and open [http://localhost:5173](http://localhost:5173).
+
+On first launch, Graph Chat creates an English example graph about RAG. The interface defaults to English and can be switched to Chinese from the top bar. The local demo follows the selected language, needs no credentials, and never contacts an external model.
 
 Production mode:
 
@@ -94,7 +111,7 @@ Prefer Node/npm? Use `npm install`, `npm run dev`, `npm run build`, and `npm sta
 
 Graph Chat uses Pi's built-in `openai-codex` provider, so you can sign in with an eligible ChatGPT subscription instead of copying an API key.
 
-1. Open **Model & settings** in the lower-left corner.
+1. Open **Models & settings** in the lower-left corner.
 2. Choose **ChatGPT**.
 3. Select **Sign in with ChatGPT**.
 4. Enter the one-time device code on the OpenAI page.
@@ -160,7 +177,6 @@ bun run test:all   # complete verification
 
 ## Roadmap
 
-- Multiple graph creation, renaming, and archiving
 - Graph snapshots and Markdown import
 - Pluggable retrieval, web, and file tools
 - Optional end-to-end encrypted sync

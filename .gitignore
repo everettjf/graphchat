@@ -7,6 +7,8 @@ dist-server/
 .graphchat-debug*/
 playwright-report/
 test-results/
+release/
+*.tgz
 *.log
 .env
 .DS_Store

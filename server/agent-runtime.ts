@@ -15,6 +15,7 @@ import { openAICompletionsApi } from "@earendil-works/pi-ai/api/openai-completio
 import { openaiProvider } from "@earendil-works/pi-ai/providers/openai";
 import { openaiCodexProvider } from "@earendil-works/pi-ai/providers/openai-codex";
 import { openrouterProvider } from "@earendil-works/pi-ai/providers/openrouter";
+import { nanoid } from "nanoid";
 import type {
   ContextSnapshot,
   ProviderSettings,
@@ -56,7 +57,8 @@ class AsyncEventQueue<T> implements AsyncIterable<T> {
   }
 }
 
-const SYSTEM_PROMPT = `你是 Graph Chat 的学习伙伴。你的任务是帮助用户理解陌生知识，而不是炫耀术语。
+const SYSTEM_PROMPTS = {
+  zh: `你是 Graph Chat 的学习伙伴。你的任务是帮助用户理解陌生知识，而不是炫耀术语。
 
 规则：
 1. 优先基于提供的图谱上下文回答，并指出不同分支之间的关系。
@@ -64,7 +66,17 @@ const SYSTEM_PROMPT = `你是 Graph Chat 的学习伙伴。你的任务是帮助
 3. 用清晰的小标题、类比和具体例子解释；保持准确，不把类比当作严格定义。
 4. 引用图中信息时使用 [节点: ID]，让用户可以追溯来源。
 5. 回答结尾给出一句“带回主线”的总结，说明这次理解如何帮助原问题。
-6. 不要自行修改图谱，只能读取；需要新增知识卡时，用文字提出建议。`;
+6. 不要自行修改图谱，只能读取；需要新增知识卡时，用文字提出建议。`,
+  en: `You are Graph Chat's learning partner. Help the user understand unfamiliar ideas instead of showing off terminology.
+
+Rules:
+1. Answer from the supplied graph context first and explain relationships between branches.
+2. When information is missing and tools are available, read the graph instead of guessing.
+3. Use clear headings, analogies, and concrete examples. Keep analogies distinct from strict definitions.
+4. Cite graph information as [Node: ID] so the user can trace it.
+5. End with a short "Back to the main thread" summary explaining how this helps the original question.
+6. Never modify the graph yourself. Graph tools are read-only; suggest useful new cards in prose.`,
+} as const;
 
 function summarize(content: string): string {
   const plain = content
@@ -76,6 +88,52 @@ function summarize(content: string): string {
 
 function buildDemoAnswer(request: RunRequest, context: ContextSnapshot): string {
   const sources = context.items.slice(-3);
+  if (request.locale === "en") {
+    const sourceLines =
+      sources.length > 0
+        ? sources
+            .map(
+              (item) =>
+                `- **${item.title}**: ${summarize(item.content).slice(0, 88)} [Node: ${item.nodeId}]`,
+            )
+            .join("\n")
+        : "- This is a new learning thread without referenced nodes yet.";
+
+    if (request.mode === "synthesize") {
+      return `### Put the branches on one map
+
+You are asking: **${request.prompt}**
+
+The selected context gives us these clues:
+
+${sourceLines}
+
+### How they converge
+
+These branches are not isolated answers. One often describes how something is represented, while another explains the role it plays in a system. To combine them, identify the shared object, separate each step's responsibility, and then restate the result as one causal chain.
+
+A useful check is: **What is the input, what transformation happens, and who uses the output?** If you can explain all three, the branches have genuinely converged instead of merely sitting next to each other.
+
+> **Back to the main thread:** You can now compress several local explanations into one mechanism and test whether it explains the original question.`;
+    }
+
+    return `### Start with the core
+
+You are asking: **${request.prompt}**
+
+Treat the new concept not as an isolated definition, but as something with a specific role in an existing chain of ideas. The current graph offers these clues:
+
+${sourceLines}
+
+### A practical way to understand it
+
+Separate “what it is” from “what it does.” The first sets its boundaries; the second puts it back into the process. Then look for a counterexample: if you removed it, which step would stop working? This usually creates a stronger understanding than memorizing a definition.
+
+${request.selectedText ? `You selected “${request.selectedText}”. This branch should explain that exact phrase without reopening the whole answer.` : "If the idea still feels abstract, select one phrase and create a smaller branch."}
+
+> **Back to the main thread:** Restate this explanation in one sentence, then return to the parent node and see whether the original answer now reads clearly.`;
+  }
+
   const sourceLines =
     sources.length > 0
       ? sources
@@ -146,9 +204,18 @@ export class GraphAgentRuntime {
     request: RunRequest,
     signal?: AbortSignal,
   ): AsyncGenerator<RunStreamEvent> {
+    const runId = nanoid();
     const graph = database.getGraph(request.graphId);
     if (!graph) {
-      yield { type: "run_failed", message: "找不到这张知识图。" };
+      yield {
+        type: "run_failed",
+        runId,
+        nodeId: null,
+        message:
+          request.locale === "zh"
+            ? "找不到这张知识图。"
+            : "This knowledge graph does not exist.",
+      };
       return;
     }
 
@@ -157,6 +224,7 @@ export class GraphAgentRuntime {
       parentNodeId: request.parentNodeId,
       referenceNodeIds: request.referenceNodeIds,
       selectedText: request.selectedText,
+      locale: request.locale,
     });
 
     const node = database.createNode(
@@ -177,7 +245,13 @@ export class GraphAgentRuntime {
       this.settings.model,
     );
     database.updateNode(node.id, { status: "streaming" });
-    yield { type: "run_started", node: { ...node, status: "streaming" }, context };
+    yield {
+      type: "run_started",
+      runId,
+      nodeId: node.id,
+      node: { ...node, status: "streaming" },
+      context,
+    };
 
     const events = new AsyncEventQueue<RunStreamEvent>();
     let fullText = "";
@@ -192,18 +266,37 @@ export class GraphAgentRuntime {
           signal.addEventListener("abort", () => agent?.abort(), { once: true });
         }
         agent.subscribe((event) => {
-          this.forwardAgentEvent(event, events, (delta) => {
-            fullText += delta;
-          });
+          this.forwardAgentEvent(
+            event,
+            events,
+            runId,
+            node.id,
+            request.locale,
+            (delta) => {
+              fullText += delta;
+            },
+          );
         });
 
-        const graphContext = contextToPrompt(context);
+        const graphContext = contextToPrompt(context, request.locale);
         await agent.prompt(
-          `以下是由 Graph Chat 明确选择的图谱上下文：\n\n${graphContext}\n\n---\n\n用户当前问题：${request.prompt}`,
+          request.locale === "zh"
+            ? `以下是由 Graph Chat 明确选择的图谱上下文：\n\n${graphContext}\n\n---\n\n用户当前问题：${request.prompt}`
+            : `Here is the graph context explicitly selected by Graph Chat:\n\n${graphContext}\n\n---\n\nCurrent question: ${request.prompt}`,
         );
 
+        if (signal?.aborted) {
+          const abortError = new Error("Generation cancelled");
+          abortError.name = "AbortError";
+          throw abortError;
+        }
         if (!fullText.trim()) {
-          throw new Error(agent.state.errorMessage || "模型没有返回文本。");
+          throw new Error(
+            agent.state.errorMessage ||
+              (request.locale === "zh"
+                ? "模型没有返回文本。"
+                : "The model returned no text."),
+          );
         }
         const completed = database.updateNode(node.id, {
           content: fullText,
@@ -212,15 +305,59 @@ export class GraphAgentRuntime {
           provider: this.settings.provider,
           model: this.settings.model,
         });
-        if (!completed) throw new Error("无法保存生成结果。");
-        events.push({ type: "run_finished", node: completed });
-      } catch (error) {
-        const message = error instanceof Error ? error.message : "生成失败，请检查模型设置。";
-        database.updateNode(node.id, {
-          status: "error",
-          content: fullText || `生成失败：${message}`,
+        if (!completed) {
+          throw new Error(
+            request.locale === "zh"
+              ? "无法保存生成结果。"
+              : "Unable to save the generated answer.",
+          );
+        }
+        events.push({
+          type: "run_finished",
+          runId,
+          nodeId: node.id,
+          node: completed,
         });
-        events.push({ type: "run_failed", message });
+      } catch (error) {
+        const cancelled =
+          Boolean(signal?.aborted) ||
+          (error instanceof Error && error.name === "AbortError");
+        const message = cancelled
+          ? request.locale === "zh"
+            ? "生成已取消。"
+            : "Generation cancelled."
+          : error instanceof Error
+            ? error.message
+            : request.locale === "zh"
+              ? "生成失败，请检查模型设置。"
+              : "Generation failed. Check the model settings.";
+        const updated = database.updateNode(node.id, {
+          status: cancelled ? "cancelled" : "error",
+          content:
+            fullText ||
+            (cancelled
+              ? ""
+              : request.locale === "zh"
+                ? `生成失败：${message}`
+                : `Generation failed: ${message}`),
+        });
+        if (cancelled) {
+          events.push({
+            type: "run_cancelled",
+            runId,
+            nodeId: node.id,
+            message,
+            node: updated || undefined,
+          });
+        } else {
+          events.push({
+            type: "run_failed",
+            runId,
+            nodeId: node.id,
+            message,
+            node: updated || undefined,
+          });
+        }
       } finally {
         events.end();
       }
@@ -269,23 +406,43 @@ export class GraphAgentRuntime {
       models.setProvider(provider);
       model = models.getModel("openai-codex", this.settings.model) as Model<any>;
       if (!model) {
-        throw new Error(`Pi 的 OpenAI Codex 模型目录中没有 ${this.settings.model}。`);
+        throw new Error(
+          request.locale === "zh"
+            ? `Pi 的 OpenAI Codex 模型目录中没有 ${this.settings.model}。`
+            : `${this.settings.model} is not in Pi's OpenAI Codex model catalog.`,
+        );
       }
       if (!(await models.checkAuth("openai-codex"))) {
-        throw new Error("请先在“模型与设置”中使用 ChatGPT 登录。");
+        throw new Error(
+          request.locale === "zh"
+            ? "请先在“模型与设置”中使用 ChatGPT 登录。"
+            : "Sign in with ChatGPT from Models & settings first.",
+        );
       }
     } else if (this.settings.provider === "openai") {
       provider = openaiProvider();
       models.setProvider(provider);
       model = models.getModel("openai", this.settings.model) as Model<any>;
-      if (!model) throw new Error(`Pi 的 OpenAI 模型目录中没有 ${this.settings.model}。`);
+      if (!model) {
+        throw new Error(
+          request.locale === "zh"
+            ? `Pi 的 OpenAI 模型目录中没有 ${this.settings.model}。`
+            : `${this.settings.model} is not in Pi's OpenAI model catalog.`,
+        );
+      }
       const key = this.runtimeApiKeys.get("openai") || process.env.OPENAI_API_KEY;
       if (key) await credentials.modify("openai", async () => ({ type: "api_key", key }));
     } else if (this.settings.provider === "openrouter") {
       provider = openrouterProvider();
       models.setProvider(provider);
       model = models.getModel("openrouter", this.settings.model) as Model<any>;
-      if (!model) throw new Error(`Pi 的 OpenRouter 模型目录中没有 ${this.settings.model}。`);
+      if (!model) {
+        throw new Error(
+          request.locale === "zh"
+            ? `Pi 的 OpenRouter 模型目录中没有 ${this.settings.model}。`
+            : `${this.settings.model} is not in Pi's OpenRouter model catalog.`,
+        );
+      }
       const key = this.runtimeApiKeys.get("openrouter") || process.env.OPENROUTER_API_KEY;
       if (key) await credentials.modify("openrouter", async () => ({ type: "api_key", key }));
     } else {
@@ -293,7 +450,13 @@ export class GraphAgentRuntime {
       const baseUrl =
         this.settings.baseUrl ||
         (providerId === "ollama" ? "http://127.0.0.1:11434/v1" : "");
-      if (!baseUrl) throw new Error("自定义模型需要填写 Base URL。");
+      if (!baseUrl) {
+        throw new Error(
+          request.locale === "zh"
+            ? "自定义模型需要填写 Base URL。"
+            : "A custom model requires a Base URL.",
+        );
+      }
       model = {
         id: this.settings.model,
         name: this.settings.model,
@@ -331,10 +494,10 @@ export class GraphAgentRuntime {
     }
 
     models.setProvider(provider);
-    const tools = this.createGraphTools(database, request.graphId);
+    const tools = this.createGraphTools(database, request.graphId, request.locale);
     const agent = new Agent({
       initialState: {
-        systemPrompt: SYSTEM_PROMPT,
+        systemPrompt: SYSTEM_PROMPTS[request.locale],
         model,
         tools,
         thinkingLevel: "off",
@@ -350,22 +513,39 @@ export class GraphAgentRuntime {
     return { agent };
   }
 
-  private createGraphTools(database: GraphDatabase, graphId: string): AgentTool[] {
+  private createGraphTools(
+    database: GraphDatabase,
+    graphId: string,
+    locale: RunRequest["locale"],
+  ): AgentTool[] {
     const searchTool: AgentTool = {
       name: "graph_search",
-      label: "搜索知识图",
-      description: "在当前 Graph Chat 知识图中搜索与查询相关的节点。",
+      label: locale === "zh" ? "搜索知识图" : "Search knowledge graph",
+      description:
+        locale === "zh"
+          ? "在当前 Graph Chat 知识图中搜索与查询相关的节点。"
+          : "Search the current Graph Chat graph for nodes related to a query.",
       parameters: Type.Object({
-        query: Type.String({ description: "要搜索的概念、术语或问题" }),
+        query: Type.String({
+          description:
+            locale === "zh"
+              ? "要搜索的概念、术语或问题"
+              : "Concept, term, or question to search for",
+        }),
       }),
       execute: async (_toolCallId, params) => {
         const query = String((params as { query: string }).query);
         const results = database.searchNodes(graphId, query);
         const text =
           results.length === 0
-            ? "没有找到匹配的图谱节点。"
+            ? locale === "zh"
+              ? "没有找到匹配的图谱节点。"
+              : "No matching graph nodes were found."
             : results
-                .map((node) => `[节点: ${node.id}] ${node.title}\n${node.summary || summarize(node.content)}`)
+                .map(
+                  (node) =>
+                    `[${locale === "zh" ? "节点" : "Node"}: ${node.id}] ${node.title}\n${node.summary || summarize(node.content)}`,
+                )
                 .join("\n\n");
         return { content: [{ type: "text", text }], details: { resultCount: results.length } };
       },
@@ -373,16 +553,32 @@ export class GraphAgentRuntime {
 
     const getNodeTool: AgentTool = {
       name: "graph_get_node",
-      label: "读取图谱节点",
-      description: "按节点 ID 读取一个 Graph Chat 节点的完整内容。",
+      label: locale === "zh" ? "读取图谱节点" : "Read graph node",
+      description:
+        locale === "zh"
+          ? "按节点 ID 读取一个 Graph Chat 节点的完整内容。"
+          : "Read the full content of one Graph Chat node by ID.",
       parameters: Type.Object({
-        nodeId: Type.String({ description: "图谱节点 ID" }),
+        nodeId: Type.String({
+          description: locale === "zh" ? "图谱节点 ID" : "Graph node ID",
+        }),
       }),
       execute: async (_toolCallId, params) => {
         const node = database.getNode(String((params as { nodeId: string }).nodeId));
-        if (!node || node.graphId !== graphId) throw new Error("找不到这个图谱节点。");
+        if (!node || node.graphId !== graphId) {
+          throw new Error(
+            locale === "zh"
+              ? "找不到这个图谱节点。"
+              : "This graph node does not exist.",
+          );
+        }
         return {
-          content: [{ type: "text", text: `[节点: ${node.id}] ${node.title}\n\n${node.content}` }],
+          content: [
+            {
+              type: "text",
+              text: `[${locale === "zh" ? "节点" : "Node"}: ${node.id}] ${node.title}\n\n${node.content}`,
+            },
+          ],
           details: { nodeId: node.id },
         };
       },
@@ -393,6 +589,9 @@ export class GraphAgentRuntime {
   private forwardAgentEvent(
     event: AgentEvent,
     queue: AsyncEventQueue<RunStreamEvent>,
+    runId: string,
+    nodeId: string,
+    locale: RunRequest["locale"],
     onDelta: (delta: string) => void,
   ) {
     if (
@@ -401,18 +600,35 @@ export class GraphAgentRuntime {
     ) {
       const delta = event.assistantMessageEvent.delta;
       onDelta(delta);
-      queue.push({ type: "text_delta", delta });
+      queue.push({ type: "text_delta", runId, nodeId, delta });
     } else if (event.type === "tool_execution_start") {
       queue.push({
         type: "tool_started",
+        runId,
+        nodeId,
         tool: event.toolName,
-        label: event.toolName === "graph_search" ? "正在搜索知识图" : "正在读取节点",
+        label:
+          event.toolName === "graph_search"
+            ? locale === "zh"
+              ? "正在搜索知识图"
+              : "Searching the knowledge graph"
+            : locale === "zh"
+              ? "正在读取节点"
+              : "Reading a graph node",
       });
     } else if (event.type === "tool_execution_end") {
       queue.push({
         type: "tool_finished",
+        runId,
+        nodeId,
         tool: event.toolName,
-        summary: event.isError ? "工具执行失败" : "图谱信息已加入上下文",
+        summary: event.isError
+          ? locale === "zh"
+            ? "工具执行失败"
+            : "Graph tool failed"
+          : locale === "zh"
+            ? "图谱信息已加入上下文"
+            : "Graph context added",
       });
     }
   }

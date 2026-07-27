@@ -27,7 +27,7 @@
     <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-strict-3178c6?style=flat-square&logo=typescript&logoColor=white" />
     <img alt="React" src="https://img.shields.io/badge/React-19-149eca?style=flat-square&logo=react&logoColor=white" />
     <img alt="Pi" src="https://img.shields.io/badge/agent-Pi-7567a8?style=flat-square" />
-    <img alt="Tests" src="https://img.shields.io/badge/tests-16%20passing-3c7c56?style=flat-square" />
+    <img alt="Tests" src="https://img.shields.io/badge/tests-27%20passing-3c7c56?style=flat-square" />
   </p>
 </div>
 
@@ -57,16 +57,31 @@ Graph Chat 是一个本地优先、图谱原生的 AI 学习工作区。面对�
 | 能力 | 当前实现 |
 | --- | --- |
 | 图谱学习 | React Flow 无限画布、分支边、跨分支引用边、拖拽与搜索 |
+| 多知识图 | 创建、切换、重命名、归档和恢复彼此独立的学习空间 |
 | 精确追问 | 从节点继续提问，也可以选中回答中的一段文字创建分支 |
 | 分支汇聚 | 同时引用多个节点，让模型比较、综合或寻找共同机制 |
 | Agent runtime | Pi agent core、流式事件、工具调用、自动重试与取消 |
 | ChatGPT 订阅 | Pi `openai-codex` 设备码 OAuth，支持自动 token refresh |
 | 其他模型 | OpenAI API、OpenRouter、Ollama、OpenAI-compatible endpoint |
-| 本地数据 | Node.js SQLite、WAL、JSON 导出、无需外部数据库 |
+| 本地数据 | Bun/Node SQLite、WAL、JSON 导出、无需外部数据库 |
+| 中英文 | 应用与文档默认英文，可持久化切换为中文 |
+| 可靠运行 | 流式事件绑定运行节点，支持显式取消与中断恢复 |
 | 隐私边界 | API Key 仅在进程内；OAuth 凭据只保存在本机私有文件 |
 | 工程质量 | TypeScript strict、Vitest、数据库测试、Pi runtime 测试、Playwright E2E |
 
 ## 快速开始
+
+### 独立运行包
+
+最简单的方式不需要安装 Bun、Node.js 或数据库：
+
+1. 从 [GitHub 最新 Release](https://github.com/everettjf/graphchat/releases/latest) 下载对应平台的压缩包。
+2. 解压。
+3. 运行 `graphchat`（Windows 上是 `graphchat.exe`）。
+
+Graph Chat 会打开 `http://127.0.0.1:4317`，数据默认保存在 `.graphchat/`。
+
+### 从源码运行
 
 推荐 Bun 1.3+；Node.js 22.19+ 也完整支持。
 
@@ -74,12 +89,14 @@ Graph Chat 是一个本地优先、图谱原生的 AI 学习工作区。面对�
 git clone https://github.com/everettjf/graphchat.git
 cd graphchat
 bun install
-bun run dev
+bun run graphchat
 ```
 
-打开 [http://localhost:5173](http://localhost:5173)。首次运行会生成一张关于 RAG 的示例学习图；默认的“本地演示”无需密钥，也不会访问外部模型。
+`graphchat` 启动器会构建应用、启动本地服务并自动打开浏览器。需要热更新开发时，运行 `bun run dev`，再打开 [http://localhost:5173](http://localhost:5173)。
 
-生产模式：
+首次运行会生成一张英文的 RAG 示例学习图。应用默认英文，可以从顶部切换为中文；本地演示回答会跟随所选语言，无需密钥，也不会访问外部模型。
+
+手动生产模式：
 
 ```bash
 bun run build
@@ -160,7 +177,6 @@ bun run test:all   # 完整验证
 
 ## 路线图
 
-- 多知识图创建、重命名和归档
 - 图谱快照与 Markdown 导入
 - 可插拔的检索、网页和文件工具
 - 端到端加密的可选同步服务

@@ -6,6 +6,7 @@ export type CompileContextInput = {
   referenceNodeIds: string[];
   selectedText: string | null;
   maxEstimatedTokens?: number;
+  locale?: "en" | "zh";
 };
 
 const estimateTokens = (text: string) => Math.max(1, Math.ceil(text.length / 3));
@@ -16,6 +17,7 @@ export function compileContext({
   referenceNodeIds,
   selectedText,
   maxEstimatedTokens = 8_000,
+  locale = "en",
 }: CompileContextInput): ContextSnapshot {
   const nodeMap = new Map(graph.nodes.map((node) => [node.id, node]));
   const incomingBranch = new Map<string, string>();
@@ -36,7 +38,12 @@ export function compileContext({
   for (const nodeId of mainPathIds) {
     const node = nodeMap.get(nodeId);
     if (!node) continue;
-    const content = [node.prompt && `问题：${node.prompt}`, node.content].filter(Boolean).join("\n");
+    const content = [
+      node.prompt && `${locale === "zh" ? "问题" : "Question"}: ${node.prompt}`,
+      node.content,
+    ]
+      .filter(Boolean)
+      .join("\n");
     candidates.push({
       nodeId,
       title: node.title,
@@ -66,7 +73,7 @@ export function compileContext({
     const node = nodeMap.get(parentNodeId);
     candidates.push({
       nodeId: parentNodeId,
-      title: node?.title ?? "选中的原文",
+      title: node?.title ?? (locale === "zh" ? "选中的原文" : "Selected text"),
       reason: "selection",
       detail: "selection",
       content: selectedText,
@@ -89,12 +96,21 @@ export function compileContext({
   return { items: selected, estimatedTokens: total, omittedNodeIds };
 }
 
-export function contextToPrompt(snapshot: ContextSnapshot): string {
-  if (snapshot.items.length === 0) return "没有额外的图谱上下文。";
+export function contextToPrompt(
+  snapshot: ContextSnapshot,
+  locale: "en" | "zh" = "en",
+): string {
+  if (snapshot.items.length === 0) {
+    return locale === "zh"
+      ? "没有额外的图谱上下文。"
+      : "No additional graph context.";
+  }
   return snapshot.items
     .map(
       (item, index) =>
-        `[来源 ${index + 1} · 节点 ${item.nodeId} · ${item.title}]\n${item.content}`,
+        locale === "zh"
+          ? `[来源 ${index + 1} · 节点 ${item.nodeId} · ${item.title}]\n${item.content}`
+          : `[Source ${index + 1} · Node ${item.nodeId} · ${item.title}]\n${item.content}`,
     )
     .join("\n\n");
 }

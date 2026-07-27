@@ -2,6 +2,7 @@ import { Handle, Position, type NodeProps } from "@xyflow/react";
 import { BookOpen, Check, GitBranch, Lightbulb, LoaderCircle, Merge, MessageCircleQuestion, StickyNote } from "lucide-react";
 import type { GraphNode } from "@shared/types";
 import { cn } from "@/lib/utils";
+import { useI18n, type TranslationKey } from "@/i18n";
 
 export type GraphNodeData = {
   node: GraphNode;
@@ -11,18 +12,21 @@ export type GraphNodeData = {
 };
 
 const kindMeta = {
-  question: { label: "问题", icon: MessageCircleQuestion, color: "blue" },
-  answer: { label: "回答", icon: BookOpen, color: "green" },
-  concept: { label: "概念", icon: Lightbulb, color: "amber" },
-  summary: { label: "汇聚", icon: Merge, color: "violet" },
-  note: { label: "笔记", icon: StickyNote, color: "stone" },
+  question: { label: "node.question", icon: MessageCircleQuestion, color: "blue" },
+  answer: { label: "node.answer", icon: BookOpen, color: "green" },
+  concept: { label: "node.concept", icon: Lightbulb, color: "amber" },
+  summary: { label: "node.summary", icon: Merge, color: "violet" },
+  note: { label: "node.note", icon: StickyNote, color: "stone" },
 } as const;
 
 export function GraphNodeCard({ data, selected }: NodeProps) {
+  const { t } = useI18n();
   const { node, dimmed, referenced } = data as GraphNodeData;
   const meta = kindMeta[node.kind];
   const Icon = meta.icon;
   const isStreaming = node.status === "streaming";
+  const isCancelled = node.status === "cancelled";
+  const isError = node.status === "error";
   return (
     <article
       data-testid={`graph-node-${node.id}`}
@@ -41,12 +45,16 @@ export function GraphNodeCard({ data, selected }: NodeProps) {
             <Icon className="size-3.5" />
           </span>
           <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--muted-light)]">
-            {meta.label}
+            {t(meta.label as TranslationKey)}
           </span>
         </div>
         {isStreaming ? (
           <span className="flex items-center gap-1.5 text-[10px] font-medium text-[#397b55]">
-            <LoaderCircle className="size-3 animate-spin" /> 正在思考
+            <LoaderCircle className="size-3 animate-spin" /> {t("node.thinking")}
+          </span>
+        ) : isCancelled || isError ? (
+          <span className="text-[10px] font-medium text-[#9a5a4d]">
+            {isCancelled ? t("node.cancelled") : t("node.failed")}
           </span>
         ) : (
           <Check className="size-3.5 text-[#8fb59e] opacity-0 transition group-hover:opacity-100" />
@@ -56,16 +64,20 @@ export function GraphNodeCard({ data, selected }: NodeProps) {
         {node.title}
       </h3>
       <p className="line-clamp-3 min-h-[54px] text-xs leading-[18px] text-[var(--muted)]">
-        {node.summary || node.content || "等待回答…"}
+        {node.summary ||
+          node.content ||
+          (isCancelled ? t("node.cancelledBody") : t("node.waiting"))}
       </p>
       <div className="mt-3 flex items-center justify-between border-t border-black/[0.055] pt-3">
         <span className="flex items-center gap-1 text-[10px] text-[var(--muted-light)]">
           <GitBranch className="size-3" />
-          {node.provider === "demo" ? "本地演示" : node.model || "手动笔记"}
+          {node.provider === "demo"
+            ? t("node.localDemo")
+            : node.model || t("node.manualNote")}
         </span>
         {referenced && (
           <span className="rounded-full bg-[#e3f1e7] px-2 py-0.5 text-[9px] font-bold text-[#397b55]">
-            已引用
+            {t("node.referenced")}
           </span>
         )}
       </div>

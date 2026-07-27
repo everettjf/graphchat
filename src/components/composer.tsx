@@ -23,6 +23,7 @@ import { Button } from "./ui/button";
 import { useWorkspace } from "@/store/workspace";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/i18n";
 
 export function Composer({
   document,
@@ -33,6 +34,7 @@ export function Composer({
   settings: ProviderSettings;
   onEvent: (event: RunStreamEvent) => void;
 }) {
+  const { locale, t } = useI18n();
   const {
     selectedNodeId,
     referenceNodeIds,
@@ -48,6 +50,7 @@ export function Composer({
   const [isRunning, setIsRunning] = useState(false);
   const [activity, setActivity] = useState("");
   const controllerRef = useRef<AbortController | null>(null);
+  const activeRunRef = useRef<{ runId: string; nodeId: string } | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const selectedNode = document.nodes.find((node) => node.id === selectedNodeId) ?? null;
   const references = document.nodes.filter((node) => referenceNodeIds.includes(node.id));
@@ -60,7 +63,7 @@ export function Composer({
     const text = prompt.trim();
     if (!text || isRunning) return;
     setIsRunning(true);
-    setActivity("正在编译图谱上下文");
+    setActivity(t("composer.compiling"));
     controllerRef.current = new AbortController();
 
     const position = getNewNodePosition(document, selectedNode);
@@ -74,10 +77,14 @@ export function Composer({
           selectedText,
           position,
           mode,
+          locale,
         },
         (event) => {
+          if (event.type === "run_started") {
+            activeRunRef.current = { runId: event.runId, nodeId: event.nodeId };
+          }
           if (event.type === "tool_started") setActivity(event.label);
-          if (event.type === "text_delta") setActivity("正在组织回答");
+          if (event.type === "text_delta") setActivity(t("composer.organizing"));
           onEvent(event);
         },
         controllerRef.current.signal,
@@ -86,16 +93,25 @@ export function Composer({
       clearReferences();
       closeComposer();
     } catch (error) {
-      if ((error as Error).name !== "AbortError") {
+      if ((error as Error).name === "AbortError" && activeRunRef.current) {
+        onEvent({
+          type: "run_cancelled",
+          ...activeRunRef.current,
+          message: t("app.cancelled"),
+        });
+      } else if ((error as Error).name !== "AbortError") {
         onEvent({
           type: "run_failed",
-          message: error instanceof Error ? error.message : "请求失败",
+          runId: activeRunRef.current?.runId ?? null,
+          nodeId: activeRunRef.current?.nodeId ?? null,
+          message: error instanceof Error ? error.message : t("app.requestFailed"),
         });
       }
     } finally {
       setIsRunning(false);
       setActivity("");
       controllerRef.current = null;
+      activeRunRef.current = null;
     }
   };
 
@@ -116,9 +132,12 @@ export function Composer({
         {composerOpen && (
           <div className="mb-2.5 flex flex-wrap items-center gap-1.5 px-1">
             {selectedNode ? (
-              <ContextChip icon={GitBranch} label={`主线：${selectedNode.title}`} />
+              <ContextChip
+                icon={GitBranch}
+                label={t("composer.mainPath", { title: selectedNode.title })}
+              />
             ) : (
-              <ContextChip icon={Sparkles} label="新的学习起点" />
+              <ContextChip icon={Sparkles} label={t("composer.newStart")} />
             )}
             {references.map((node) => (
               <ContextChip key={node.id} icon={Link2} label={node.title} accent />
@@ -127,7 +146,7 @@ export function Composer({
             <button
               className="ml-auto grid size-7 place-items-center rounded-lg text-[var(--muted-light)] hover:bg-black/5 hover:text-[var(--ink)]"
               onClick={closeComposer}
-              aria-label="收起输入框"
+              aria-label={t("composer.collapse")}
             >
               <X className="size-3.5" />
             </button>
@@ -154,10 +173,10 @@ export function Composer({
               )}
               placeholder={
                 selectedNode
-                  ? "从当前节点继续追问，或选中回答中的文字…"
-                  : "开始探索一个你想真正理解的问题…"
+                  ? t("composer.followPlaceholder")
+                  : t("composer.startPlaceholder")
               }
-              aria-label="向 Graph Chat 提问"
+              aria-label={t("composer.askLabel")}
               data-testid="composer-input"
             />
 
@@ -166,24 +185,26 @@ export function Composer({
                 <ModeButton
                   active={mode === "answer"}
                   icon={MessageCircle}
-                  label="快速回答"
+                  label={t("composer.quick")}
                   onClick={() => setMode("answer")}
                 />
                 <ModeButton
                   active={mode === "explore"}
                   icon={Search}
-                  label="探索图谱"
+                  label={t("composer.explore")}
                   onClick={() => setMode("explore")}
                 />
                 <ModeButton
                   active={mode === "synthesize"}
                   icon={Merge}
-                  label="汇聚分支"
+                  label={t("composer.synthesize")}
                   onClick={() => setMode("synthesize")}
                 />
                 <div className="ml-auto hidden items-center gap-1.5 text-[9px] text-[var(--muted-light)] sm:flex">
                   <BrainCircuit className="size-3" />
-                  {settings.provider === "demo" ? "Pi · 本地演示" : `Pi · ${settings.model}`}
+                  {settings.provider === "demo"
+                    ? `Pi · ${t("node.localDemo")}`
+                    : `Pi · ${settings.model}`}
                 </div>
               </div>
             )}
@@ -194,7 +215,7 @@ export function Composer({
               variant="outline"
               className="mb-0.5 size-10 rounded-xl border-red-200 text-red-600"
               onClick={() => controllerRef.current?.abort()}
-              aria-label="停止生成"
+              aria-label={t("composer.stop")}
             >
               <CircleStop className="size-4" />
             </Button>
@@ -205,7 +226,7 @@ export function Composer({
               className="mb-0.5 size-10 rounded-xl"
               disabled={!prompt.trim()}
               onClick={() => void submit()}
-              aria-label="发送"
+              aria-label={t("composer.send")}
               data-testid="composer-submit"
             >
               <ArrowUp className="size-4" />
@@ -221,7 +242,7 @@ export function Composer({
       </div>
       {!composerOpen && (
         <div className="mt-2 text-center text-[9px] text-[var(--muted-light)]">
-          Enter 发送 · Shift + Enter 换行
+          {t("composer.shortcut")}
         </div>
       )}
     </div>

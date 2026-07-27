@@ -57,6 +57,7 @@ describe("GraphAgentRuntime", () => {
       selectedText: null,
       position: { x: 1200, y: 200 },
       mode: "synthesize",
+      locale: "zh",
     })) {
       events.push(event);
     }
@@ -65,7 +66,17 @@ describe("GraphAgentRuntime", () => {
     expect(started?.type).toBe("run_started");
     expect(events.filter((event) => event.type === "text_delta").length).toBeGreaterThan(2);
     expect(finished?.type).toBe("run_finished");
-    if (finished?.type === "run_finished") {
+    if (started?.type === "run_started" && finished?.type === "run_finished") {
+      expect(finished.runId).toBe(started.runId);
+      expect(finished.nodeId).toBe(started.nodeId);
+      expect(
+        events
+          .filter((event) => event.type === "text_delta")
+          .every(
+            (event) =>
+              event.runId === started.runId && event.nodeId === started.nodeId,
+          ),
+      ).toBe(true);
       expect(database.getNode(finished.node.id)?.content).toContain("把这些分支");
     }
     database.close();
@@ -82,12 +93,33 @@ describe("GraphAgentRuntime", () => {
       selectedText: null,
       position: { x: 500, y: 500 },
       mode: "explore",
+      locale: "zh",
     })) {
       eventTypes.push(event.type);
     }
     expect(eventTypes).toContain("tool_started");
     expect(eventTypes).toContain("tool_finished");
     expect(eventTypes.at(-1)).toBe("run_finished");
+    database.close();
+  });
+
+  it("answers in English when the application locale is English", async () => {
+    const { database, runtime } = setup();
+    let finished: Extract<RunStreamEvent, { type: "run_finished" }> | undefined;
+    for await (const event of runtime.run(database, {
+      graphId: "learning-rag",
+      parentNodeId: "embedding",
+      referenceNodeIds: ["vector-db"],
+      prompt: "How do these concepts work together?",
+      selectedText: null,
+      position: { x: 1200, y: 200 },
+      mode: "synthesize",
+      locale: "en",
+    })) {
+      if (event.type === "run_finished") finished = event;
+    }
+    expect(finished?.node.content).toContain("Put the branches on one map");
+    expect(finished?.node.content).toContain("Back to the main thread");
     database.close();
   });
 
@@ -108,13 +140,53 @@ describe("GraphAgentRuntime", () => {
       selectedText: null,
       position: { x: 900, y: 400 },
       mode: "answer",
+      locale: "zh",
     })) {
       events.push(event);
     }
-    expect(events.at(-1)).toEqual({
-      type: "run_failed",
-      message: "请先在“模型与设置”中使用 ChatGPT 登录。",
-    });
+    expect(events.at(-1)).toEqual(
+      expect.objectContaining({
+        type: "run_failed",
+        message: "请先在“模型与设置”中使用 ChatGPT 登录。",
+        runId: expect.any(String),
+        nodeId: expect.any(String),
+        node: expect.objectContaining({ status: "error" }),
+      }),
+    );
+    database.close();
+  });
+
+  it("marks an aborted run as cancelled and keeps its run identity", async () => {
+    const { database, runtime } = setup();
+    const controller = new AbortController();
+    const events: RunStreamEvent[] = [];
+    for await (const event of runtime.run(
+      database,
+      {
+        graphId: "learning-rag",
+        parentNodeId: "root-rag",
+        referenceNodeIds: [],
+        prompt: "取消这次生成",
+        selectedText: null,
+        position: { x: 900, y: 400 },
+        mode: "answer",
+        locale: "zh",
+      },
+      controller.signal,
+    )) {
+      events.push(event);
+      if (event.type === "run_started") controller.abort();
+    }
+
+    const started = events.find((event) => event.type === "run_started");
+    const cancelled = events.find((event) => event.type === "run_cancelled");
+    expect(started?.type).toBe("run_started");
+    expect(cancelled?.type).toBe("run_cancelled");
+    if (started?.type === "run_started" && cancelled?.type === "run_cancelled") {
+      expect(cancelled.runId).toBe(started.runId);
+      expect(cancelled.nodeId).toBe(started.nodeId);
+      expect(database.getNode(cancelled.nodeId)?.status).toBe("cancelled");
+    }
     database.close();
   });
 });

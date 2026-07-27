@@ -2,12 +2,14 @@ import fs from "node:fs";
 import path from "node:path";
 import { nanoid } from "nanoid";
 import type {
+  CreateGraphInput,
   CreateNodeInput,
   GraphDocument,
   GraphEdge,
   GraphMeta,
   GraphNode,
   ProviderSettings,
+  UpdateGraphInput,
   UpdateNodeInput,
 } from "../shared/types.js";
 
@@ -50,6 +52,7 @@ export class GraphDatabase {
     this.db = new DatabaseConstructor(path.join(absoluteDirectory, "graphchat.sqlite"));
     this.db.exec("PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;");
     this.migrate();
+    this.recoverInterruptedRuns();
     this.seed();
   }
 
@@ -60,7 +63,8 @@ export class GraphDatabase {
         title TEXT NOT NULL,
         description TEXT NOT NULL DEFAULT '',
         created_at TEXT NOT NULL,
-        updated_at TEXT NOT NULL
+        updated_at TEXT NOT NULL,
+        archived_at TEXT
       );
       CREATE TABLE IF NOT EXISTS nodes (
         id TEXT PRIMARY KEY,
@@ -97,6 +101,12 @@ export class GraphDatabase {
       CREATE INDEX IF NOT EXISTS idx_edges_graph ON edges(graph_id);
       CREATE INDEX IF NOT EXISTS idx_edges_target ON edges(target);
     `);
+    const graphColumns = this.db
+      .prepare("PRAGMA table_info(graphs)")
+      .all() as Array<{ name: string }>;
+    if (!graphColumns.some((column) => column.name === "archived_at")) {
+      this.db.exec("ALTER TABLE graphs ADD COLUMN archived_at TEXT;");
+    }
   }
 
   private seed() {
@@ -106,25 +116,36 @@ export class GraphDatabase {
     const timestamp = now();
     const graph: GraphMeta = {
       id: "learning-rag",
-      title: "理解 RAG：从陌生概念到完整图景",
-      description: "一个展示分叉、追问与知识汇聚的示例学习图",
+      title: "Understanding RAG: from new concepts to a complete picture",
+      description: "An example graph showing branches, follow-ups, and synthesis",
       createdAt: timestamp,
       updatedAt: timestamp,
+      archivedAt: null,
     };
     this.db
-      .prepare("INSERT INTO graphs VALUES (?, ?, ?, ?, ?)")
-      .run(graph.id, graph.title, graph.description, graph.createdAt, graph.updatedAt);
+      .prepare(
+        "INSERT INTO graphs (id, title, description, created_at, updated_at, archived_at) VALUES (?, ?, ?, ?, ?, ?)",
+      )
+      .run(
+        graph.id,
+        graph.title,
+        graph.description,
+        graph.createdAt,
+        graph.updatedAt,
+        graph.archivedAt,
+      );
 
     const nodes: GraphNode[] = [
       {
         id: "root-rag",
         graphId: graph.id,
         kind: "answer",
-        title: "RAG 是什么？",
-        prompt: "用容易理解的方式介绍 RAG，以及它为什么有用。",
+        title: "What is RAG?",
+        prompt: "Explain RAG in plain language and why it is useful.",
         content:
-          "RAG（检索增强生成）让模型在回答前，先从你的资料中检索相关内容，再基于这些内容生成答案。\n\n它通常包含三个步骤：把资料转换为 **Embedding** 并保存；根据问题在**向量数据库**中寻找相关片段；把片段和问题一起交给模型。这样可以补充模型没有见过的私有或最新信息，并让回答更容易追溯来源。",
-        summary: "RAG 通过检索外部资料增强模型回答，核心环节包括 Embedding、向量检索和生成。",
+          "RAG (retrieval-augmented generation) retrieves relevant material from your sources before a model answers, then generates the answer from that material.\n\nA typical pipeline has three steps: turn the source material into **embeddings** and store them; find relevant passages in a **vector database**; send those passages and the question to the model. This adds private or current information the model may not know and makes answers easier to trace.",
+        summary:
+          "RAG improves model answers with retrieved sources through embeddings, vector search, and generation.",
         selectedText: null,
         x: 40,
         y: 220,
@@ -138,12 +159,13 @@ export class GraphDatabase {
         id: "embedding",
         graphId: graph.id,
         kind: "concept",
-        title: "Embedding 到底是什么？",
-        prompt: "这里说的 Embedding 是什么意思？请用类比解释。",
+        title: "What exactly is an embedding?",
+        prompt: "What does embedding mean here? Explain it with an analogy.",
         content:
-          "Embedding 可以理解为给一段文字生成一组“语义坐标”。意思相近的文字，在这个高维空间中的位置也更接近。\n\n例如“如何给植物浇水”和“绿植多久补一次水”用词不同，但语义接近，因此它们的向量距离通常很小。",
-        summary: "Embedding 是文本的语义坐标，使含义相近的内容在向量空间中彼此接近。",
-        selectedText: "把资料转换为 Embedding 并保存",
+          "An embedding is like assigning a set of “semantic coordinates” to a piece of text. Texts with similar meanings end up near one another in this high-dimensional space.\n\nFor example, “how should I water a plant?” and “how often does a houseplant need water?” use different words but express similar ideas, so their vectors are usually close.",
+        summary:
+          "An embedding gives text semantic coordinates so similar meanings stay close in vector space.",
+        selectedText: "turn the source material into embeddings and store them",
         x: 410,
         y: 40,
         status: "complete",
@@ -156,12 +178,13 @@ export class GraphDatabase {
         id: "vector-space",
         graphId: graph.id,
         kind: "answer",
-        title: "为什么叫“高维空间”？",
-        prompt: "这里的高维空间是真实空间吗？维度代表什么？",
+        title: "Why is it called high-dimensional space?",
+        prompt: "Is this a physical space? What do its dimensions represent?",
         content:
-          "它不是我们所在的物理空间，而是数学上的坐标系统。每个维度由模型学习得到，通常不能简单解释成“情绪”或“主题”这样的单一含义；整体坐标共同表达语义特征。\n\n实际使用中，我们更关心两个向量的距离，而不是逐个解释维度。",
-        summary: "高维空间是数学表示；单个维度通常不可解释，向量间距离才是重点。",
-        selectedText: "高维空间",
+          "It is not physical space, but a mathematical coordinate system. The model learns each dimension, and one dimension usually cannot be labeled as a single human concept such as “mood” or “topic.” The coordinates work together to represent meaning.\n\nIn practice, the distance between vectors matters more than interpreting one dimension at a time.",
+        summary:
+          "High-dimensional space is a mathematical representation; vector distance matters more than individual dimensions.",
+        selectedText: "high-dimensional space",
         x: 790,
         y: 20,
         status: "complete",
@@ -174,12 +197,13 @@ export class GraphDatabase {
         id: "vector-db",
         graphId: graph.id,
         kind: "concept",
-        title: "向量数据库做了什么？",
-        prompt: "向量数据库和普通数据库有什么区别？",
+        title: "What does a vector database do?",
+        prompt: "How is a vector database different from a regular database?",
         content:
-          "普通数据库擅长精确匹配，例如查找订单号；向量数据库擅长相似性搜索，例如寻找“意思最接近当前问题”的资料片段。\n\n它保存向量及其原文、来源等元数据，并使用近似最近邻索引在大量内容中快速找到相似项。",
-        summary: "向量数据库负责保存语义向量，并高效搜索与问题最相似的资料片段。",
-        selectedText: "向量数据库",
+          "Regular databases excel at exact matches, such as looking up an order number. Vector databases excel at similarity search, such as finding the source passages whose meanings are closest to a question.\n\nThey store vectors together with original text and source metadata, then use approximate nearest-neighbor indexes to find similar items quickly.",
+        summary:
+          "A vector database stores semantic vectors and efficiently finds source passages similar to a question.",
+        selectedText: "vector database",
         x: 410,
         y: 360,
         status: "complete",
@@ -192,12 +216,13 @@ export class GraphDatabase {
         id: "similarity",
         graphId: graph.id,
         kind: "answer",
-        title: "相似性是怎么计算的？",
-        prompt: "系统怎么判断两个向量相似？",
+        title: "How is similarity calculated?",
+        prompt: "How does the system decide whether two vectors are similar?",
         content:
-          "常见方法包括余弦相似度、点积和欧氏距离。余弦相似度比较两个向量方向是否接近，因此对长度变化不太敏感；具体选择取决于 Embedding 模型的训练方式和推荐设置。",
-        summary: "向量相似性常通过余弦相似度、点积或欧氏距离计算。",
-        selectedText: "相似性搜索",
+          "Common methods include cosine similarity, dot product, and Euclidean distance. Cosine similarity compares vector direction and is less sensitive to changes in magnitude. The right choice depends on how the embedding model was trained and configured.",
+        summary:
+          "Vector similarity is commonly measured with cosine similarity, dot product, or Euclidean distance.",
+        selectedText: "similarity search",
         x: 790,
         y: 400,
         status: "complete",
@@ -210,11 +235,12 @@ export class GraphDatabase {
         id: "synthesis",
         graphId: graph.id,
         kind: "summary",
-        title: "Embedding 与向量数据库如何配合？",
-        prompt: "结合两个分支，解释它们在 RAG 中分别扮演什么角色。",
+        title: "How do embeddings and vector databases work together?",
+        prompt: "Combine both branches and explain their roles in RAG.",
         content:
-          "Embedding 模型负责把问题和资料翻译成同一种“语义坐标”；向量数据库负责保存这些坐标并迅速找到附近的资料。\n\n可以把前者看作制图规则，后者看作带有快速导航能力的地图。RAG 再把导航找到的原文交给生成模型组织答案。",
-        summary: "Embedding 负责建立语义坐标，向量数据库负责保存和检索，二者共同完成 RAG 的检索阶段。",
+          "The embedding model translates questions and source material into the same kind of semantic coordinates. The vector database stores those coordinates and quickly finds nearby material.\n\nThink of embeddings as the map-making rules and the vector database as a map with fast navigation. RAG then sends the original passages found by that navigation to the generation model.",
+        summary:
+          "Embeddings create semantic coordinates; vector databases store and retrieve them to power RAG's retrieval stage.",
         selectedText: null,
         x: 1160,
         y: 215,
@@ -253,12 +279,12 @@ export class GraphDatabase {
     }
 
     const edges: Array<Omit<GraphEdge, "id" | "createdAt">> = [
-      { graphId: graph.id, source: "root-rag", target: "embedding", kind: "branch", label: "解释术语", includeInContext: true },
-      { graphId: graph.id, source: "embedding", target: "vector-space", kind: "branch", label: "继续追问", includeInContext: true },
-      { graphId: graph.id, source: "root-rag", target: "vector-db", kind: "branch", label: "解释术语", includeInContext: true },
-      { graphId: graph.id, source: "vector-db", target: "similarity", kind: "branch", label: "继续追问", includeInContext: true },
-      { graphId: graph.id, source: "embedding", target: "synthesis", kind: "reference", label: "联合理解", includeInContext: true },
-      { graphId: graph.id, source: "vector-db", target: "synthesis", kind: "reference", label: "联合理解", includeInContext: true },
+      { graphId: graph.id, source: "root-rag", target: "embedding", kind: "branch", label: "Explain term", includeInContext: true },
+      { graphId: graph.id, source: "embedding", target: "vector-space", kind: "branch", label: "Follow-up", includeInContext: true },
+      { graphId: graph.id, source: "root-rag", target: "vector-db", kind: "branch", label: "Explain term", includeInContext: true },
+      { graphId: graph.id, source: "vector-db", target: "similarity", kind: "branch", label: "Follow-up", includeInContext: true },
+      { graphId: graph.id, source: "embedding", target: "synthesis", kind: "reference", label: "Synthesis", includeInContext: true },
+      { graphId: graph.id, source: "vector-db", target: "synthesis", kind: "reference", label: "Synthesis", includeInContext: true },
     ];
     const insertEdge = this.db.prepare(
       "INSERT INTO edges VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
@@ -278,27 +304,29 @@ export class GraphDatabase {
   }
 
   listGraphs(): GraphMeta[] {
-    return (this.db.prepare("SELECT * FROM graphs ORDER BY updated_at DESC").all() as Record<string, unknown>[]).map(
-      (row) => ({
-        id: String(row.id),
-        title: String(row.title),
-        description: String(row.description),
-        createdAt: String(row.created_at),
-        updatedAt: String(row.updated_at),
-      }),
-    );
+    return (
+      this.db
+        .prepare(
+          "SELECT * FROM graphs WHERE archived_at IS NULL ORDER BY updated_at DESC",
+        )
+        .all() as Record<string, unknown>[]
+    ).map(this.mapGraph);
+  }
+
+  listArchivedGraphs(): GraphMeta[] {
+    return (
+      this.db
+        .prepare(
+          "SELECT * FROM graphs WHERE archived_at IS NOT NULL ORDER BY archived_at DESC",
+        )
+        .all() as Record<string, unknown>[]
+    ).map(this.mapGraph);
   }
 
   getGraph(id: string): GraphDocument | null {
     const graphRow = this.db.prepare("SELECT * FROM graphs WHERE id = ?").get(id) as Record<string, unknown> | undefined;
     if (!graphRow) return null;
-    const graph: GraphMeta = {
-      id: String(graphRow.id),
-      title: String(graphRow.title),
-      description: String(graphRow.description),
-      createdAt: String(graphRow.created_at),
-      updatedAt: String(graphRow.updated_at),
-    };
+    const graph = this.mapGraph(graphRow);
     const nodes = (this.db.prepare("SELECT * FROM nodes WHERE graph_id = ? ORDER BY created_at").all(id) as Record<string, unknown>[]).map(
       this.mapNode,
     );
@@ -306,6 +334,99 @@ export class GraphDatabase {
       this.mapEdge,
     );
     return { graph, nodes, edges };
+  }
+
+  createGraph(input: CreateGraphInput): GraphDocument {
+    const timestamp = now();
+    const graph: GraphMeta = {
+      id: nanoid(),
+      title: input.title,
+      description: input.description,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+      archivedAt: null,
+    };
+    this.db
+      .prepare(
+        "INSERT INTO graphs (id, title, description, created_at, updated_at, archived_at) VALUES (?, ?, ?, ?, ?, NULL)",
+      )
+      .run(
+        graph.id,
+        graph.title,
+        graph.description,
+        graph.createdAt,
+        graph.updatedAt,
+      );
+    return { graph, nodes: [], edges: [] };
+  }
+
+  updateGraph(id: string, input: UpdateGraphInput): GraphMeta | null {
+    const existing = this.db
+      .prepare("SELECT * FROM graphs WHERE id = ?")
+      .get(id) as Record<string, unknown> | undefined;
+    if (!existing) return null;
+    const graph = this.mapGraph(existing);
+    const updatedAt = now();
+    this.db
+      .prepare(
+        "UPDATE graphs SET title = ?, description = ?, updated_at = ? WHERE id = ?",
+      )
+      .run(
+        input.title ?? graph.title,
+        input.description ?? graph.description,
+        updatedAt,
+        id,
+      );
+    return this.mapGraph(
+      this.db.prepare("SELECT * FROM graphs WHERE id = ?").get(id) as Record<
+        string,
+        unknown
+      >,
+    );
+  }
+
+  archiveGraph(id: string): GraphMeta | null {
+    const existing = this.db
+      .prepare("SELECT * FROM graphs WHERE id = ? AND archived_at IS NULL")
+      .get(id) as Record<string, unknown> | undefined;
+    if (!existing) return null;
+    const activeCount = this.db
+      .prepare(
+        "SELECT COUNT(*) AS count FROM graphs WHERE archived_at IS NULL",
+      )
+      .get() as { count: number };
+    if (Number(activeCount.count) <= 1) {
+      throw new Error("LAST_ACTIVE_GRAPH");
+    }
+    const timestamp = now();
+    this.db
+      .prepare(
+        "UPDATE graphs SET archived_at = ?, updated_at = ? WHERE id = ?",
+      )
+      .run(timestamp, timestamp, id);
+    return this.mapGraph({
+      ...existing,
+      archived_at: timestamp,
+      updated_at: timestamp,
+    });
+  }
+
+  restoreGraph(id: string): GraphMeta | null {
+    const existing = this.db
+      .prepare("SELECT * FROM graphs WHERE id = ? AND archived_at IS NOT NULL")
+      .get(id) as Record<string, unknown> | undefined;
+    if (!existing) return null;
+    const timestamp = now();
+    this.db
+      .prepare(
+        "UPDATE graphs SET archived_at = NULL, updated_at = ? WHERE id = ?",
+      )
+      .run(timestamp, id);
+    return this.mapGraph({
+      ...existing,
+      archived_at: null,
+      updated_at: timestamp,
+    });
   }
 
   getNode(id: string): GraphNode | null {
@@ -452,11 +573,36 @@ export class GraphDatabase {
       .run(JSON.stringify({ ...settings, hasApiKey: false }));
   }
 
+  recoverInterruptedRuns(): number {
+    const interrupted = this.db
+      .prepare("SELECT id, graph_id, content FROM nodes WHERE status = 'streaming'")
+      .all() as Array<{ id: string; graph_id: string; content: string }>;
+    if (interrupted.length === 0) return 0;
+
+    const timestamp = now();
+    const update = this.db.prepare(
+      "UPDATE nodes SET status = 'error', content = ?, updated_at = ? WHERE id = ?",
+    );
+    for (const node of interrupted) {
+      update.run(
+        node.content || "Generation was interrupted before it could finish. You can retry from this node.",
+        timestamp,
+        node.id,
+      );
+    }
+    const graphIds = [...new Set(interrupted.map((node) => node.graph_id))];
+    const touch = this.db.prepare("UPDATE graphs SET updated_at = ? WHERE id = ?");
+    for (const graphId of graphIds) touch.run(timestamp, graphId);
+    return interrupted.length;
+  }
+
   exportAll() {
     return {
       version: 1,
       exportedAt: now(),
-      graphs: this.listGraphs().map((graph) => this.getGraph(graph.id)),
+      graphs: [...this.listGraphs(), ...this.listArchivedGraphs()].map((graph) =>
+        this.getGraph(graph.id),
+      ),
     };
   }
 
@@ -484,6 +630,15 @@ export class GraphDatabase {
     model: row.model == null ? null : String(row.model),
     createdAt: String(row.created_at),
     updatedAt: String(row.updated_at),
+  });
+
+  private mapGraph = (row: Record<string, unknown>): GraphMeta => ({
+    id: String(row.id),
+    title: String(row.title),
+    description: String(row.description),
+    createdAt: String(row.created_at),
+    updatedAt: String(row.updated_at),
+    archivedAt: row.archived_at == null ? null : String(row.archived_at),
   });
 
   private mapEdge = (row: Record<string, unknown>): GraphEdge => ({

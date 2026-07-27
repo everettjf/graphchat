@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { AlertCircle, LoaderCircle, RefreshCw } from "lucide-react";
 import type {
   GraphDocument,
+  GraphMeta,
   ProviderSettings,
   RunStreamEvent,
 } from "@shared/types";
@@ -16,10 +17,14 @@ import { SettingsDialog } from "@/components/settings-dialog";
 import { Button } from "@/components/ui/button";
 import { BrandMark } from "@/components/brand-mark";
 import { useWorkspace } from "@/store/workspace";
+import { useI18n } from "@/i18n";
 
 export default function App() {
+  const { t } = useI18n();
   const bootstrap = useQuery({ queryKey: ["bootstrap"], queryFn: api.bootstrap });
   const [document, setDocumentState] = useState<GraphDocument | null>(null);
+  const [graphs, setGraphs] = useState<GraphMeta[]>([]);
+  const [archivedGraphs, setArchivedGraphs] = useState<GraphMeta[]>([]);
   const [settings, setSettings] = useState<ProviderSettings>({
     provider: "demo",
     model: "graphchat-guide",
@@ -29,14 +34,37 @@ export default function App() {
   const [toast, setToast] = useState("");
   const selectedNodeId = useWorkspace((state) => state.selectedNodeId);
   const selectNode = useWorkspace((state) => state.selectNode);
+  const clearReferences = useWorkspace((state) => state.clearReferences);
   const flowRef = useRef<GraphFlowInstance | null>(null);
 
   useEffect(() => {
-    if (bootstrap.data?.activeGraph && !document) {
-      setDocumentState(bootstrap.data.activeGraph);
+    if (!bootstrap.data || document) return;
+    let active = true;
+    const initialize = async () => {
+      setGraphs(bootstrap.data.graphs);
+      setArchivedGraphs(bootstrap.data.archivedGraphs);
       setSettings(bootstrap.data.settings);
-    }
-  }, [bootstrap.data, document]);
+      const savedId = window.localStorage.getItem("graphchat-active-graph");
+      const savedGraph = savedId
+        ? bootstrap.data.graphs.find((graph) => graph.id === savedId)
+        : null;
+      const initial =
+        savedGraph && bootstrap.data.activeGraph?.graph.id !== savedGraph.id
+          ? await api.graph(savedGraph.id)
+          : bootstrap.data.activeGraph;
+      if (!active || !initial) return;
+      setDocumentState(initial);
+      selectNode(
+        window.matchMedia("(min-width: 1280px)").matches
+          ? initial.nodes[0]?.id ?? null
+          : null,
+      );
+    };
+    void initialize();
+    return () => {
+      active = false;
+    };
+  }, [bootstrap.data, document, selectNode]);
 
   useEffect(() => {
     const handleShortcut = (event: KeyboardEvent) => {
@@ -78,6 +106,69 @@ export default function App() {
     setDocumentState(fresh);
   }, [document]);
 
+  const openGraph = useCallback(
+    async (id: string) => {
+      const next = await api.graph(id);
+      setDocumentState(next);
+      window.localStorage.setItem("graphchat-active-graph", id);
+      clearReferences();
+      selectNode(
+        window.matchMedia("(min-width: 1280px)").matches
+          ? next.nodes[0]?.id ?? null
+          : null,
+      );
+      window.setTimeout(
+        () => flowRef.current?.fitView({ padding: 0.18, duration: 450 }),
+        80,
+      );
+    },
+    [clearReferences, selectNode],
+  );
+
+  const createGraph = useCallback(
+    async (input: { title: string; description: string }) => {
+      const created = await api.createGraph(input);
+      setGraphs((current) => [created.graph, ...current]);
+      setDocumentState(created);
+      window.localStorage.setItem("graphchat-active-graph", created.graph.id);
+      clearReferences();
+      selectNode(null);
+    },
+    [clearReferences, selectNode],
+  );
+
+  const updateGraph = useCallback(
+    async (id: string, input: { title: string; description: string }) => {
+      const updated = await api.updateGraph(id, input);
+      setGraphs((current) =>
+        current.map((graph) => (graph.id === id ? updated : graph)),
+      );
+      setDocumentState((current) =>
+        current?.graph.id === id ? { ...current, graph: updated } : current,
+      );
+    },
+    [],
+  );
+
+  const archiveGraph = useCallback(
+    async (id: string) => {
+      const archived = await api.archiveGraph(id);
+      const remaining = graphs.filter((graph) => graph.id !== id);
+      setGraphs(remaining);
+      setArchivedGraphs((current) => [archived, ...current]);
+      if (document?.graph.id === id && remaining[0]) {
+        await openGraph(remaining[0].id);
+      }
+    },
+    [document?.graph.id, graphs, openGraph],
+  );
+
+  const restoreGraph = useCallback(async (id: string) => {
+    const restored = await api.restoreGraph(id);
+    setArchivedGraphs((current) => current.filter((graph) => graph.id !== id));
+    setGraphs((current) => [restored, ...current]);
+  }, []);
+
   const selectedNode = useMemo(
     () => document?.nodes.find((node) => node.id === selectedNodeId) ?? null,
     [document, selectedNodeId],
@@ -97,7 +188,7 @@ export default function App() {
               source: parentNodeId,
               target: event.node.id,
               kind: "branch",
-              label: "继续追问",
+              label: t("edge.continue"),
               includeInContext: true,
               createdAt: new Date().toISOString(),
             });
@@ -109,7 +200,7 @@ export default function App() {
               source,
               target: event.node.id,
               kind: "reference",
-              label: "引用",
+              label: t("edge.reference"),
               includeInContext: true,
               createdAt: new Date().toISOString(),
             });
@@ -119,11 +210,10 @@ export default function App() {
         selectNode(event.node.id);
         setTimeout(() => flowRef.current?.fitView({ padding: 0.18, duration: 500 }), 80);
       } else if (event.type === "text_delta") {
-        const activeId = useWorkspace.getState().selectedNodeId;
         setDocument((current) => ({
           ...current,
           nodes: current.nodes.map((node) =>
-            node.id === activeId ? { ...node, content: node.content + event.delta } : node,
+            node.id === event.nodeId ? { ...node, content: node.content + event.delta } : node,
           ),
         }));
       } else if (event.type === "run_finished") {
@@ -131,19 +221,42 @@ export default function App() {
           ...current,
           nodes: current.nodes.map((node) => (node.id === event.node.id ? event.node : node)),
         }));
-        void refreshGraph();
-        setToast("回答已保存到知识图");
+        window.setTimeout(() => void refreshGraph(), 350);
+        setToast(t("app.answerSaved"));
+        setTimeout(() => setToast(""), 2_400);
+      } else if (event.type === "run_cancelled") {
+        setDocument((current) => ({
+          ...current,
+          nodes: current.nodes.map((node) =>
+            node.id === event.nodeId
+              ? event.node || { ...node, status: "cancelled" }
+              : node,
+          ),
+        }));
+        window.setTimeout(() => void refreshGraph(), 350);
+        setToast(event.message);
         setTimeout(() => setToast(""), 2_400);
       } else if (event.type === "run_failed") {
+        if (event.nodeId) {
+          setDocument((current) => ({
+            ...current,
+            nodes: current.nodes.map((node) =>
+              node.id === event.nodeId
+                ? event.node || { ...node, status: "error" }
+                : node,
+            ),
+          }));
+        }
+        window.setTimeout(() => void refreshGraph(), 350);
         setToast(event.message);
         setTimeout(() => setToast(""), 4_000);
       }
     },
-    [refreshGraph, selectNode, setDocument],
+    [refreshGraph, selectNode, setDocument, t],
   );
 
   const handleDelete = async (id: string) => {
-    if (!window.confirm("删除这个节点及与它相连的关系？此操作无法撤销。")) return;
+    if (!window.confirm(t("app.deleteConfirm"))) return;
     await api.deleteNode(id);
     setDocument((current) => ({
       ...current,
@@ -159,7 +272,7 @@ export default function App() {
         <div className="flex flex-col items-center gap-5">
           <BrandMark />
           <LoaderCircle className="size-5 animate-spin text-[#719a7e]" />
-          <p className="text-xs text-[var(--muted-light)]">正在打开你的知识图…</p>
+          <p className="text-xs text-[var(--muted-light)]">{t("app.loading")}</p>
         </div>
       </main>
     );
@@ -170,12 +283,14 @@ export default function App() {
       <main className="grid h-screen place-items-center bg-[var(--paper)] p-6">
         <div className="max-w-sm rounded-3xl border border-red-100 bg-white p-8 text-center shadow-xl">
           <AlertCircle className="mx-auto mb-4 size-8 text-red-500" />
-          <h1 className="font-display text-xl font-semibold">无法打开 Graph Chat</h1>
+          <h1 className="font-display text-xl font-semibold">{t("app.openFailed")}</h1>
           <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
-            {bootstrap.error instanceof Error ? bootstrap.error.message : "本地服务暂时不可用。"}
+            {bootstrap.error instanceof Error
+              ? bootstrap.error.message
+              : t("app.serviceUnavailable")}
           </p>
           <Button className="mt-5" onClick={() => void bootstrap.refetch()}>
-            <RefreshCw className="size-4" /> 重试
+            <RefreshCw className="size-4" /> {t("app.retry")}
           </Button>
         </div>
       </main>
@@ -184,7 +299,17 @@ export default function App() {
 
   return (
     <main className="flex h-dvh overflow-hidden bg-[var(--paper)] text-[var(--ink)]">
-      <Sidebar graphs={bootstrap.data?.graphs ?? [document.graph]} nodes={document.nodes} />
+      <Sidebar
+        graphs={graphs.length ? graphs : [document.graph]}
+        archivedGraphs={archivedGraphs}
+        activeGraphId={document.graph.id}
+        nodes={document.nodes}
+        onSelectGraph={(id) => void openGraph(id)}
+        onCreateGraph={createGraph}
+        onUpdateGraph={updateGraph}
+        onArchiveGraph={archiveGraph}
+        onRestoreGraph={restoreGraph}
+      />
       <section className="flex min-w-0 flex-1 flex-col">
         <Topbar
           document={document}
