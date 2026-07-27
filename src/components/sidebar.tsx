@@ -38,6 +38,7 @@ type SidebarProps = {
     title: string;
     description: string;
   }) => Promise<void>;
+  onNewThread: () => Promise<void>;
   onUpdateGraph: (
     id: string,
     input: { title: string; description: string },
@@ -53,6 +54,7 @@ export function Sidebar({
   nodes,
   onSelectGraph,
   onCreateGraph,
+  onNewThread,
   onUpdateGraph,
   onArchiveGraph,
   onRestoreGraph,
@@ -103,10 +105,7 @@ export function Sidebar({
         <Button
           variant="accent"
           className="mb-4 h-11 w-full justify-start rounded-xl px-3.5 shadow-none"
-          onClick={() => {
-            selectNode(null);
-            useWorkspace.getState().openComposer();
-          }}
+          onClick={() => void onNewThread()}
         >
           <Plus className="size-4" /> {t("sidebar.newStart")}
           <span className="ml-auto rounded-md border border-black/10 px-1.5 py-0.5 text-[9px] opacity-60">

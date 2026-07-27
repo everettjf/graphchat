@@ -1,9 +1,12 @@
 import {
+  FileText,
   Menu,
   Maximize2,
+  Network,
   PanelRightClose,
   PanelRightOpen,
   Sparkles,
+  TreePine,
   Undo2,
   Wrench,
 } from "lucide-react";
@@ -20,12 +23,16 @@ export function Topbar({
   onFitView,
   onOpenTools,
   onUndo,
+  viewMode,
+  onViewModeChange,
 }: {
   document: GraphDocument;
   settings: ProviderSettings;
   onFitView: () => void;
   onOpenTools: () => void;
   onUndo: () => void;
+  viewMode: "content" | "tree" | "graph";
+  onViewModeChange: (mode: "content" | "tree" | "graph") => void;
 }) {
   const { setSidebarOpen, inspectorOpen, setInspectorOpen } = useWorkspace();
   const { locale, setLocale, t } = useI18n();
@@ -91,11 +98,48 @@ export function Topbar({
             中文
           </button>
         </div>
-        <Tooltip content={t("topbar.fit")}>
-          <Button variant="ghost" size="icon" className="size-8" onClick={onFitView}>
-            <Maximize2 className="size-3.5" />
+        <div className="flex rounded-lg border border-black/[0.06] bg-white/55 p-0.5">
+          <Button
+            variant={viewMode === "content" ? "soft" : "ghost"}
+            size="sm"
+            className="h-7 px-1.5 text-[10px] sm:px-2"
+            onClick={() => onViewModeChange("content")}
+            aria-label={locale === "zh" ? "内容视图" : "Content view"}
+            aria-pressed={viewMode === "content"}
+          >
+            <FileText className="size-3" />
+            <span className="hidden 2xl:inline">{locale === "zh" ? "聊天" : "Chat"}</span>
           </Button>
-        </Tooltip>
+          <Button
+            variant={viewMode === "tree" ? "soft" : "ghost"}
+            size="sm"
+            className="h-7 px-1.5 text-[10px] sm:px-2"
+            onClick={() => onViewModeChange("tree")}
+            aria-label={locale === "zh" ? "知识树视图" : "Tree view"}
+            aria-pressed={viewMode === "tree"}
+          >
+            <TreePine className="size-3" />
+            <span className="hidden 2xl:inline">{locale === "zh" ? "树" : "Tree"}</span>
+          </Button>
+          <Button
+            variant={viewMode === "graph" ? "soft" : "ghost"}
+            size="sm"
+            className="h-7 px-1.5 text-[10px] sm:px-2"
+            onClick={() => onViewModeChange("graph")}
+            aria-label={locale === "zh" ? "图谱视图" : "Graph view"}
+            aria-pressed={viewMode === "graph"}
+          >
+            <Network className="size-3" />
+            <span className="hidden 2xl:inline">{locale === "zh" ? "图谱" : "Graph"}</span>
+          </Button>
+        </div>
+        {viewMode === "graph" && (
+          <Tooltip content={t("topbar.fit")}>
+            <Button variant="ghost" size="icon" className="size-8" onClick={onFitView}>
+              <Maximize2 className="size-3.5" />
+            </Button>
+          </Tooltip>
+        )}
         <Tooltip content={locale === "zh" ? "撤销上一步图谱修改" : "Undo last graph change"}>
           <Button
             variant="ghost"
@@ -118,9 +162,11 @@ export function Topbar({
             <Wrench className="size-3.5" />
           </Button>
         </Tooltip>
-        <Tooltip
+        {viewMode === "content" && <Tooltip
           content={
-            inspectorOpen ? t("topbar.hideDetails") : t("topbar.showDetails")
+            inspectorOpen
+              ? locale === "zh" ? "隐藏知识树" : "Hide knowledge tree"
+              : locale === "zh" ? "显示知识树" : "Show knowledge tree"
           }
         >
           <Button
@@ -131,7 +177,7 @@ export function Topbar({
           >
             {inspectorOpen ? <PanelRightClose className="size-3.5" /> : <PanelRightOpen className="size-3.5" />}
           </Button>
-        </Tooltip>
+        </Tooltip>}
       </div>
     </header>
   );

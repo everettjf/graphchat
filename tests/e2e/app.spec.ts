@@ -1,5 +1,10 @@
 import { expect, test } from "@playwright/test";
 
+async function openGraphView(page: import("@playwright/test").Page) {
+  await page.getByRole("button", { name: "Graph view" }).click();
+  await expect(page.getByTestId("graph-canvas")).toBeVisible();
+}
+
 test.describe("Graph Chat", () => {
   test("opens the English-first learning graph and inspects a node", async ({
     page,
@@ -14,7 +19,21 @@ test.describe("Graph Chat", () => {
     await page.goto("/");
     await expect(page.locator("html")).toHaveAttribute("lang", "en");
     await expect(page.getByText("Graph Chat", { exact: true })).toBeVisible();
-    await expect(page.getByTestId("graph-canvas")).toBeVisible();
+    await expect(page.getByTestId("node-inspector")).toBeVisible();
+    await expect(page.getByTestId("knowledge-tree")).toBeVisible();
+    const separator = page.getByRole("separator", {
+      name: "Resize conversation and knowledge tree",
+    });
+    await expect(separator).toHaveAttribute("aria-valuenow", "50");
+    await separator.press("Alt+ArrowRight");
+    await expect(separator).toHaveAttribute("aria-valuenow", "55");
+
+    await page.getByRole("button", { name: "Tree view" }).click();
+    await page.getByTestId("tree-node-vector-db").click();
+    await expect(
+      page.getByRole("button", { name: "Content view" }),
+    ).toHaveAttribute("aria-pressed", "true");
+    await openGraphView(page);
     await expect(page.locator('[data-testid^="graph-node-"]')).toHaveCount(6);
 
     await page.getByTestId("graph-node-embedding").click();
@@ -28,8 +47,6 @@ test.describe("Graph Chat", () => {
       page.getByText("semantic coordinates", { exact: false }).first(),
     ).toBeVisible();
 
-    await page.keyboard.press("n");
-    await expect(page.getByTestId("composer-input")).toBeVisible();
   });
 
   test("merges a cross-branch reference into a streamed Pi answer and persists it", async ({
@@ -37,27 +54,30 @@ test.describe("Graph Chat", () => {
     request,
   }) => {
     await page.goto("/");
+    await openGraphView(page);
+    const initialCount = await page.locator('[data-testid^="graph-node-"]').count();
     await page.getByTestId("graph-node-vector-db").click();
     await page.getByRole("button", { name: "Add to synthesis" }).click();
-    await page.getByTestId("graph-node-embedding").click();
-    const initialCount = await page.locator('[data-testid^="graph-node-"]').count();
+    await page.getByTestId("tree-node-embedding").click();
 
     const input = page.getByTestId("composer-input");
     await input.fill("How do embeddings and vector databases work together?");
     await page.getByText("Synthesize branches").click();
     await page.getByTestId("composer-submit").click();
 
-    await expect(page.locator('[data-testid^="graph-node-"]')).toHaveCount(
-      initialCount + 1,
-    );
     await expect(
       page.getByText("Answer saved to the knowledge graph"),
     ).toBeVisible({ timeout: 15_000 });
     await expect(page.getByTestId("node-inspector")).toContainText(
       "Put the branches on one map",
     );
+    await page.getByTestId("content-tab-context").click();
+    await expect(page.getByTestId("node-inspector")).toContainText(
+      "Context actually used",
+    );
 
     await page.reload();
+    await openGraphView(page);
     await expect(page.locator('[data-testid^="graph-node-"]')).toHaveCount(
       initialCount + 1,
     );
@@ -83,17 +103,13 @@ test.describe("Graph Chat", () => {
     request,
   }) => {
     await page.goto("/");
+    await openGraphView(page);
     await page.getByTestId("graph-node-embedding").click();
     const input = page.getByTestId("composer-input");
     const prompt = "Explain embeddings with a fresh counterexample.";
     await input.fill(prompt);
-    const initialCount = await page.locator('[data-testid^="graph-node-"]').count();
     await page.getByTestId("composer-submit").click();
-    await expect(page.locator('[data-testid^="graph-node-"]')).toHaveCount(
-      initialCount + 1,
-    );
-
-    await page.getByTestId("graph-node-vector-db").click();
+    await page.getByTestId("tree-node-vector-db").click();
     await expect(
       page.getByText("Answer saved to the knowledge graph"),
     ).toBeVisible({ timeout: 15_000 });
@@ -117,15 +133,12 @@ test.describe("Graph Chat", () => {
 
   test("persists a cancelled run as cancelled", async ({ page, request }) => {
     await page.goto("/");
+    await openGraphView(page);
     await page.getByTestId("graph-node-root-rag").click();
     const input = page.getByTestId("composer-input");
     const prompt = "Cancel this long learning answer.";
     await input.fill(prompt);
-    const initialCount = await page.locator('[data-testid^="graph-node-"]').count();
     await page.getByTestId("composer-submit").click();
-    await expect(page.locator('[data-testid^="graph-node-"]')).toHaveCount(
-      initialCount + 1,
-    );
     await page.getByRole("button", { name: "Stop generation" }).click();
     await expect(page.getByText("Generation cancelled.")).toBeVisible();
 
@@ -146,6 +159,7 @@ test.describe("Graph Chat", () => {
       .toBe("cancelled");
 
     await page.reload();
+    await openGraphView(page);
     await expect(page.getByText("Cancelled", { exact: true })).toBeVisible();
   });
 
@@ -244,7 +258,8 @@ test.describe("Graph Chat", () => {
     expect(await markdown.text()).toContain("Source: https://example.com/cap");
 
     await page.getByText("Close", { exact: true }).click();
-    await page.getByRole("heading", { name: "Consistency", exact: true }).click();
+    await page.getByTestId("knowledge-tree").getByText("Consistency", { exact: true }).click();
+    await page.getByTestId("content-tab-details").click();
     await page.getByLabel("Knowledge status").selectOption("verified");
     await page.getByLabel("Mastery").selectOption("learning");
     await page.getByRole("button", { name: "Helpful", exact: true }).click();
@@ -339,6 +354,43 @@ test.describe("Graph Chat", () => {
     await expect(
       page.getByRole("heading", { name: "Reliable distributed systems" }),
     ).toBeVisible();
+  });
+
+  test("turns selected answer text into a branch-ready composer context", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    await page.getByRole("button", {
+      name: "Understanding RAG: from new concepts to a complete picture An example graph showing branches, follow-ups, and synthesis",
+      exact: true,
+    }).click();
+    const content = page.getByTestId("conversation-content");
+    await content.selectText();
+    await content.dispatchEvent("mouseup");
+    await expect(page.getByTestId("composer-input")).toBeVisible();
+    await expect(page.getByTestId("selection-context")).toBeVisible();
+  });
+
+  test("starts a new learning thread on a blank content workspace", async ({
+    page,
+    request,
+  }) => {
+    await page.goto("/");
+    const before = await (await request.get("/api/bootstrap")).json();
+    await page.getByRole("button", { name: "New learning thread" }).click();
+
+    await expect(page.getByTestId("empty-content")).toBeVisible();
+    await expect(page.getByTestId("composer-input")).toBeVisible();
+    await expect(page.getByTestId("knowledge-tree")).toContainText("0 content nodes");
+    await expect(
+      page.getByRole("heading", { name: /Learning thread \d+/ }),
+    ).toBeVisible();
+    await expect
+      .poll(async () => {
+        const after = await (await request.get("/api/bootstrap")).json();
+        return after.graphs.length;
+      })
+      .toBe(before.graphs.length + 1);
   });
 });
 

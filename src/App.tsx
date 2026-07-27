@@ -1,6 +1,13 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
 import { useQuery } from "@tanstack/react-query";
-import { AlertCircle, LoaderCircle, RefreshCw } from "lucide-react";
+import { AlertCircle, BookOpen, LoaderCircle, RefreshCw } from "lucide-react";
 import type {
   GraphDocument,
   GraphMeta,
@@ -15,6 +22,8 @@ import { Inspector } from "@/components/inspector";
 import { Composer } from "@/components/composer";
 import { SettingsDialog } from "@/components/settings-dialog";
 import { WorkspaceTools } from "@/components/workspace-tools";
+import { KnowledgeTree } from "@/components/knowledge-tree";
+import { SplitHandle } from "@/components/split-handle";
 import { Button } from "@/components/ui/button";
 import { BrandMark } from "@/components/brand-mark";
 import { useWorkspace } from "@/store/workspace";
@@ -34,10 +43,23 @@ export default function App() {
   });
   const [toast, setToast] = useState("");
   const [toolsOpen, setToolsOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<"content" | "tree" | "graph">("content");
+  const [conversationWidth, setConversationWidth] = useState(() => {
+    const saved = Number(window.localStorage.getItem("graphchat-conversation-width"));
+    return saved >= 30 && saved <= 75 ? saved : 50;
+  });
   const selectedNodeId = useWorkspace((state) => state.selectedNodeId);
+  const inspectorOpen = useWorkspace((state) => state.inspectorOpen);
   const selectNode = useWorkspace((state) => state.selectNode);
   const clearReferences = useWorkspace((state) => state.clearReferences);
   const flowRef = useRef<GraphFlowInstance | null>(null);
+
+  useEffect(() => {
+    window.localStorage.setItem(
+      "graphchat-conversation-width",
+      String(conversationWidth),
+    );
+  }, [conversationWidth]);
 
   useEffect(() => {
     if (!bootstrap.data || document) return;
@@ -68,33 +90,6 @@ export default function App() {
       active = false;
     };
   }, [bootstrap.data, document, selectNode]);
-
-  useEffect(() => {
-    const handleShortcut = (event: KeyboardEvent) => {
-      const target = event.target as HTMLElement | null;
-      const isTyping =
-        target?.isContentEditable ||
-        ["INPUT", "TEXTAREA", "SELECT"].includes(target?.tagName ?? "");
-      const workspace = useWorkspace.getState();
-      if (
-        isTyping ||
-        workspace.composerOpen ||
-        workspace.settingsOpen ||
-        event.ctrlKey ||
-        event.metaKey ||
-        event.altKey
-      ) {
-        return;
-      }
-      if (event.key.toLocaleLowerCase() === "n") {
-        event.preventDefault();
-        selectNode(null);
-        workspace.openComposer();
-      }
-    };
-    window.addEventListener("keydown", handleShortcut);
-    return () => window.removeEventListener("keydown", handleShortcut);
-  }, [selectNode]);
 
   const setDocument = useCallback(
     (updater: (current: GraphDocument) => GraphDocument) => {
@@ -135,11 +130,53 @@ export default function App() {
       setGraphs((current) => [created.graph, ...current]);
       setDocumentState(created);
       window.localStorage.setItem("graphchat-active-graph", created.graph.id);
+      void api.recordGraphOpen(created.graph.id);
       clearReferences();
       selectNode(null);
+      setViewMode("content");
     },
     [clearReferences, selectNode],
   );
+
+  const startNewThread = useCallback(async () => {
+    await createGraph({
+      title:
+        locale === "zh"
+          ? `学习线程 ${graphs.length + 1}`
+          : `Learning thread ${graphs.length + 1}`,
+      description:
+        locale === "zh"
+          ? "从一个新问题开始的独立学习空间"
+          : "An independent learning space starting from a new question",
+    });
+    useWorkspace.getState().openComposer();
+  }, [createGraph, graphs.length, locale]);
+
+  useEffect(() => {
+    const handleShortcut = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      const isTyping =
+        target?.isContentEditable ||
+        ["INPUT", "TEXTAREA", "SELECT"].includes(target?.tagName ?? "");
+      const workspace = useWorkspace.getState();
+      if (
+        isTyping ||
+        workspace.composerOpen ||
+        workspace.settingsOpen ||
+        event.ctrlKey ||
+        event.metaKey ||
+        event.altKey
+      ) {
+        return;
+      }
+      if (event.key.toLocaleLowerCase() === "n") {
+        event.preventDefault();
+        void startNewThread();
+      }
+    };
+    window.addEventListener("keydown", handleShortcut);
+    return () => window.removeEventListener("keydown", handleShortcut);
+  }, [startNewThread]);
 
   const updateGraph = useCallback(
     async (id: string, input: { title: string; description: string }) => {
@@ -331,35 +368,86 @@ export default function App() {
         nodes={document.nodes}
         onSelectGraph={(id) => void openGraph(id)}
         onCreateGraph={createGraph}
+        onNewThread={startNewThread}
         onUpdateGraph={updateGraph}
         onArchiveGraph={archiveGraph}
         onRestoreGraph={restoreGraph}
       />
-      <section className="flex min-w-0 flex-1 flex-col">
+      <div className="flex min-w-0 flex-1">
+      <section
+        className="flex min-w-0 shrink-0 flex-col max-md:w-full md:w-[var(--conversation-width)]"
+        style={{
+          "--conversation-width":
+            viewMode === "content" && inspectorOpen
+              ? `${conversationWidth}%`
+              : "100%",
+        } as CSSProperties}
+      >
         <Topbar
           document={document}
           settings={settings}
           onFitView={() => flowRef.current?.fitView({ padding: 0.18, duration: 450 })}
           onOpenTools={() => setToolsOpen(true)}
           onUndo={() => void handleUndo()}
+          viewMode={viewMode}
+          onViewModeChange={setViewMode}
         />
         <div className="relative min-h-0 flex-1">
-          <GraphCanvas
-            document={document}
-            setDocument={setDocument}
-            onFlowReady={(instance) => {
-              flowRef.current = instance;
-            }}
-          />
-          <Composer document={document} settings={settings} onEvent={handleRunEvent} />
+          {viewMode === "graph" ? (
+            <GraphCanvas
+              document={document}
+              setDocument={setDocument}
+              onFlowReady={(instance) => {
+                flowRef.current = instance;
+              }}
+              onNodeOpen={() => setViewMode("content")}
+            />
+          ) : viewMode === "tree" ? (
+            <KnowledgeTree
+              document={document}
+              mode="full"
+              onNodeOpen={() => setViewMode("content")}
+            />
+          ) : selectedNode ? (
+            <Inspector
+              embedded
+              node={selectedNode}
+              document={document}
+              onDelete={(id) => void handleDelete(id)}
+              onUpdate={(id, input) => void handleUpdateNode(id, input)}
+            />
+          ) : (
+            <div className="grid h-full place-items-center px-6 pb-24" data-testid="empty-content">
+              <div className="max-w-sm text-center">
+                <div className="mx-auto mb-4 grid size-12 place-items-center rounded-2xl bg-[#e7efe8] text-[#54725c]">
+                  <BookOpen className="size-5" />
+                </div>
+                <h2 className="font-display text-xl font-semibold">
+                  {locale === "zh" ? "从第一个问题开始" : "Start with your first question"}
+                </h2>
+                <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
+                  {locale === "zh"
+                    ? "详细内容会显示在这里，右侧知识树会随着追问逐步生长。"
+                    : "Detailed content appears here while the knowledge tree grows on the right."}
+                </p>
+              </div>
+            </div>
+          )}
+          {viewMode === "content" && (
+            <Composer document={document} settings={settings} onEvent={handleRunEvent} />
+          )}
         </div>
       </section>
-      <Inspector
-        node={selectedNode}
-        document={document}
-        onDelete={(id) => void handleDelete(id)}
-        onUpdate={(id, input) => void handleUpdateNode(id, input)}
-      />
+      {viewMode === "content" && inspectorOpen && (
+        <>
+          <SplitHandle value={conversationWidth} onChange={setConversationWidth} />
+          <KnowledgeTree
+            document={document}
+            onNodeOpen={() => setViewMode("content")}
+          />
+        </>
+      )}
+      </div>
       <SettingsDialog settings={settings} onSaved={setSettings} />
       <WorkspaceTools
         document={document}

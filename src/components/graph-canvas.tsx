@@ -26,11 +26,17 @@ type GraphCanvasProps = {
   document: GraphDocument;
   setDocument: (updater: (document: GraphDocument) => GraphDocument) => void;
   onFlowReady?: (instance: GraphFlowInstance) => void;
+  onNodeOpen?: (nodeId: string) => void;
 };
 
 export type GraphFlowInstance = ReactFlowInstance<Node<GraphNodeData>, Edge>;
 
-export function GraphCanvas({ document, setDocument, onFlowReady }: GraphCanvasProps) {
+export function GraphCanvas({
+  document,
+  setDocument,
+  onFlowReady,
+  onNodeOpen,
+}: GraphCanvasProps) {
   const { t } = useI18n();
   const selectedNodeId = useWorkspace((state) => state.selectedNodeId);
   const referenceNodeIds = useWorkspace((state) => state.referenceNodeIds);
@@ -243,7 +249,10 @@ export function GraphCanvas({ document, setDocument, onFlowReady }: GraphCanvasP
         edges={edges}
         nodeTypes={nodeTypes}
         onNodesChange={onNodesChange}
-        onNodeClick={(_, node) => selectNode(node.id)}
+        onNodeClick={(_, node) => {
+          selectNode(node.id);
+          onNodeOpen?.(node.id);
+        }}
         onNodeDoubleClick={(_, node) => {
           setCollapsedRoots((current) => {
             const next = new Set(current);
