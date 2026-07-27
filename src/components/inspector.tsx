@@ -9,24 +9,30 @@ import {
   Network,
   Quote,
   Trash2,
+  ThumbsDown,
+  ThumbsUp,
+  WandSparkles,
   X,
 } from "lucide-react";
-import type { GraphDocument, GraphNode } from "@shared/types";
+import type { GraphDocument, GraphNode, UpdateNodeInput } from "@shared/types";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { Markdown } from "./markdown";
 import { useWorkspace } from "@/store/workspace";
 import { cn, formatRelativeTime } from "@/lib/utils";
 import { useI18n } from "@/i18n";
+import { api } from "@/lib/api";
 
 export function Inspector({
   node,
   document,
   onDelete,
+  onUpdate,
 }: {
   node: GraphNode | null;
   document: GraphDocument;
   onDelete: (id: string) => void;
+  onUpdate: (id: string, input: UpdateNodeInput) => void;
 }) {
   const { locale, t } = useI18n();
   const {
@@ -150,6 +156,136 @@ export function Inspector({
             <p className="text-xs leading-5 text-[#42634d]">{node.summary}</p>
           </div>
         )}
+
+        {node.contextSnapshot && (
+          <section className="mt-7 rounded-2xl border border-[#ddd7e8] bg-[#f4f0f8] p-4">
+            <div className="mb-2 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.13em] text-[#6d6282]">
+              <Braces className="size-3.5" />
+              {locale === "zh" ? "实际使用的上下文" : "Context actually used"}
+            </div>
+            <p className="mb-3 text-[10px] text-[#756b86]">
+              {locale === "zh"
+                ? `约 ${node.contextSnapshot.estimatedTokens} tokens · ${node.contextSnapshot.items.length} 个来源`
+                : `~${node.contextSnapshot.estimatedTokens} tokens · ${node.contextSnapshot.items.length} sources`}
+            </p>
+            <div className="space-y-1.5">
+              {node.contextSnapshot.items.map((item) => (
+                <div key={`${item.nodeId}-${item.reason}`} className="flex items-center gap-2 rounded-lg bg-white/55 px-2.5 py-2">
+                  <span className="min-w-0 flex-1 truncate text-[10px] font-medium text-[#5e556e]">
+                    {item.title}
+                  </span>
+                  <span className="rounded-full bg-[#e8e0f0] px-2 py-0.5 text-[8px] uppercase text-[#6d6282]">
+                    {item.reason}
+                  </span>
+                </div>
+              ))}
+            </div>
+            {node.contextSnapshot.omittedNodeIds.length > 0 && (
+              <p className="mt-2 text-[9px] text-[#8b6270]">
+                {locale === "zh"
+                  ? `${node.contextSnapshot.omittedNodeIds.length} 个节点因上下文预算未使用`
+                  : `${node.contextSnapshot.omittedNodeIds.length} nodes omitted by the context budget`}
+              </p>
+            )}
+          </section>
+        )}
+
+        <section className="mt-7 border-t border-[var(--border)] pt-5">
+          <div className="mb-3 text-[10px] font-bold uppercase tracking-[0.13em] text-[var(--muted-light)]">
+            {locale === "zh" ? "知识资产" : "Knowledge asset"}
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            className="mb-3 w-full"
+            onClick={async () => {
+              const suggestion = await api.suggestMetadata(node.id);
+              onUpdate(node.id, suggestion);
+            }}
+          >
+            <WandSparkles className="size-3.5" />
+            {locale === "zh" ? "建议标签与摘要" : "Suggest tags and summary"}
+          </Button>
+          <label className="mb-3 block text-[10px] text-[var(--muted-light)]">
+            {locale === "zh" ? "标签（逗号分隔）" : "Tags (comma separated)"}
+            <input
+              key={`${node.id}-${node.tags.join(",")}`}
+              defaultValue={node.tags.join(", ")}
+              onBlur={(event) =>
+                onUpdate(node.id, {
+                  tags: event.currentTarget.value
+                    .split(",")
+                    .map((tag) => tag.trim())
+                    .filter(Boolean),
+                })
+              }
+              className="mt-1 h-9 w-full rounded-xl border border-[var(--border)] bg-white/70 px-3 text-xs outline-none focus:border-[#8fb59e]"
+            />
+          </label>
+          <label className="mb-3 block text-[10px] text-[var(--muted-light)]">
+            {locale === "zh" ? "来源链接" : "Source URL"}
+            <input
+              key={`${node.id}-${node.sourceUrl}`}
+              defaultValue={node.sourceUrl}
+              onBlur={(event) => onUpdate(node.id, { sourceUrl: event.currentTarget.value.trim() })}
+              className="mt-1 h-9 w-full rounded-xl border border-[var(--border)] bg-white/70 px-3 text-xs outline-none focus:border-[#8fb59e]"
+            />
+          </label>
+          <div className="mb-3 grid grid-cols-2 gap-2">
+            <select
+              value={node.knowledgeStatus}
+              onChange={(event) =>
+                onUpdate(node.id, {
+                  knowledgeStatus: event.target.value as GraphNode["knowledgeStatus"],
+                })
+              }
+              aria-label={locale === "zh" ? "知识状态" : "Knowledge status"}
+              className="h-9 rounded-xl border border-[var(--border)] bg-white/70 px-2 text-[10px]"
+            >
+              <option value="exploring">{locale === "zh" ? "探索中" : "Exploring"}</option>
+              <option value="verified">{locale === "zh" ? "已验证" : "Verified"}</option>
+              <option value="conclusion">{locale === "zh" ? "结论" : "Conclusion"}</option>
+              <option value="outdated">{locale === "zh" ? "已过时" : "Outdated"}</option>
+            </select>
+            <select
+              value={node.mastery}
+              onChange={(event) =>
+                onUpdate(node.id, {
+                  mastery: event.target.value as GraphNode["mastery"],
+                })
+              }
+              aria-label={locale === "zh" ? "掌握程度" : "Mastery"}
+              className="h-9 rounded-xl border border-[var(--border)] bg-white/70 px-2 text-[10px]"
+            >
+              <option value="new">{locale === "zh" ? "未学习" : "New"}</option>
+              <option value="learning">{locale === "zh" ? "学习中" : "Learning"}</option>
+              <option value="mastered">{locale === "zh" ? "已掌握" : "Mastered"}</option>
+            </select>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="mr-auto text-[10px] text-[var(--muted-light)]">
+              {locale === "zh" ? "回答质量" : "Answer quality"}
+            </span>
+            <Button
+              size="icon"
+              variant={node.rating === 1 ? "soft" : "ghost"}
+              className="size-8"
+              aria-label={locale === "zh" ? "有帮助" : "Helpful"}
+              onClick={() => onUpdate(node.id, { rating: node.rating === 1 ? 0 : 1 })}
+            >
+              <ThumbsUp className="size-3.5" />
+            </Button>
+            <Button
+              size="icon"
+              variant={node.rating === -1 ? "soft" : "ghost"}
+              className="size-8"
+              aria-label={locale === "zh" ? "无帮助" : "Not helpful"}
+              onClick={() => onUpdate(node.id, { rating: node.rating === -1 ? 0 : -1 })}
+            >
+              <ThumbsDown className="size-3.5" />
+            </Button>
+          </div>
+        </section>
 
         <section className="mt-7">
           <div className="mb-3 flex items-center justify-between">

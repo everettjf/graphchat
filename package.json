@@ -73,6 +73,7 @@
     "fastify": "^5.6.1",
     "lucide-react": "^0.548.0",
     "nanoid": "^5.1.6",
+    "pdfjs-dist": "^6.1.200",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-markdown": "^10.1.0",

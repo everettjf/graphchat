@@ -77,7 +77,15 @@ describe("GraphAgentRuntime", () => {
               event.runId === started.runId && event.nodeId === started.nodeId,
           ),
       ).toBe(true);
-      expect(database.getNode(finished.node.id)?.content).toContain("把这些分支");
+      const persisted = database.getNode(finished.node.id);
+      expect(persisted?.content).toContain("把这些分支");
+      expect(persisted?.contextSnapshot).toMatchObject({
+        estimatedTokens: expect.any(Number),
+        items: expect.arrayContaining([
+          expect.objectContaining({ nodeId: "embedding" }),
+          expect.objectContaining({ nodeId: "vector-db", reason: "reference" }),
+        ]),
+      });
     }
     database.close();
   });

@@ -5,6 +5,8 @@ import Fastify from "fastify";
 import {
   createGraphSchema,
   createNodeSchema,
+  graphBackupSchema,
+  importTextSchema,
   providerSettingsSchema,
   runRequestSchema,
   type ProviderSettings,
@@ -125,6 +127,67 @@ app.get<{ Params: { id: string } }>("/api/graphs/:id", async (request, reply) =>
   return graph;
 });
 
+app.get<{ Params: { id: string } }>("/api/graphs/:id/metrics", async (request, reply) => {
+  if (!database.getGraph(request.params.id)) {
+    return reply.code(404).send({ message: "Graph not found" });
+  }
+  return database.getMetrics(request.params.id);
+});
+
+app.post<{ Params: { id: string } }>("/api/graphs/:id/events/open", async (request, reply) => {
+  if (!database.recordEvent(request.params.id, "graph-opened")) {
+    return reply.code(404).send({ message: "Graph not found" });
+  }
+  return reply.code(204).send();
+});
+
+app.post<{ Params: { id: string } }>("/api/graphs/:id/undo", async (request, reply) => {
+  if (!database.getGraph(request.params.id)) {
+    return reply.code(404).send({ message: "Graph not found" });
+  }
+  const graph = database.undoGraph(request.params.id);
+  if (!graph) return reply.code(409).send({ message: "Nothing to undo" });
+  return graph;
+});
+
+app.get<{ Params: { id: string } }>("/api/graphs/:id/study", async (request, reply) => {
+  if (!database.getGraph(request.params.id)) {
+    return reply.code(404).send({ message: "Graph not found" });
+  }
+  return database.getStudyCards(request.params.id);
+});
+
+app.get<{ Params: { id: string } }>("/api/graphs/:id/export.md", async (request, reply) => {
+  const markdown = database.exportGraphMarkdown(request.params.id);
+  if (markdown == null) return reply.code(404).send({ message: "Graph not found" });
+  reply.header("Content-Type", "text/markdown; charset=utf-8");
+  reply.header("Content-Disposition", `attachment; filename="graphchat-${request.params.id}.md"`);
+  return markdown;
+});
+
+app.post("/api/import", async (request, reply) => {
+  const parsed = importTextSchema.safeParse(request.body);
+  if (!parsed.success) {
+    return reply.code(400).send({ message: "Invalid import", issues: parsed.error.issues });
+  }
+  try {
+    return reply.code(201).send({ nodes: database.importText(parsed.data) });
+  } catch (error) {
+    if (error instanceof Error && error.message === "GRAPH_NOT_FOUND") {
+      return reply.code(404).send({ message: "Graph not found" });
+    }
+    throw error;
+  }
+});
+
+app.post("/api/restore", async (request, reply) => {
+  const parsed = graphBackupSchema.safeParse(request.body);
+  if (!parsed.success) {
+    return reply.code(400).send({ message: "Invalid Graph Chat backup", issues: parsed.error.issues });
+  }
+  return reply.code(201).send({ graphs: database.restoreBackup(parsed.data) });
+});
+
 app.post("/api/nodes", async (request, reply) => {
   const parsed = createNodeSchema.safeParse(request.body);
   if (!parsed.success) return reply.code(400).send({ message: "Invalid node", issues: parsed.error.issues });
@@ -137,6 +200,12 @@ app.patch<{ Params: { id: string } }>("/api/nodes/:id", async (request, reply) =
   const node = database.updateNode(request.params.id, parsed.data);
   if (!node) return reply.code(404).send({ message: "Node not found" });
   return node;
+});
+
+app.post<{ Params: { id: string } }>("/api/nodes/:id/suggest-metadata", async (request, reply) => {
+  const suggestion = database.suggestMetadata(request.params.id);
+  if (!suggestion) return reply.code(404).send({ message: "Node not found" });
+  return suggestion;
 });
 
 app.delete<{ Params: { id: string } }>("/api/nodes/:id", async (request, reply) => {

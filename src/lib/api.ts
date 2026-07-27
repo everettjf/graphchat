@@ -2,11 +2,16 @@ import type {
   CodexAuthStatus,
   CreateGraphInput,
   GraphDocument,
+  GraphBackup,
   GraphMeta,
+  GraphMetrics,
   GraphNode,
+  ImportTextInput,
+  MetadataSuggestion,
   ProviderSettings,
   RunRequest,
   RunStreamEvent,
+  StudyCard,
   UpdateGraphInput,
   UpdateNodeInput,
 } from "@shared/types";
@@ -55,6 +60,38 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(input),
     }).then((response) => parseResponse<GraphNode>(response)),
+  importText: (input: ImportTextInput) =>
+    fetch("/api/import", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+    }).then((response) => parseResponse<{ nodes: GraphNode[] }>(response)),
+  restoreBackup: (backup: GraphBackup) =>
+    fetch("/api/restore", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(backup),
+    }).then((response) => parseResponse<{ graphs: GraphDocument[] }>(response)),
+  suggestMetadata: (nodeId: string) =>
+    fetch(`/api/nodes/${nodeId}/suggest-metadata`, { method: "POST" }).then(
+      (response) => parseResponse<MetadataSuggestion>(response),
+    ),
+  metrics: (graphId: string) =>
+    fetch(`/api/graphs/${graphId}/metrics`).then((response) =>
+      parseResponse<GraphMetrics>(response),
+    ),
+  undoGraph: (graphId: string) =>
+    fetch(`/api/graphs/${graphId}/undo`, { method: "POST" }).then((response) =>
+      parseResponse<GraphDocument>(response),
+    ),
+  recordGraphOpen: (graphId: string) =>
+    fetch(`/api/graphs/${graphId}/events/open`, { method: "POST" }).then((response) => {
+      if (!response.ok) throw new Error("Unable to record graph activity.");
+    }),
+  studyCards: (graphId: string) =>
+    fetch(`/api/graphs/${graphId}/study`).then((response) =>
+      parseResponse<StudyCard[]>(response),
+    ),
   deleteNode: (id: string) =>
     fetch(`/api/nodes/${id}`, { method: "DELETE" }).then((response) => {
       if (!response.ok) throw new Error("Unable to delete the node.");

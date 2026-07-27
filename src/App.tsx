@@ -14,13 +14,14 @@ import { GraphCanvas, type GraphFlowInstance } from "@/components/graph-canvas";
 import { Inspector } from "@/components/inspector";
 import { Composer } from "@/components/composer";
 import { SettingsDialog } from "@/components/settings-dialog";
+import { WorkspaceTools } from "@/components/workspace-tools";
 import { Button } from "@/components/ui/button";
 import { BrandMark } from "@/components/brand-mark";
 import { useWorkspace } from "@/store/workspace";
 import { useI18n } from "@/i18n";
 
 export default function App() {
-  const { t } = useI18n();
+  const { locale, t } = useI18n();
   const bootstrap = useQuery({ queryKey: ["bootstrap"], queryFn: api.bootstrap });
   const [document, setDocumentState] = useState<GraphDocument | null>(null);
   const [graphs, setGraphs] = useState<GraphMeta[]>([]);
@@ -32,6 +33,7 @@ export default function App() {
     hasApiKey: false,
   });
   const [toast, setToast] = useState("");
+  const [toolsOpen, setToolsOpen] = useState(false);
   const selectedNodeId = useWorkspace((state) => state.selectedNodeId);
   const selectNode = useWorkspace((state) => state.selectNode);
   const clearReferences = useWorkspace((state) => state.clearReferences);
@@ -54,6 +56,7 @@ export default function App() {
           : bootstrap.data.activeGraph;
       if (!active || !initial) return;
       setDocumentState(initial);
+      void api.recordGraphOpen(initial.graph.id);
       selectNode(
         window.matchMedia("(min-width: 1280px)").matches
           ? initial.nodes[0]?.id ?? null
@@ -110,6 +113,7 @@ export default function App() {
     async (id: string) => {
       const next = await api.graph(id);
       setDocumentState(next);
+      void api.recordGraphOpen(next.graph.id);
       window.localStorage.setItem("graphchat-active-graph", id);
       clearReferences();
       selectNode(
@@ -266,6 +270,27 @@ export default function App() {
     selectNode(null);
   };
 
+  const handleUpdateNode = useCallback(async (id: string, input: Parameters<typeof api.updateNode>[1]) => {
+    const updated = await api.updateNode(id, input);
+    setDocument((current) => ({
+      ...current,
+      nodes: current.nodes.map((node) => (node.id === id ? updated : node)),
+    }));
+  }, [setDocument]);
+
+  const handleUndo = useCallback(async () => {
+    if (!document) return;
+    try {
+      const restored = await api.undoGraph(document.graph.id);
+      setDocumentState(restored);
+      setToast(locale === "zh" ? "已撤销上一步图谱修改" : "Last graph change undone");
+      setTimeout(() => setToast(""), 2_400);
+    } catch (error) {
+      setToast(error instanceof Error ? error.message : "Nothing to undo");
+      setTimeout(() => setToast(""), 2_400);
+    }
+  }, [document, locale]);
+
   if (bootstrap.isLoading || (!document && !bootstrap.isError)) {
     return (
       <main className="grid h-screen place-items-center bg-[var(--paper)]">
@@ -315,6 +340,8 @@ export default function App() {
           document={document}
           settings={settings}
           onFitView={() => flowRef.current?.fitView({ padding: 0.18, duration: 450 })}
+          onOpenTools={() => setToolsOpen(true)}
+          onUndo={() => void handleUndo()}
         />
         <div className="relative min-h-0 flex-1">
           <GraphCanvas
@@ -327,8 +354,19 @@ export default function App() {
           <Composer document={document} settings={settings} onEvent={handleRunEvent} />
         </div>
       </section>
-      <Inspector node={selectedNode} document={document} onDelete={(id) => void handleDelete(id)} />
+      <Inspector
+        node={selectedNode}
+        document={document}
+        onDelete={(id) => void handleDelete(id)}
+        onUpdate={(id, input) => void handleUpdateNode(id, input)}
+      />
       <SettingsDialog settings={settings} onSaved={setSettings} />
+      <WorkspaceTools
+        document={document}
+        open={toolsOpen}
+        onOpenChange={setToolsOpen}
+        onImported={refreshGraph}
+      />
       {toast && (
         <div className="fixed bottom-5 right-5 z-[90] rounded-xl bg-[var(--ink)] px-4 py-3 text-xs font-medium text-white shadow-2xl">
           {toast}
