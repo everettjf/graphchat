@@ -1,21 +1,23 @@
 <div align="center">
-  <a href="https://everettjf.github.io/graphchat/">
+  <a href="https://xnu.app/graphchat/">
     <img src="./docs/assets/logo.svg" width="84" height="84" alt="Graph Chat logo" />
   </a>
 
   <h1>Graph Chat</h1>
 
   <p><strong>Learn in branches. Remember in graphs.</strong></p>
-  <p>把 AI 对话变成一张可以分叉、引用、汇聚和继续生长的知识图。</p>
+  <p>Turn AI conversations into a knowledge graph that can branch, reference, converge, and keep growing.</p>
+
+  <p><strong>English</strong> · <a href="./README.zh-CN.md">简体中文</a></p>
 
   <p>
-    <a href="https://everettjf.github.io/graphchat/"><strong>产品主页</strong></a>
+    <a href="https://xnu.app/graphchat/"><strong>Website</strong></a>
     ·
-    <a href="#快速开始">快速开始</a>
+    <a href="#quick-start">Quick start</a>
     ·
-    <a href="#使用-chatgpt-订阅">ChatGPT 订阅登录</a>
+    <a href="#use-your-chatgpt-subscription">ChatGPT login</a>
     ·
-    <a href="#架构">架构</a>
+    <a href="#architecture">Architecture</a>
   </p>
 
   <p>
@@ -31,42 +33,42 @@
 
 <br />
 
-Graph Chat 是一个本地优先、图谱原生的 AI 学习工作区。面对回答里的陌生概念，你不需要把所有追问塞进一条越来越混乱的聊天记录：从任意节点创建分支，在分支中深入理解，再引用多个分支汇聚成新的问题。每次回答都会保留它实际使用的上下文与来源。
+Graph Chat is a local-first, graph-native AI learning workspace. When an answer introduces an unfamiliar concept, you no longer have to bury every follow-up inside one increasingly tangled chat. Branch from any node, explore the idea in its own context, then reference multiple branches to form a new question. Every answer preserves the context and sources it actually used.
 
-## 为什么是图，而不是聊天列表
+## Why a graph instead of a chat list?
 
-普通聊天只记录“接下来问了什么”，Graph Chat 还记录“这个问题从哪里来、引用了哪些理解、最后回到了哪条主线”。
+A regular chat remembers only what you asked next. Graph Chat also remembers where a question came from, which explanations it referenced, and how the resulting understanding reconnects to the main thread.
 
 ```text
-原始问题 ──→ AI 回答 ──→ 陌生概念 A ──→ 深入解释
-                  │
-                  └────→ 陌生概念 B ──→ 例子与反例
-                                      ╲
-                    A 的解释 ·········→ 汇聚问题 ──→ 新理解
+Starting question ──→ AI answer ──→ New concept A ──→ Deeper explanation
+                            │
+                            └────→ New concept B ──→ Examples and counterexamples
+                                                         ╲
+                              Explanation of A ·········→ Synthesis ──→ New understanding
 ```
 
-- 实线表示沿当前上下文继续追问。
-- 虚线表示跨分支引用，适合比较、综合和迁移知识。
-- 节点记录问题、回答、模型、上下文快照与来源。
-- 图谱是长期知识结构，Pi agent loop 是每次回答的运行时。
+- Solid edges continue the current context.
+- Dotted edges reference another branch for comparison, synthesis, or knowledge transfer.
+- Nodes retain the question, answer, model, context snapshot, and source relationships.
+- The graph is the durable knowledge structure; the Pi agent loop powers each answer.
 
-## 功能
+## Features
 
-| 能力 | 当前实现 |
+| Capability | Current implementation |
 | --- | --- |
-| 图谱学习 | React Flow 无限画布、分支边、跨分支引用边、拖拽与搜索 |
-| 精确追问 | 从节点继续提问，也可以选中回答中的一段文字创建分支 |
-| 分支汇聚 | 同时引用多个节点，让模型比较、综合或寻找共同机制 |
-| Agent runtime | Pi agent core、流式事件、工具调用、自动重试与取消 |
-| ChatGPT 订阅 | Pi `openai-codex` 设备码 OAuth，支持自动 token refresh |
-| 其他模型 | OpenAI API、OpenRouter、Ollama、OpenAI-compatible endpoint |
-| 本地数据 | Node.js SQLite、WAL、JSON 导出、无需外部数据库 |
-| 隐私边界 | API Key 仅在进程内；OAuth 凭据只保存在本机私有文件 |
-| 工程质量 | TypeScript strict、Vitest、数据库测试、Pi runtime 测试、Playwright E2E |
+| Graph-native learning | Infinite React Flow canvas, branch edges, cross-branch references, dragging, and search |
+| Precise follow-ups | Continue from any node or branch from selected text inside an answer |
+| Branch synthesis | Reference multiple nodes so the model can compare, combine, or find a shared mechanism |
+| Agent runtime | Pi agent core, streaming events, tool calls, automatic retry, and cancellation |
+| ChatGPT subscription | Pi `openai-codex` device-code OAuth with automatic token refresh |
+| Other models | OpenAI API, OpenRouter, Ollama, and OpenAI-compatible endpoints |
+| Local data | Bun/Node SQLite, WAL, JSON export, and no external database |
+| Privacy boundary | API keys stay in process; OAuth credentials stay in a private local file |
+| Engineering quality | Strict TypeScript, Vitest, database and Pi runtime tests, and Playwright E2E |
 
-## 快速开始
+## Quick start
 
-推荐 Bun 1.3+；Node.js 22.19+ 也完整支持。
+Bun 1.3+ is recommended. Node.js 22.19+ is also fully supported.
 
 ```bash
 git clone https://github.com/everettjf/graphchat.git
@@ -75,98 +77,98 @@ bun install
 bun run dev
 ```
 
-打开 [http://localhost:5173](http://localhost:5173)。首次运行会生成一张关于 RAG 的示例学习图；默认的“本地演示”无需密钥，也不会访问外部模型。
+Open [http://localhost:5173](http://localhost:5173). On first launch, Graph Chat creates a sample learning graph about RAG. The default local demo needs no credentials and never contacts an external model.
 
-生产模式：
+Production mode:
 
 ```bash
 bun run build
 bun run start:bun
 ```
 
-生产服务默认监听 `http://127.0.0.1:4317`。
+The production server listens on `http://127.0.0.1:4317` by default.
 
-如果更习惯 Node/npm，可改用 `npm install`、`npm run dev`、`npm run build` 和 `npm start`。Bun 与 Pi 没有架构冲突：Pi 负责 agent harness、模型与 OAuth loop；Bun/Node 负责本地 HTTP、SQLite 和前端工具链。Graph Chat 会在 Bun 下使用 `bun:sqlite`，在 Node 下使用 `node:sqlite`。
+Prefer Node/npm? Use `npm install`, `npm run dev`, `npm run build`, and `npm start`. Bun and Pi do not conflict: Pi owns the agent harness, model integrations, OAuth flow, and tool loop, while Bun/Node runs the local HTTP server, SQLite, and frontend toolchain. Graph Chat uses `bun:sqlite` under Bun and `node:sqlite` under Node.
 
-## 使用 ChatGPT 订阅
+## Use your ChatGPT subscription
 
-Graph Chat 通过 Pi 内置的 `openai-codex` Provider 使用 ChatGPT 订阅，不需要复制 API Key。
+Graph Chat uses Pi's built-in `openai-codex` provider, so you can sign in with an eligible ChatGPT subscription instead of copying an API key.
 
-1. 打开左下角的「模型与设置」。
-2. 选择「ChatGPT」。
-3. 点击「使用 ChatGPT 登录」。
-4. 在 OpenAI 页面输入一次性设备码。
-5. 返回 Graph Chat，连接状态会自动更新；选择模型并保存。
+1. Open **Model & settings** in the lower-left corner.
+2. Choose **ChatGPT**.
+3. Select **Sign in with ChatGPT**.
+4. Enter the one-time device code on the OpenAI page.
+5. Return to Graph Chat. The connection status updates automatically; choose a model and save.
 
-登录流程由 Pi 发起。Graph Chat 不接触你的密码；OAuth access/refresh credential 保存到 `.graphchat/auth.json`，不会出现在网页 API、日志或数据导出中。登出会删除该凭据。ChatGPT/Codex 的可用额度和模型取决于你的账户、方案与 OpenAI 当前政策。
+Pi initiates the login flow, and Graph Chat never receives your password. OAuth access and refresh credentials are stored in `.graphchat/auth.json`; they never appear in the browser API, logs, or graph exports. Signing out deletes the saved credential. Available Codex models and usage limits depend on your account, plan, and OpenAI's current policies.
 
-> OpenAI 官方说明：Codex 可使用符合条件的 ChatGPT 方案登录，使用限制因方案而异。详见 [Using Codex with your ChatGPT plan](https://help.openai.com/en/articles/11369540)。
+> OpenAI documents ChatGPT-plan access to Codex and notes that usage limits vary by plan. See [Using Codex with your ChatGPT plan](https://help.openai.com/en/articles/11369540).
 
-## 其他 Provider
+## Other providers
 
-复制 `.env.example` 为 `.env`，或直接在设置中配置：
+Copy `.env.example` to `.env`, or configure a provider directly in settings:
 
-| Provider | 认证方式 | 默认配置 |
+| Provider | Authentication | Default configuration |
 | --- | --- | --- |
-| OpenAI | `OPENAI_API_KEY` 或当前进程内输入 | Pi OpenAI Provider |
-| OpenRouter | `OPENROUTER_API_KEY` 或当前进程内输入 | Pi OpenRouter Provider |
-| Ollama | 无需密钥 | `http://127.0.0.1:11434/v1` |
-| 自定义 | 可选进程内 API Key | 任意 OpenAI-compatible endpoint |
+| OpenAI | `OPENAI_API_KEY` or an in-process key | Pi OpenAI provider |
+| OpenRouter | `OPENROUTER_API_KEY` or an in-process key | Pi OpenRouter provider |
+| Ollama | No key required | `http://127.0.0.1:11434/v1` |
+| Custom | Optional in-process API key | Any OpenAI-compatible endpoint |
 
-## 架构
+## Architecture
 
 ```mermaid
 flowchart LR
     UI["React 19 + shadcn-style UI<br/>React Flow"] --> API["Fastify API<br/>NDJSON streaming"]
-    API --> CTX["Context compiler<br/>主线 · 引用 · 选中文字"]
+    API --> CTX["Context compiler<br/>parent path · references · selected text"]
     CTX --> AGENT["Pi Agent Core<br/>model · tools · retry loop"]
     AGENT --> MODELS["ChatGPT OAuth · OpenAI<br/>OpenRouter · Ollama"]
     API --> DB[("Bun / Node SQLite<br/>graphs · nodes · edges")]
     API --> AUTH[("Local auth.json<br/>OAuth only")]
 ```
 
-Graph Chat 不把整张图无差别发送给模型。上下文编译器会按当前父节点、显式引用和选中文字构建一个有上限、可追溯的快照，再交给 Pi 运行。Pi 可以使用只读图谱工具继续搜索或读取节点，但不能自行修改知识图。
+Graph Chat does not send the entire graph to a model. The context compiler builds a bounded, traceable snapshot from the active parent node, explicit references, and selected text. Pi can use read-only graph tools to search or inspect more nodes, but it cannot modify the knowledge graph by itself.
 
-核心代码：
+Core code:
 
-- [`server/agent-runtime.ts`](./server/agent-runtime.ts) — Pi agent、模型路由、工具和流式事件
-- [`server/openai-codex-auth.ts`](./server/openai-codex-auth.ts) — ChatGPT 设备码 OAuth 生命周期
-- [`server/context-compiler.ts`](./server/context-compiler.ts) — 图谱上下文选择与预算
-- [`server/credential-store.ts`](./server/credential-store.ts) — 原子、最小暴露的本地 OAuth 存储
-- [`src/components/graph-canvas.tsx`](./src/components/graph-canvas.tsx) — 图谱交互
+- [`server/agent-runtime.ts`](./server/agent-runtime.ts) — Pi agent, model routing, tools, and streaming events
+- [`server/openai-codex-auth.ts`](./server/openai-codex-auth.ts) — ChatGPT device-code OAuth lifecycle
+- [`server/context-compiler.ts`](./server/context-compiler.ts) — graph context selection and budget
+- [`server/credential-store.ts`](./server/credential-store.ts) — atomic, minimally exposed local OAuth storage
+- [`src/components/graph-canvas.tsx`](./src/components/graph-canvas.tsx) — graph interactions
 
-## 数据与安全
+## Data and security
 
-- 默认数据目录：`.graphchat/`
-- 知识图数据库：`.graphchat/graphchat.sqlite`
-- ChatGPT OAuth：`.graphchat/auth.json`
-- API Key：仅存当前 Node.js 进程，不写入 SQLite 或 `auth.json`
-- 导出：只包含图谱、节点和边，不包含任何凭据
-- 默认监听：`127.0.0.1`，不会自动暴露到局域网
+- Default data directory: `.graphchat/`
+- Knowledge graph database: `.graphchat/graphchat.sqlite`
+- ChatGPT OAuth credentials: `.graphchat/auth.json`
+- API keys: current process only; never written to SQLite or `auth.json`
+- Exports: graphs, nodes, and edges only; no credentials
+- Default bind address: `127.0.0.1`, not automatically exposed to the local network
 
-如需更改数据位置，设置 `GRAPHCHAT_DATA_DIR`。OAuth 文件在支持 POSIX 权限的平台上使用 `0600`；请像保护其他本地登录凭据一样保护数据目录。
+Set `GRAPHCHAT_DATA_DIR` to change the data location. On platforms that support POSIX permissions, the OAuth file uses mode `0600`. Protect this directory as you would any other local login credential.
 
-## 开发与验证
+## Development and verification
 
 ```bash
-bun run typecheck  # TypeScript client + server
-bun run test       # 单元、数据库、凭据与 Pi runtime
-bun run build      # 生产构建
-bun run test:e2e   # Playwright 端到端
-bun run test:all   # 完整验证
+bun run typecheck  # TypeScript client and server
+bun run test       # unit, database, credential, and Pi runtime tests
+bun run build      # production build
+bun run test:e2e   # Playwright end-to-end tests
+bun run test:all   # complete verification
 ```
 
-## 路线图
+## Roadmap
 
-- 多知识图创建、重命名和归档
-- 图谱快照与 Markdown 导入
-- 可插拔的检索、网页和文件工具
-- 端到端加密的可选同步服务
-- 协作分享与只读知识图发布
+- Multiple graph creation, renaming, and archiving
+- Graph snapshots and Markdown import
+- Pluggable retrieval, web, and file tools
+- Optional end-to-end encrypted sync
+- Collaborative sharing and read-only graph publishing
 
-## 参与贡献
+## Contributing
 
-Issue、讨论和 Pull Request 都很欢迎。请先阅读 [CONTRIBUTING.md](./CONTRIBUTING.md)；提交前运行 `bun run test:all`（或 `npm run test:all`），并确保新增行为包含相应测试。安全问题请按 [SECURITY.md](./SECURITY.md) 私下报告。
+Issues, discussions, and pull requests are welcome. Read [CONTRIBUTING.md](./CONTRIBUTING.md) first, then run `bun run test:all` (or `npm run test:all`) before submitting. New behavior should include corresponding tests. Report security issues privately as described in [SECURITY.md](./SECURITY.md).
 
 ## License
 
