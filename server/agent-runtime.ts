@@ -496,14 +496,23 @@ export class GraphAgentRuntime {
         api: "openai-completions",
         provider: providerId,
         baseUrl,
-        reasoning: false,
+        reasoning: providerId === "ollama",
         input: ["text"],
         cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
         contextWindow: 128_000,
-        maxTokens: 16_000,
+        maxTokens:
+          providerId === "ollama"
+            ? request.mode === "synthesize"
+              ? 512
+              : 256
+            : 16_000,
+        thinkingLevelMap:
+          providerId === "ollama"
+            ? { off: "none" }
+            : undefined,
         compat: {
           supportsDeveloperRole: false,
-          supportsReasoningEffort: false,
+          supportsReasoningEffort: providerId === "ollama",
         },
       };
       provider = createProvider({

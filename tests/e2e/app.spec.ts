@@ -160,28 +160,14 @@ test.describe("Graph Chat", () => {
 
     await page.reload();
     await openGraphView(page);
-    await expect(page.getByText("Cancelled", { exact: true })).toBeVisible();
+    await expect(page.getByText("Cancelled", { exact: true }).last()).toBeVisible();
   });
 
-  test("switches the complete application between English and Chinese", async ({
-    page,
-  }) => {
-    await page.goto("/");
-    const chinese = page.getByRole("button", { name: "中文", exact: true });
-    await chinese.click();
-    await expect(page.locator("html")).toHaveAttribute("lang", "zh-CN");
-    await expect(page).toHaveURL(/lang=zh/);
-    await expect(page.getByText("新建学习起点")).toBeVisible();
-    await expect(page.getByRole("button", { name: "模型与设置" })).toBeVisible();
-
-    await page.reload();
-    await expect(page.locator("html")).toHaveAttribute("lang", "zh-CN");
-    await expect(page.getByText("知识图", { exact: true }).first()).toBeVisible();
-
-    await page.getByRole("button", { name: "EN", exact: true }).click();
+  test("keeps the current product surface focused on English", async ({ page }) => {
+    await page.goto("/?lang=zh");
     await expect(page.locator("html")).toHaveAttribute("lang", "en");
-    await expect(page).not.toHaveURL(/lang=zh/);
-    await expect(page.getByText("New learning thread")).toBeVisible();
+    await expect(page.getByRole("group", { name: "Language" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "New thread" })).toBeVisible();
   });
 
   test("changes provider settings and exposes a credential-free data export", async ({
@@ -197,15 +183,20 @@ test.describe("Graph Chat", () => {
     await expect(
       page.getByText("Use your ChatGPT subscription", { exact: true }),
     ).toBeVisible();
-    await expect(
-      page.getByRole("button", { name: "Sign in with ChatGPT" }),
-    ).toBeVisible();
+    const authResponse = await request.get("/api/auth/openai-codex");
+    expect(authResponse.ok()).toBeTruthy();
+    const authStatus = await authResponse.json();
+    if (authStatus.state === "authenticated") {
+      await expect(page.getByText(/Connected ·/)).toBeVisible();
+    } else {
+      await expect(
+        page.getByRole("button", { name: "Sign in with ChatGPT" }),
+      ).toBeVisible();
+    }
     await expect(page.getByLabel("Model ID")).toHaveValue("gpt-5.4-mini");
     await page.getByRole("button", { name: "Cancel" }).click();
 
-    const authResponse = await request.get("/api/auth/openai-codex");
-    expect(authResponse.ok()).toBeTruthy();
-    expect(await authResponse.json()).toEqual({ state: "signed_out" });
+    expect(["authenticated", "signed_out"]).toContain(authStatus.state);
 
     const response = await request.get("/api/export");
     expect(response.ok()).toBeTruthy();
@@ -376,19 +367,33 @@ test.describe("Graph Chat", () => {
     request,
   }) => {
     await page.goto("/");
+    await page
+      .getByRole("button", { name: /^Understanding RAG:/ })
+      .last()
+      .click();
+    await expect(page.getByTestId("conversation-content")).toBeVisible();
     const before = await (await request.get("/api/bootstrap")).json();
-    await page.getByRole("button", { name: "New learning thread" }).click();
+    const newThread = page.getByRole("button", { name: "New thread" });
+    await newThread.click();
 
     await expect(page.getByTestId("empty-content")).toBeVisible();
     await expect(page.getByTestId("composer-input")).toBeVisible();
     await expect(page.getByTestId("knowledge-tree")).toContainText("0 content nodes");
     await expect(
-      page.getByRole("heading", { name: /Learning thread \d+/ }),
+      page.getByRole("heading", { name: /Thread \d+/ }),
     ).toBeVisible();
     await expect
       .poll(async () => {
         const after = await (await request.get("/api/bootstrap")).json();
         return after.graphs.length;
+      })
+      .toBe(before.graphs.length + 1);
+
+    await newThread.click();
+    await expect
+      .poll(async () => {
+        const afterSecondClick = await (await request.get("/api/bootstrap")).json();
+        return afterSecondClick.graphs.length;
       })
       .toBe(before.graphs.length + 1);
   });

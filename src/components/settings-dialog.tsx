@@ -12,7 +12,6 @@ import {
   LogOut,
   Server,
   ShieldCheck,
-  Sparkles,
 } from "lucide-react";
 import type { CodexAuthStatus, ProviderSettings } from "@shared/types";
 import {
@@ -30,12 +29,6 @@ import { cn } from "@/lib/utils";
 import { useI18n, type TranslationKey } from "@/i18n";
 
 const providers = [
-  {
-    id: "demo",
-    label: "settings.demo",
-    description: "settings.demoDescription",
-    icon: Sparkles,
-  },
   {
     id: "openai-codex",
     label: null,
@@ -73,7 +66,7 @@ const defaultModels: Record<ProviderSettings["provider"], string> = {
   "openai-codex": "gpt-5.4-mini",
   openai: "gpt-5.4-mini",
   openrouter: "openai/gpt-5.4-mini",
-  ollama: "gpt-oss:20b",
+  ollama: "qwen3.5:4b",
   custom: "your-model",
 };
 
@@ -94,8 +87,35 @@ export function SettingsDialog({
     state: "signed_out",
   });
   const [authBusy, setAuthBusy] = useState(false);
+  const [ollamaModels, setOllamaModels] = useState<string[]>([]);
+  const [ollamaError, setOllamaError] = useState("");
 
   useEffect(() => setDraft(settings), [settings]);
+
+  useEffect(() => {
+    if (!settingsOpen || draft.provider !== "ollama") return;
+    let active = true;
+    setOllamaError("");
+    void api
+      .ollamaModels()
+      .then(({ models }) => {
+        if (!active) return;
+        setOllamaModels(models);
+        if (models.length && !models.includes(draft.model)) {
+          setDraft((current) => ({ ...current, model: models[0] }));
+        }
+      })
+      .catch((error) => {
+        if (!active) return;
+        setOllamaModels([]);
+        setOllamaError(
+          error instanceof Error ? error.message : "Unable to connect to Ollama.",
+        );
+      });
+    return () => {
+      active = false;
+    };
+  }, [draft.model, draft.provider, settingsOpen]);
 
   useEffect(() => {
     if (!settingsOpen) return;
@@ -193,7 +213,6 @@ export function SettingsDialog({
                     baseUrl: provider.id === "ollama" ? "http://127.0.0.1:11434/v1" : "",
                     hasApiKey:
                       provider.id === settings.provider &&
-                      provider.id !== "demo" &&
                       provider.id !== "openai-codex" &&
                       provider.id !== "ollama"
                         ? settings.hasApiKey
@@ -238,8 +257,23 @@ export function SettingsDialog({
               id="model"
               value={draft.model}
               onChange={(event) => setDraft({ ...draft, model: event.target.value })}
-              disabled={draft.provider === "demo"}
+              list={draft.provider === "ollama" ? "ollama-models" : undefined}
             />
+            {draft.provider === "ollama" && (
+              <>
+                <datalist id="ollama-models">
+                  {ollamaModels.map((model) => (
+                    <option key={model} value={model} />
+                  ))}
+                </datalist>
+                <p className="mt-1.5 text-[10px] text-[var(--muted-light)]">
+                  {ollamaError ||
+                    (ollamaModels.length
+                      ? `${ollamaModels.length} local model${ollamaModels.length === 1 ? "" : "s"} available`
+                      : "Checking local Ollama models…")}
+                </p>
+              </>
+            )}
           </div>
           {(draft.provider === "ollama" || draft.provider === "custom") && (
             <div>
@@ -252,8 +286,7 @@ export function SettingsDialog({
               />
             </div>
           )}
-          {draft.provider !== "demo" &&
-            draft.provider !== "openai-codex" &&
+          {draft.provider !== "openai-codex" &&
             draft.provider !== "ollama" && (
             <div className={cn(draft.provider !== "custom" && "sm:col-span-1")}>
               <Label htmlFor="api-key">

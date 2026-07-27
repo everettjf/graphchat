@@ -128,6 +128,10 @@ export const api = {
     fetch("/api/auth/openai-codex", { cache: "no-store" }).then((response) =>
       parseResponse<CodexAuthStatus>(response),
     ),
+  ollamaModels: () =>
+    fetch("/api/providers/ollama/models", { cache: "no-store" }).then(
+      (response) => parseResponse<{ models: string[] }>(response),
+    ),
   startCodexLogin: () =>
     fetch("/api/auth/openai-codex", { method: "POST" }).then((response) =>
       parseResponse<CodexAuthStatus>(response),

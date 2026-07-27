@@ -26,6 +26,7 @@ export default defineConfig({
     reuseExistingServer: false,
     timeout: 30_000,
     env: {
+      NODE_ENV: "test",
       PORT: "4173",
       GRAPHCHAT_DATA_DIR: path.join(os.tmpdir(), `graphchat-e2e-${process.pid}`)
     }

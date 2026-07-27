@@ -112,3 +112,67 @@ export class FileCredentialStore implements CredentialStore {
     await fs.chmod(this.filePath, 0o600).catch(() => undefined);
   }
 }
+
+type CodexCliAuthFile = {
+  auth_mode?: string;
+  tokens?: {
+    access_token?: string;
+    refresh_token?: string;
+    account_id?: string;
+  };
+};
+
+function jwtExpiry(token: string) {
+  try {
+    const payload = token.split(".")[1];
+    if (!payload) return null;
+    const parsed = JSON.parse(
+      Buffer.from(payload, "base64url").toString("utf8"),
+    ) as { exp?: unknown };
+    return typeof parsed.exp === "number" ? parsed.exp * 1_000 : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Reuse an existing Codex desktop/CLI ChatGPT login when Graph Chat has no
+ * app-owned credential yet. Token values are never logged or returned.
+ */
+export async function importCodexCliCredential(
+  store: CredentialStore,
+  codexAuthPath: string,
+) {
+  if (await store.read("openai-codex")) return false;
+  try {
+    const parsed = JSON.parse(
+      await fs.readFile(codexAuthPath, "utf8"),
+    ) as CodexCliAuthFile;
+    const access = parsed.tokens?.access_token;
+    const refresh = parsed.tokens?.refresh_token;
+    const accountId = parsed.tokens?.account_id;
+    const expires = access ? jwtExpiry(access) : null;
+    if (
+      parsed.auth_mode !== "chatgpt" ||
+      !access ||
+      !refresh ||
+      !accountId ||
+      !expires
+    ) {
+      return false;
+    }
+    await store.modify("openai-codex", async (current) =>
+      current || {
+        type: "oauth",
+        access,
+        refresh,
+        expires,
+        accountId,
+      },
+    );
+    return true;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return false;
+    return false;
+  }
+}

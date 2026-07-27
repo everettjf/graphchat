@@ -35,7 +35,7 @@ export function Topbar({
   onViewModeChange: (mode: "content" | "tree" | "graph") => void;
 }) {
   const { setSidebarOpen, inspectorOpen, setInspectorOpen } = useWorkspace();
-  const { locale, setLocale, t } = useI18n();
+  const { locale, t } = useI18n();
 
   return (
     <header className="topbar-shell z-10 flex h-16 shrink-0 items-center justify-between border-b border-[var(--border)] bg-[#f8f6f0]/86 px-4 backdrop-blur-xl sm:px-5">
@@ -55,11 +55,9 @@ export function Topbar({
               {document.graph.title}
             </h1>
             <Badge className="hidden border-[#d5e3d8] bg-[#edf4ee] text-[#4c7358] sm:inline-flex">
-              {settings.provider === "demo"
-                ? t("topbar.localDemo")
-                : settings.provider === "openai-codex"
-                  ? `ChatGPT · ${settings.model}`
-                  : settings.model}
+              {settings.provider === "openai-codex"
+                ? `ChatGPT · ${settings.model}`
+                : settings.model}
             </Badge>
           </div>
           <p className="mt-0.5 hidden truncate text-[10px] text-[var(--muted-light)] sm:block">
@@ -75,28 +73,6 @@ export function Topbar({
             nodes: document.nodes.length,
             edges: document.edges.length,
           })}
-        </div>
-        <div
-          className="app-language-switch"
-          role="group"
-          aria-label="Language"
-        >
-          <button
-            type="button"
-            className={locale === "en" ? "is-active" : ""}
-            aria-pressed={locale === "en"}
-            onClick={() => setLocale("en")}
-          >
-            EN
-          </button>
-          <button
-            type="button"
-            className={locale === "zh" ? "is-active" : ""}
-            aria-pressed={locale === "zh"}
-            onClick={() => setLocale("zh")}
-          >
-            中文
-          </button>
         </div>
         <div className="flex rounded-lg border border-black/[0.06] bg-white/55 p-0.5">
           <Button

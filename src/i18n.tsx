@@ -24,7 +24,7 @@ const english = {
   "edge.continue": "Follow-up",
   "edge.reference": "Reference",
   "sidebar.close": "Close sidebar",
-  "sidebar.newStart": "New learning thread",
+  "sidebar.newStart": "New thread",
   "sidebar.searchPlaceholder": "Search nodes…",
   "sidebar.searchLabel": "Search graph nodes",
   "sidebar.primaryNav": "Primary navigation",
@@ -53,7 +53,7 @@ const english = {
   "graph.lastActive": "Keep at least one active knowledge graph.",
   "graph.actionFailed": "Unable to update the knowledge graph.",
   "topbar.openNav": "Open navigation",
-  "topbar.localDemo": "Local demo",
+  "topbar.localDemo": "Built-in guide",
   "topbar.stats": "{nodes} nodes · {edges} relationships",
   "topbar.fit": "Fit graph",
   "topbar.hideDetails": "Hide details",
@@ -61,7 +61,7 @@ const english = {
   "composer.compiling": "Compiling graph context",
   "composer.organizing": "Organizing answer",
   "composer.mainPath": "Main path: {title}",
-  "composer.newStart": "New learning thread",
+  "composer.newStart": "New thread",
   "composer.collapse": "Collapse composer",
   "composer.followPlaceholder": "Continue from this node, or select text inside an answer…",
   "composer.startPlaceholder": "Start with something you want to truly understand…",
@@ -82,7 +82,7 @@ const english = {
   "node.failed": "Failed",
   "node.cancelledBody": "This generation was cancelled. You can retry from this node.",
   "node.waiting": "Waiting for an answer…",
-  "node.localDemo": "Local demo",
+  "node.localDemo": "Built-in guide",
   "node.manualNote": "Manual note",
   "node.referenced": "Referenced",
   "inspector.close": "Close details",
@@ -105,8 +105,8 @@ const english = {
   "settings.title": "Models & runtime",
   "settings.description":
     "The Pi agent harness manages models, tool loops, and streaming events. API keys stay in this process; ChatGPT OAuth credentials stay on this device.",
-  "settings.demo": "Local demo",
-  "settings.demoDescription": "Try the complete interaction without credentials",
+  "settings.demo": "Built-in guide",
+  "settings.demoDescription": "Use Graph Chat immediately without configuring credentials",
   "settings.chatgptDescription": "Use a ChatGPT subscription to access Codex",
   "settings.openaiDescription": "Use the OpenAI API through Pi",
   "settings.openrouterDescription": "Connect to many models with one key",
@@ -267,10 +267,7 @@ export type TranslationKey = keyof typeof english;
 type Replacements = Record<string, string | number>;
 
 function resolveInitialLocale(): Locale {
-  const query = new URLSearchParams(window.location.search).get("lang");
-  if (query === "zh" || query === "en") return query;
-  const saved = window.localStorage.getItem("graphchat-language");
-  return saved === "zh" ? "zh" : "en";
+  return "en";
 }
 
 function format(template: string, replacements?: Replacements) {

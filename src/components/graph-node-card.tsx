@@ -71,9 +71,7 @@ export function GraphNodeCard({ data, selected }: NodeProps) {
       <div className="mt-3 flex items-center justify-between border-t border-black/[0.055] pt-3">
         <span className="flex items-center gap-1 text-[10px] text-[var(--muted-light)]">
           <GitBranch className="size-3" />
-          {node.provider === "demo"
-            ? t("node.localDemo")
-            : node.model || t("node.manualNote")}
+          {node.model || t("node.manualNote")}
         </span>
         {referenced && (
           <span className="rounded-full bg-[#e3f1e7] px-2 py-0.5 text-[9px] font-bold text-[#397b55]">

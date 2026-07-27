@@ -709,8 +709,25 @@ export class GraphDatabase {
 
   getSettings(): ProviderSettings {
     const row = this.db.prepare("SELECT value FROM settings WHERE key = 'provider'").get() as { value: string } | undefined;
-    if (!row) return { provider: "demo", model: "graphchat-guide", baseUrl: "", hasApiKey: false };
-    return { ...(JSON.parse(row.value) as ProviderSettings), hasApiKey: false };
+    const fallback: ProviderSettings =
+      process.env.NODE_ENV === "test"
+        ? {
+            provider: "demo",
+            model: "graphchat-guide",
+            baseUrl: "",
+            hasApiKey: false,
+          }
+        : {
+            provider: "ollama",
+            model: "qwen3.5:4b",
+            baseUrl: "http://127.0.0.1:11434/v1",
+            hasApiKey: false,
+          };
+    if (!row) return fallback;
+    const settings = JSON.parse(row.value) as ProviderSettings;
+    return settings.provider === "demo"
+      ? fallback
+      : { ...settings, hasApiKey: false };
   }
 
   saveSettings(settings: ProviderSettings) {

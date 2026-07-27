@@ -20,31 +20,30 @@ afterEach(() => {
 });
 
 describe("I18nProvider", () => {
-  it("defaults to English and persists a Chinese language switch", () => {
+  it("defaults to English while retaining internal locale support", () => {
     render(
       <I18nProvider>
         <Probe />
       </I18nProvider>,
     );
     expect(screen.getByTestId("locale")).toHaveTextContent("en");
-    expect(screen.getByText("New learning thread")).toBeVisible();
+    expect(screen.getByText("New thread")).toBeVisible();
 
     fireEvent.click(screen.getByRole("button", { name: "switch" }));
     expect(screen.getByTestId("locale")).toHaveTextContent("zh");
-    expect(screen.getByText("新建学习起点")).toBeVisible();
     expect(window.localStorage.getItem("graphchat-language")).toBe("zh");
     expect(window.location.search).toBe("?lang=zh");
     expect(document.documentElement.lang).toBe("zh-CN");
   });
 
-  it("honors a shareable language query on first render", () => {
+  it("keeps the product in English on first render", () => {
     window.history.replaceState(null, "", "/?lang=zh");
     render(
       <I18nProvider>
         <Probe />
       </I18nProvider>,
     );
-    expect(screen.getByTestId("locale")).toHaveTextContent("zh");
-    expect(screen.getByText("新建学习起点")).toBeVisible();
+    expect(screen.getByTestId("locale")).toHaveTextContent("en");
+    expect(screen.getByText("New thread")).toBeVisible();
   });
 });

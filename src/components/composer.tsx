@@ -185,7 +185,7 @@ export function Composer({
             />
 
             {composerOpen && (
-              <div className="flex items-center gap-1 px-2 pb-0.5">
+              <div className="flex min-w-0 items-center gap-1 overflow-x-auto px-2 pb-0.5">
                 <ModeButton
                   active={mode === "answer"}
                   icon={MessageCircle}
@@ -204,11 +204,9 @@ export function Composer({
                   label={t("composer.synthesize")}
                   onClick={() => setMode("synthesize")}
                 />
-                <div className="ml-auto hidden items-center gap-1.5 text-[9px] text-[var(--muted-light)] sm:flex">
+                <div className="ml-auto hidden shrink-0 items-center gap-1.5 text-[9px] text-[var(--muted-light)] xl:flex">
                   <BrainCircuit className="size-3" />
-                  {settings.provider === "demo"
-                    ? `Pi · ${t("node.localDemo")}`
-                    : `Pi · ${settings.model}`}
+                  {`Pi · ${settings.model}`}
                 </div>
               </div>
             )}
@@ -306,7 +304,7 @@ function ModeButton({
   return (
     <button
       className={cn(
-        "flex h-7 items-center gap-1.5 rounded-lg px-2 text-[9px] font-semibold transition",
+        "flex h-7 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg px-2 text-[9px] font-semibold leading-none transition",
         active
           ? "bg-[var(--ink)] text-white"
           : "text-[var(--muted-light)] hover:bg-black/[0.04] hover:text-[var(--ink)]",
@@ -314,7 +312,7 @@ function ModeButton({
       onClick={onClick}
       type="button"
     >
-      <Icon className="size-3" />
+      <Icon className="size-3 shrink-0" />
       <span className="hidden sm:inline">{label}</span>
     </button>
   );

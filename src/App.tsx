@@ -36,9 +36,9 @@ export default function App() {
   const [graphs, setGraphs] = useState<GraphMeta[]>([]);
   const [archivedGraphs, setArchivedGraphs] = useState<GraphMeta[]>([]);
   const [settings, setSettings] = useState<ProviderSettings>({
-    provider: "demo",
-    model: "graphchat-guide",
-    baseUrl: "",
+    provider: "ollama",
+    model: "qwen3.5:4b",
+    baseUrl: "http://127.0.0.1:11434/v1",
     hasApiKey: false,
   });
   const [toast, setToast] = useState("");
@@ -139,18 +139,33 @@ export default function App() {
   );
 
   const startNewThread = useCallback(async () => {
+    if (document?.nodes.length === 0) {
+      clearReferences();
+      selectNode(null);
+      setViewMode("content");
+      useWorkspace.getState().openComposer();
+      return;
+    }
+
     await createGraph({
       title:
         locale === "zh"
           ? `学习线程 ${graphs.length + 1}`
-          : `Learning thread ${graphs.length + 1}`,
+          : `Thread ${graphs.length + 1}`,
       description:
         locale === "zh"
           ? "从一个新问题开始的独立学习空间"
           : "An independent learning space starting from a new question",
     });
     useWorkspace.getState().openComposer();
-  }, [createGraph, graphs.length, locale]);
+  }, [
+    clearReferences,
+    createGraph,
+    document?.nodes.length,
+    graphs.length,
+    locale,
+    selectNode,
+  ]);
 
   useEffect(() => {
     const handleShortcut = (event: KeyboardEvent) => {
@@ -373,16 +388,7 @@ export default function App() {
         onArchiveGraph={archiveGraph}
         onRestoreGraph={restoreGraph}
       />
-      <div className="flex min-w-0 flex-1">
-      <section
-        className="flex min-w-0 shrink-0 flex-col max-md:w-full md:w-[var(--conversation-width)]"
-        style={{
-          "--conversation-width":
-            viewMode === "content" && inspectorOpen
-              ? `${conversationWidth}%`
-              : "100%",
-        } as CSSProperties}
-      >
+      <div className="flex min-w-0 flex-1 flex-col">
         <Topbar
           document={document}
           settings={settings}
@@ -392,6 +398,16 @@ export default function App() {
           viewMode={viewMode}
           onViewModeChange={setViewMode}
         />
+        <div className="flex min-h-0 min-w-0 flex-1">
+          <section
+            className="flex min-w-0 shrink-0 flex-col max-md:w-full md:w-[var(--conversation-width)]"
+            style={{
+              "--conversation-width":
+                viewMode === "content" && inspectorOpen
+                  ? `${conversationWidth}%`
+                  : "100%",
+            } as CSSProperties}
+          >
         <div className="relative min-h-0 flex-1">
           {viewMode === "graph" ? (
             <GraphCanvas
@@ -437,16 +453,17 @@ export default function App() {
             <Composer document={document} settings={settings} onEvent={handleRunEvent} />
           )}
         </div>
-      </section>
-      {viewMode === "content" && inspectorOpen && (
-        <>
-          <SplitHandle value={conversationWidth} onChange={setConversationWidth} />
-          <KnowledgeTree
-            document={document}
-            onNodeOpen={() => setViewMode("content")}
-          />
-        </>
-      )}
+          </section>
+          {viewMode === "content" && inspectorOpen && (
+            <>
+              <SplitHandle value={conversationWidth} onChange={setConversationWidth} />
+              <KnowledgeTree
+                document={document}
+                onNodeOpen={() => setViewMode("content")}
+              />
+            </>
+          )}
+        </div>
       </div>
       <SettingsDialog settings={settings} onSaved={setSettings} />
       <WorkspaceTools

@@ -1,37 +1,5 @@
 @import "tailwindcss";
 
-.app-language-switch {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  padding: 2px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: rgb(255 255 255 / 56%);
-}
-
-.app-language-switch button {
-  min-width: 30px;
-  height: 24px;
-  padding: 0 7px;
-  border-radius: 7px;
-  color: var(--muted-light);
-  font-size: 9px;
-  font-weight: 700;
-  white-space: nowrap;
-  transition: 140ms ease;
-}
-
-.app-language-switch button:hover {
-  color: var(--ink);
-}
-
-.app-language-switch button.is-active {
-  background: var(--ink);
-  color: white;
-  box-shadow: 0 2px 8px rgb(32 51 44 / 14%);
-}
-
 :root {
   color-scheme: light;
   font-family:
@@ -68,7 +36,7 @@ body {
 button,
 input,
 textarea {
-  font: inherit;
+  font-family: inherit;
 }
 
 button {

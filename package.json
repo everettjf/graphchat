@@ -62,6 +62,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
+    "test:providers": "node scripts/provider-smoke.mjs",
     "test:site": "node scripts/validate-site.mjs",
     "test:all": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.server.json --noEmit && vitest run && node scripts/validate-site.mjs && vite build && tsc -p tsconfig.server.json && playwright test"
   },
@@ -85,6 +86,7 @@
     "react-markdown": "^10.1.0",
     "remark-gfm": "^4.0.1",
     "tailwind-merge": "^3.3.1",
+    "undici": "^7.16.0",
     "zod": "^4.1.12",
     "zustand": "^5.0.8"
   },

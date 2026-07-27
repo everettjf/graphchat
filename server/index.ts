@@ -1,4 +1,5 @@
 import path from "node:path";
+import os from "node:os";
 import { fileURLToPath } from "node:url";
 import fastifyStatic from "@fastify/static";
 import Fastify from "fastify";
@@ -16,9 +17,13 @@ import {
 } from "../shared/types.js";
 import { APP_VERSION, DATABASE_SCHEMA_VERSION } from "../shared/version.js";
 import { GraphAgentRuntime } from "./agent-runtime.js";
-import { FileCredentialStore } from "./credential-store.js";
+import {
+  FileCredentialStore,
+  importCodexCliCredential,
+} from "./credential-store.js";
 import { GraphDatabase } from "./database.js";
 import { OpenAICodexAuthManager } from "./openai-codex-auth.js";
+import { configureSystemProxy } from "./system-proxy.js";
 
 if (typeof process.loadEnvFile === "function") {
   try {
@@ -29,15 +34,29 @@ if (typeof process.loadEnvFile === "function") {
 }
 
 const app = Fastify({ logger: { level: process.env.NODE_ENV === "test" ? "silent" : "info" } });
+const usingSystemProxy = await configureSystemProxy();
 const dataDirectory = path.resolve(process.env.GRAPHCHAT_DATA_DIR || ".graphchat");
 const database = new GraphDatabase(dataDirectory);
 const credentialStore = new FileCredentialStore(path.join(dataDirectory, "auth.json"));
+const reusedCodexLogin =
+  process.env.NODE_ENV !== "test" &&
+  (await importCodexCliCredential(
+    credentialStore,
+    path.join(os.homedir(), ".codex", "auth.json"),
+  ));
 const runtime = new GraphAgentRuntime(database.getSettings(), credentialStore);
 const codexAuth = new OpenAICodexAuthManager(credentialStore);
 const rootDirectory = path.dirname(fileURLToPath(import.meta.url));
 const productionClientDirectory = process.env.GRAPHCHAT_CLIENT_DIR
   ? path.resolve(process.env.GRAPHCHAT_CLIENT_DIR)
   : path.resolve(rootDirectory, "../../dist");
+
+if (reusedCodexLogin) {
+  app.log.info("Reused the current user's Codex ChatGPT login.");
+}
+if (usingSystemProxy) {
+  app.log.info("Using the operating system proxy for external model requests.");
+}
 
 app.get("/health", async () => ({
   ok: true,
@@ -49,6 +68,25 @@ app.get("/health", async () => ({
 app.get("/api/auth/openai-codex", async (_request, reply) => {
   reply.header("Cache-Control", "no-store");
   return codexAuth.getStatus();
+});
+
+app.get("/api/providers/ollama/models", async (_request, reply) => {
+  try {
+    const response = await fetch("http://127.0.0.1:11434/api/tags");
+    if (!response.ok) throw new Error(`Ollama returned ${response.status}`);
+    const body = (await response.json()) as {
+      models?: Array<{ name?: string; model?: string }>;
+    };
+    return {
+      models: (body.models || [])
+        .map((model) => model.name || model.model)
+        .filter((model): model is string => Boolean(model)),
+    };
+  } catch {
+    return reply.code(503).send({
+      message: "Ollama is not available at http://127.0.0.1:11434.",
+    });
+  }
 });
 
 app.post("/api/auth/openai-codex", async (_request, reply) => {

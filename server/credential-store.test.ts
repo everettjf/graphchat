@@ -3,7 +3,10 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { FileCredentialStore } from "./credential-store.js";
+import {
+  FileCredentialStore,
+  importCodexCliCredential,
+} from "./credential-store.js";
 import { OpenAICodexAuthManager } from "./openai-codex-auth.js";
 
 const directories: string[] = [];
@@ -59,6 +62,33 @@ describe("FileCredentialStore", () => {
     });
     await expect(manager.logout()).resolves.toEqual({ state: "signed_out" });
     await expect(store.read("openai-codex")).resolves.toBeUndefined();
+  });
+
+  it("imports an existing Codex ChatGPT login without exposing token values", async () => {
+    const { store } = setup();
+    const codexDirectory = fs.mkdtempSync(path.join(os.tmpdir(), "codex-auth-"));
+    directories.push(codexDirectory);
+    const codexAuthPath = path.join(codexDirectory, "auth.json");
+    const payload = Buffer.from(
+      JSON.stringify({ exp: Math.floor(Date.now() / 1_000) + 3_600 }),
+    ).toString("base64url");
+    fs.writeFileSync(
+      codexAuthPath,
+      JSON.stringify({
+        auth_mode: "chatgpt",
+        tokens: {
+          access_token: `header.${payload}.signature`,
+          refresh_token: "refresh-secret",
+          account_id: "account-test",
+        },
+      }),
+    );
+
+    await expect(importCodexCliCredential(store, codexAuthPath)).resolves.toBe(true);
+    await expect(store.list()).resolves.toEqual([
+      { providerId: "openai-codex", type: "oauth" },
+    ]);
+    await expect(importCodexCliCredential(store, codexAuthPath)).resolves.toBe(false);
   });
 
   it("starts Pi's OpenAI device-code flow without exposing credentials", async () => {
