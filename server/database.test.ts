@@ -2,6 +2,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { DatabaseSync } from "node:sqlite";
 import { afterEach, describe, expect, it } from "vitest";
 import { GraphDatabase } from "./database.js";
 
@@ -216,6 +217,133 @@ describe("GraphDatabase", () => {
     expect(() => database.archiveGraph("learning-rag")).toThrow(
       "LAST_ACTIVE_GRAPH",
     );
+    database.close();
+  });
+
+  it("migrates a v0.1.1 database in place and marks schema version 2", () => {
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), "graphchat-migration-"));
+    directories.push(directory);
+    const filename = path.join(directory, "graphchat.sqlite");
+    const legacy = new DatabaseSync(filename);
+    legacy.exec(`
+      CREATE TABLE graphs (
+        id TEXT PRIMARY KEY,
+        title TEXT NOT NULL,
+        description TEXT NOT NULL DEFAULT '',
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        archived_at TEXT
+      );
+      CREATE TABLE nodes (
+        id TEXT PRIMARY KEY,
+        graph_id TEXT NOT NULL REFERENCES graphs(id) ON DELETE CASCADE,
+        kind TEXT NOT NULL,
+        title TEXT NOT NULL,
+        prompt TEXT NOT NULL DEFAULT '',
+        content TEXT NOT NULL DEFAULT '',
+        summary TEXT NOT NULL DEFAULT '',
+        selected_text TEXT,
+        x REAL NOT NULL,
+        y REAL NOT NULL,
+        status TEXT NOT NULL DEFAULT 'complete',
+        provider TEXT,
+        model TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+    `);
+    legacy.close();
+
+    const migrated = new GraphDatabase(directory);
+    expect(migrated.getGraph("learning-rag")?.nodes[0]).toMatchObject({
+      tags: expect.any(Array),
+      knowledgeStatus: expect.any(String),
+      mastery: expect.any(String),
+    });
+    migrated.close();
+
+    const inspected = new DatabaseSync(filename);
+    expect(
+      (
+        inspected.prepare("PRAGMA user_version").get() as {
+          user_version: number;
+        }
+      ).user_version,
+    ).toBe(2);
+    inspected.close();
+  });
+
+  it("exports privacy-safe activation, evidence, session, and reliability metrics", () => {
+    const database = createDatabase();
+    const graph = database.createGraph({
+      title: "Private pilot graph",
+      description: "Must not appear in validation export",
+    });
+    const day = 86_400_000;
+    const openedAt = new Date("2026-01-01T00:00:00.000Z");
+    database.recordEvent(
+      graph.graph.id,
+      "graph-opened",
+      { sessionId: "pilot-session-1", appVersion: "0.2.0" },
+      openedAt.toISOString(),
+    );
+    database.importText({
+      graphId: graph.graph.id,
+      title: "Secret source title",
+      content: "# Evidence A\n\nPrivate source content\n\n# Evidence B\n\nMore private content",
+      sourceUrl: "https://private.example/source",
+      format: "markdown",
+    });
+    const imported = database.getGraph(graph.graph.id)!.nodes;
+    const synthesis = database.createNode({
+      graphId: graph.graph.id,
+      parentNodeId: imported[0]!.id,
+      referenceNodeIds: [imported[1]!.id],
+      kind: "summary",
+      title: "Private conclusion title",
+      prompt: "Private pilot prompt",
+      content: "Private answer",
+      summary: "Evidence-backed summary",
+      selectedText: null,
+      x: 100,
+      y: 100,
+    });
+    database.updateNode(synthesis.id, { knowledgeStatus: "conclusion", rating: 1 });
+    database.recordEvent(graph.graph.id, "run-completed", {
+      mode: "synthesize",
+      durationMs: 1200,
+    });
+    database.recordEvent(
+      graph.graph.id,
+      "graph-opened",
+      { sessionId: "pilot-session-2", appVersion: "0.2.0" },
+      new Date(openedAt.getTime() + 8 * day).toISOString(),
+    );
+
+    const report = database.getProductValidationReport();
+    const pilot = report.graphs.find((entry) => entry.graphId === graph.graph.id);
+    expect(pilot).toMatchObject({
+      eligible: true,
+      activated: true,
+      distinctSessions: 2,
+      returnedAfter7Days: true,
+      evidenceBackedConclusions: 1,
+      evidenceCoverage: 1,
+      completedRuns: 1,
+      helpfulRate: 1,
+    });
+    expect(report.summary).toMatchObject({
+      eligibleGraphs: 1,
+      activatedGraphs: 1,
+      activationRate: 1,
+      sevenDayReturnRate: 1,
+      evidenceCoverage: 1,
+    });
+    const serialized = JSON.stringify(report);
+    expect(serialized).not.toContain("Private pilot prompt");
+    expect(serialized).not.toContain("Private source content");
+    expect(serialized).not.toContain("private.example");
+    expect(serialized).not.toContain("Private conclusion title");
     database.close();
   });
 });

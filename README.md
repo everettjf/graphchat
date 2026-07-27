@@ -174,6 +174,11 @@ metadata, review, metrics, and export, see
 The versioned JSON backup and knowledge-asset fields are documented in
 [`docs/GRAPHCHAT_FORMAT.md`](./docs/GRAPHCHAT_FORMAT.md).
 
+The local-only pilot metrics and privacy contract are documented in
+[`docs/PRODUCT_VALIDATION.md`](./docs/PRODUCT_VALIDATION.md).
+The v0.2.0 release and migration checklist is in
+[`docs/V020_TESTING.md`](./docs/V020_TESTING.md).
+
 ```bash
 bun run typecheck  # TypeScript client and server
 bun run test       # unit, database, credential, and Pi runtime tests
@@ -184,8 +189,8 @@ bun run test:all   # complete verification
 
 ## Roadmap
 
-- Graph snapshots and Markdown import
-- Pluggable retrieval, web, and file tools
+- SQLite FTS and optional vector-backed pluggable retrieval
+- Safe web capture, OCR, and incremental source refresh
 - Optional end-to-end encrypted sync
 - Collaborative sharing and read-only graph publishing
 

@@ -9,12 +9,23 @@ import type {
   ImportTextInput,
   MetadataSuggestion,
   ProviderSettings,
+  ProductValidationReport,
   RunRequest,
   RunStreamEvent,
   StudyCard,
   UpdateGraphInput,
   UpdateNodeInput,
 } from "@shared/types";
+import { APP_VERSION } from "@shared/version";
+
+function productSessionId() {
+  const key = "graphchat-product-session";
+  const existing = window.sessionStorage.getItem(key);
+  if (existing) return existing;
+  const created = window.crypto.randomUUID();
+  window.sessionStorage.setItem(key, created);
+  return created;
+}
 
 type BootstrapData = {
   graphs: GraphMeta[];
@@ -85,9 +96,20 @@ export const api = {
       parseResponse<GraphDocument>(response),
     ),
   recordGraphOpen: (graphId: string) =>
-    fetch(`/api/graphs/${graphId}/events/open`, { method: "POST" }).then((response) => {
+    fetch(`/api/graphs/${graphId}/events/open`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        sessionId: productSessionId(),
+        appVersion: APP_VERSION,
+      }),
+    }).then((response) => {
       if (!response.ok) throw new Error("Unable to record graph activity.");
     }),
+  validationReport: () =>
+    fetch("/api/validation/export.json", { cache: "no-store" }).then((response) =>
+      parseResponse<ProductValidationReport>(response),
+    ),
   studyCards: (graphId: string) =>
     fetch(`/api/graphs/${graphId}/study`).then((response) =>
       parseResponse<StudyCard[]>(response),

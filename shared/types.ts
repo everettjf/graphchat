@@ -145,6 +145,11 @@ export const importTextSchema = z.object({
   format: z.enum(["markdown", "text"]).default("markdown"),
 });
 
+export const productEventContextSchema = z.object({
+  sessionId: z.string().trim().min(1).max(128),
+  appVersion: z.string().trim().min(1).max(32),
+});
+
 export const graphBackupSchema = z.object({
   version: z.number().int().min(1),
   graphs: z.array(graphDocumentSchema),
@@ -191,6 +196,56 @@ export type GraphMetrics = {
   firstSynthesisAt: string | null;
   lastOpenedAt: string | null;
   activityLast7Days: number;
+  evidenceCoverage: number;
+  ratedAnswers: number;
+  helpfulRate: number | null;
+};
+
+export type ProductValidationGraph = {
+  graphId: string;
+  createdAt: string;
+  eligible: boolean;
+  activated: boolean;
+  activationAt: string | null;
+  timeToFirstBranchMinutes: number | null;
+  timeToFirstSynthesisMinutes: number | null;
+  distinctSessions: number;
+  returnedAfter7Days: boolean;
+  conclusions: number;
+  evidenceBackedConclusions: number;
+  evidenceCoverage: number;
+  completedRuns: number;
+  cancelledRuns: number;
+  failedRuns: number;
+  helpfulRate: number | null;
+};
+
+export type ProductValidationReport = {
+  schemaVersion: 1;
+  appVersion: string;
+  generatedAt: string;
+  privacy: "local-only; excludes prompts, content, titles, source URLs, and credentials";
+  definitions: {
+    eligibleGraph: string;
+    activation: string;
+    evidenceBackedConclusion: string;
+    returnedAfter7Days: string;
+  };
+  summary: {
+    eligibleGraphs: number;
+    activatedGraphs: number;
+    activationRate: number;
+    medianTimeToFirstSynthesisMinutes: number | null;
+    returnedAfter7DaysGraphs: number;
+    sevenDayReturnRate: number;
+    conclusions: number;
+    evidenceBackedConclusions: number;
+    evidenceCoverage: number;
+    completedRuns: number;
+    cancelledRuns: number;
+    failedRuns: number;
+  };
+  graphs: ProductValidationGraph[];
 };
 
 export type ContextItem = z.infer<typeof contextItemSchema>;

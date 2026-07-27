@@ -27,6 +27,7 @@ jobs:
       - name: Verify tag and package version
         run: |
           test "v$(node -p "require('./package.json').version")" = "$GITHUB_REF_NAME"
+          bun run release:validate
 
       - name: Build application
         run: bun run build
@@ -46,7 +47,9 @@ jobs:
             mkdir -p "release/${folder}"
             bun build ./scripts/graphchat.mjs --compile --target="${target}" --outfile="release/${folder}/${executable}"
             cp -R dist "release/${folder}/dist"
-            cp README.md README.zh-CN.md LICENSE "release/${folder}/"
+            cp README.md README.zh-CN.md CHANGELOG.md LICENSE "release/${folder}/"
+            mkdir -p "release/${folder}/docs"
+            cp docs/CORE_TESTING.md docs/GRAPHCHAT_FORMAT.md docs/PRODUCT_VALIDATION.md docs/V020_TESTING.md "release/${folder}/docs/"
             if [[ "${platform}" == windows-* ]]; then
               (cd release && zip -qr "${folder}.zip" "${folder}")
             else
@@ -57,6 +60,7 @@ jobs:
 
           build_target bun-windows-x64-baseline windows-x64 graphchat.exe
           build_target bun-linux-x64-baseline linux-x64 graphchat
+          build_target bun-linux-arm64 linux-arm64 graphchat
           build_target bun-darwin-x64 macos-x64 graphchat
           build_target bun-darwin-arm64 macos-arm64 graphchat
 

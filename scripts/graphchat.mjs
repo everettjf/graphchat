@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 
 const scriptDirectory = path.dirname(fileURLToPath(import.meta.url));
 const packageRoot = path.resolve(scriptDirectory, "..");
-let packageVersion = "0.1.1";
+let packageVersion = "0.2.0";
 try {
   packageVersion = JSON.parse(
     fs.readFileSync(path.join(packageRoot, "package.json"), "utf8"),
