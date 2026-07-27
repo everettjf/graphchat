@@ -1,0 +1,32 @@
+name: Feature request
+description: Propose an improvement to graph-native learning
+title: "[Feature]: "
+labels:
+  - enhancement
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What learning problem would this solve?
+      description: Describe the current friction before describing the feature.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed experience
+      description: Explain how you imagine the interaction working.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Share workarounds or related products you have tried.
+  - type: checkboxes
+    id: principles
+    attributes:
+      label: Product principles
+      options:
+        - label: This can preserve Graph Chat's local-first behavior.
+        - label: This does not require exposing credentials to the browser.

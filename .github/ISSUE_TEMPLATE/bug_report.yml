@@ -1,0 +1,63 @@
+name: Bug report
+description: Report a reproducible problem in Graph Chat
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve Graph Chat. Remove secrets and private conversation content before submitting.
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: Describe the problem and what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: How can we reproduce it?
+      description: Provide the smallest reliable sequence of steps.
+      placeholder: |
+        1. Start Graph Chat with…
+        2. Open…
+        3. Click…
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+      placeholder: v0.1.0 or a commit SHA
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: Operating system, Node.js version, and browser.
+      placeholder: Windows 11, Node.js 24, Chrome 138
+    validations:
+      required: true
+  - type: dropdown
+    id: provider
+    attributes:
+      label: Model provider
+      options:
+        - ChatGPT / openai-codex
+        - OpenAI API
+        - Anthropic
+        - Google
+        - Groq
+        - OpenRouter
+        - Not provider-specific
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs
+      description: Paste sanitized logs. Do not include API keys, OAuth tokens, or private conversation content.
+      render: shell

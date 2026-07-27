@@ -1,0 +1,293 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#f4f1e9" />
+    <meta
+      name="description"
+      content="Graph Chat 是一个本地优先、图谱原生的 AI 学习工作区。分叉追问，跨分支引用，再把理解带回主线。"
+    />
+    <meta property="og:title" content="Graph Chat — Learn in branches. Remember in graphs." />
+    <meta
+      property="og:description"
+      content="把 AI 对话变成可以分叉、引用、汇聚和继续生长的知识图。"
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://everettjf.github.io/graphchat/" />
+    <meta property="og:image" content="https://everettjf.github.io/graphchat/assets/social-preview.svg" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <title>Graph Chat — Learn in branches. Remember in graphs.</title>
+    <link rel="icon" href="./assets/logo.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="./styles.css" />
+    <script src="./app.js" defer></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">跳到主要内容</a>
+    <div class="page-noise" aria-hidden="true"></div>
+
+    <header class="site-header">
+      <a class="brand" href="#" aria-label="Graph Chat 首页">
+        <img src="./assets/logo.svg" width="42" height="42" alt="" />
+        <span>
+          <strong>Graph Chat</strong>
+          <small>LEARNING WORKSPACE</small>
+        </span>
+      </a>
+      <nav aria-label="主要导航">
+        <a href="#workflow">工作方式</a>
+        <a href="#features">能力</a>
+        <a href="#architecture">架构</a>
+      </nav>
+      <a class="header-cta" href="https://github.com/everettjf/graphchat">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M12 .7a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2.24c-3.22.7-3.9-1.37-3.9-1.37-.52-1.34-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.57-.29-5.27-1.29-5.27-5.69 0-1.26.45-2.28 1.19-3.09-.12-.29-.52-1.47.11-3.05 0 0 .97-.31 3.16 1.18a10.9 10.9 0 0 1 5.76 0c2.2-1.49 3.16-1.18 3.16-1.18.63 1.58.23 2.76.11 3.05.74.81 1.19 1.83 1.19 3.09 0 4.41-2.71 5.39-5.29 5.68.42.36.79 1.06.79 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .7Z"/>
+        </svg>
+        GitHub
+      </a>
+    </header>
+
+    <main id="main">
+      <section class="hero">
+        <div class="hero-copy reveal">
+          <div class="eyebrow"><span></span> LOCAL-FIRST · AGENT-NATIVE</div>
+          <h1>
+            Learn in branches.<br />
+            <em>Remember in graphs.</em>
+          </h1>
+          <p class="hero-lead">
+            不再把所有追问塞进一条聊天记录。从任意概念创建分支，在分支中深入，
+            再引用多个理解汇聚成新的问题。
+          </p>
+          <div class="hero-actions">
+            <a class="button primary" href="https://github.com/everettjf/graphchat#快速开始">
+              本地开始使用
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+            </a>
+            <a class="button secondary" href="#workflow">看看它如何工作</a>
+          </div>
+          <div class="trust-row" aria-label="项目特点">
+            <span><i>✓</i> MIT 开源</span>
+            <span><i>✓</i> 本地 SQLite</span>
+            <span><i>✓</i> ChatGPT 订阅</span>
+            <span><i>✓</i> 无需云服务</span>
+          </div>
+        </div>
+
+        <div class="product-frame reveal" aria-label="Graph Chat 产品界面示意">
+          <div class="window-top">
+            <span class="window-dots"><i></i><i></i><i></i></span>
+            <span class="window-title">理解 RAG：从陌生概念到完整图景</span>
+            <span class="window-mode">图谱</span>
+          </div>
+          <div class="product-body">
+            <aside class="mock-sidebar">
+              <div class="mock-brand"><img src="./assets/logo.svg" alt="" /><b>Graph Chat</b></div>
+              <div class="mock-new">＋ 新建学习起点</div>
+              <div class="mock-search">⌕&nbsp;&nbsp;搜索节点…</div>
+              <div class="mock-nav active">⌘&nbsp;&nbsp;知识图 <small>6</small></div>
+              <div class="mock-nav">▣&nbsp;&nbsp;理解卡 <small>2</small></div>
+              <div class="mock-caption">最近浏览</div>
+              <div class="mock-recent"><b>Embedding 到底是什么？</b><small>刚刚</small></div>
+              <div class="mock-recent"><b>向量数据库做了什么？</b><small>3 分钟前</small></div>
+            </aside>
+            <div class="mock-canvas">
+              <svg class="mock-edges" viewBox="0 0 720 480" preserveAspectRatio="none" aria-hidden="true">
+                <path d="M180 245 C245 245 226 100 307 100" />
+                <path d="M180 245 C245 245 226 325 307 325" />
+                <path d="M444 100 C520 100 492 217 570 217" class="reference" />
+                <path d="M444 325 C520 325 492 245 570 245" />
+              </svg>
+              <article class="graph-card root">
+                <span class="node-type green">回答</span>
+                <h3>RAG 是什么？</h3>
+                <p>回答前先检索资料，再基于这些内容生成答案。</p>
+                <small>↳ 本地演示</small>
+              </article>
+              <article class="graph-card concept one">
+                <span class="node-type amber">概念</span>
+                <h3>Embedding 到底是什么？</h3>
+                <p>把文本映射成语义坐标。</p>
+              </article>
+              <article class="graph-card concept two">
+                <span class="node-type amber">概念</span>
+                <h3>向量数据库做了什么？</h3>
+                <p>快速找到语义相近的内容。</p>
+              </article>
+              <article class="graph-card synthesis">
+                <span class="node-type violet">汇聚</span>
+                <h3>两者如何配合？</h3>
+                <p>把分支重新组合成完整机制。</p>
+              </article>
+              <div class="edge-label solid">继续追问</div>
+              <div class="edge-label dotted">跨分支引用</div>
+              <div class="mock-composer">从当前节点继续追问，或引用另一个分支… <b>↑</b></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="principle-strip reveal" aria-label="核心原则">
+        <div><strong>01</strong><span>分叉</span><small>不打断原来的学习主线</small></div>
+        <i></i>
+        <div><strong>02</strong><span>深入</span><small>把一个陌生概念问清楚</small></div>
+        <i></i>
+        <div><strong>03</strong><span>引用</span><small>连接不同分支里的理解</small></div>
+        <i></i>
+        <div><strong>04</strong><span>汇聚</span><small>形成新的完整知识结构</small></div>
+      </section>
+
+      <section class="section workflow" id="workflow">
+        <div class="section-heading reveal">
+          <span>THE LEARNING LOOP</span>
+          <h2>聊天会结束，<br />理解应该继续生长。</h2>
+          <p>Graph Chat 保存的不只是消息，而是问题之间真正有用的关系。</p>
+        </div>
+        <div class="workflow-grid">
+          <article class="workflow-card reveal">
+            <div class="step-number">01</div>
+            <div class="mini-visual branch-visual" aria-hidden="true">
+              <span class="v-node large"></span><i></i><span class="v-node gold"></span><b></b><span class="v-node"></span>
+            </div>
+            <h3>从任意位置分叉</h3>
+            <p>选中一句话，或从当前节点继续提问。新的探索拥有自己的上下文，不会把主线冲散。</p>
+          </article>
+          <article class="workflow-card reveal">
+            <div class="step-number">02</div>
+            <div class="mini-visual link-visual" aria-hidden="true">
+              <span class="v-node gold"></span><i></i><span class="v-node purple"></span><b></b><span class="v-node"></span>
+            </div>
+            <h3>引用另一个分支</h3>
+            <p>把两个或更多节点加入联合提问。虚线边精确记录这次综合使用了哪些理解。</p>
+          </article>
+          <article class="workflow-card reveal">
+            <div class="step-number">03</div>
+            <div class="mini-visual merge-visual" aria-hidden="true">
+              <span class="v-node"></span><span class="v-node gold"></span><i></i><span class="v-node purple large"></span>
+            </div>
+            <h3>把答案带回主线</h3>
+            <p>Pi agent 根据显式上下文运行模型与图谱工具，让新的理解可追溯、可继续、可复用。</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="section features" id="features">
+        <div class="section-heading centered reveal">
+          <span>BUILT FOR REAL LEARNING</span>
+          <h2>一张图，承载整个理解过程。</h2>
+          <p>从第一次“不懂”到能够综合多个概念，所有路径都留在你自己的电脑上。</p>
+        </div>
+        <div class="feature-grid">
+          <article class="feature-card wide green-card reveal">
+            <div>
+              <span class="feature-kicker">GRAPH-NATIVE</span>
+              <h3>关系不是装饰，<br />而是模型上下文。</h3>
+              <p>主线、跨分支引用和选中文字被分别编译，模型只接收本次问题真正需要的部分。</p>
+            </div>
+            <div class="context-stack" aria-hidden="true">
+              <div><i class="green-dot"></i><span><b>主线</b><small>RAG → Embedding</small></span><em>完整</em></div>
+              <div><i class="violet-dot"></i><span><b>引用</b><small>向量数据库</small></span><em>摘要</em></div>
+              <div><i class="gold-dot"></i><span><b>选中文字</b><small>“语义坐标”</small></span><em>精确</em></div>
+            </div>
+          </article>
+          <article class="feature-card dark-card reveal">
+            <span class="feature-kicker">PI AGENT LOOP</span>
+            <h3>不是一次 API 调用。</h3>
+            <p>流式回答、图谱搜索、节点读取、工具循环、重试和取消，都由 Pi agent harness 管理。</p>
+            <div class="terminal" aria-hidden="true">
+              <span><i>●</i> agent.started</span>
+              <span><i>↳</i> graph_search("向量")</span>
+              <span><i>✓</i> 2 nodes added</span>
+              <span class="typing"><i>▋</i> answer.streaming</span>
+            </div>
+          </article>
+          <article class="feature-card auth-card reveal">
+            <span class="feature-kicker">CHATGPT SUBSCRIPTION</span>
+            <h3>用 ChatGPT 账户登录。</h3>
+            <p>Pi 内置 OpenAI Codex 设备码 OAuth。无需复制 API Key，token 自动刷新。</p>
+            <div class="auth-state" aria-hidden="true">
+              <img src="./assets/logo.svg" alt="" />
+              <span><b>ChatGPT OAuth</b><small>Connected locally</small></span>
+              <em>✓</em>
+            </div>
+          </article>
+          <article class="feature-card privacy-card reveal">
+            <span class="feature-kicker">LOCAL-FIRST</span>
+            <h3>你的知识图，属于你。</h3>
+            <p>SQLite 数据库与 OAuth credential 均保存在本机。无遥测、无账号系统、无必需云服务。</p>
+            <ul>
+              <li><i>✓</i> 默认只监听 127.0.0.1</li>
+              <li><i>✓</i> API Key 不写入磁盘</li>
+              <li><i>✓</i> JSON 导出不包含凭据</li>
+            </ul>
+          </article>
+        </div>
+      </section>
+
+      <section class="section architecture" id="architecture">
+        <div class="section-heading reveal">
+          <span>ARCHITECTURE</span>
+          <h2>本地应用的简单，<br />Agent 系统的能力。</h2>
+          <p>没有微服务拼图。一个 Node.js 进程服务前端、图谱 API、SQLite 与 Pi runtime。</p>
+        </div>
+        <div class="architecture-map reveal">
+          <div class="arch-item">
+            <small>INTERFACE</small>
+            <strong>React 19</strong>
+            <span>shadcn-style · React Flow</span>
+          </div>
+          <div class="arch-arrow">→</div>
+          <div class="arch-item">
+            <small>BACKEND</small>
+            <strong>Fastify</strong>
+            <span>typed API · NDJSON stream</span>
+          </div>
+          <div class="arch-arrow">→</div>
+          <div class="arch-item agent">
+            <small>RUNTIME</small>
+            <strong>Pi Agent</strong>
+            <span>models · tools · retry loop</span>
+          </div>
+          <div class="arch-arrow">→</div>
+          <div class="arch-item">
+            <small>MODELS</small>
+            <strong>Your choice</strong>
+            <span>ChatGPT · API · Ollama</span>
+          </div>
+          <div class="arch-db"><span>↳</span><b>SQLite</b><small>graphs · nodes · edges</small></div>
+        </div>
+      </section>
+
+      <section class="cta-section reveal">
+        <div class="cta-copy">
+          <span>OPEN SOURCE · MIT</span>
+          <h2>下一次遇到“不懂”，<br />让它长成一个新分支。</h2>
+          <p>克隆仓库，运行两条命令。无需账户，无需数据库，无需 API Key。</p>
+        </div>
+        <div class="quickstart">
+          <div class="command">
+            <code><span>$</span> git clone https://github.com/everettjf/graphchat.git</code>
+            <button data-copy="git clone https://github.com/everettjf/graphchat.git" aria-label="复制克隆命令">复制</button>
+          </div>
+          <div class="command">
+            <code><span>$</span> cd graphchat && npm install && npm run dev</code>
+            <button data-copy="cd graphchat && npm install && npm run dev" aria-label="复制运行命令">复制</button>
+          </div>
+          <a class="button primary full" href="https://github.com/everettjf/graphchat">
+            在 GitHub 查看源码
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+          </a>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <a class="brand" href="#">
+        <img src="./assets/logo.svg" width="36" height="36" alt="" />
+        <span><strong>Graph Chat</strong><small>LEARN IN BRANCHES</small></span>
+      </a>
+      <p>Built for curious minds. Open source under the MIT License.</p>
+      <div><a href="https://github.com/everettjf/graphchat">GitHub</a><a href="https://github.com/everettjf/graphchat/issues">Issues</a><a href="https://github.com/everettjf/graphchat/blob/main/LICENSE">License</a></div>
+    </footer>
+  </body>
+</html>
