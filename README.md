@@ -72,6 +72,18 @@ Starting question ──→ AI answer ──→ New concept A ──→ Deeper e
 
 ## Quick start
 
+### Install from npm
+
+Node.js 22.19+ is required:
+
+```bash
+npm install --global @everettjf/graphchat
+graphchat
+```
+
+For a one-off launch, use `npx @everettjf/graphchat`. Bun users can use
+`bunx @everettjf/graphchat`; both commands install the same package from the npm registry.
+
 ### Standalone release
 
 The easiest path needs no Bun, Node.js, or database installation:

@@ -1,4 +1,4 @@
-#!/usr/bin/env bun
+#!/usr/bin/env node
 
 import fs from "node:fs";
 import path from "node:path";
@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 
 const scriptDirectory = path.dirname(fileURLToPath(import.meta.url));
 const packageRoot = path.resolve(scriptDirectory, "..");
-let packageVersion = "0.2.0";
+let packageVersion = "0.2.1";
 try {
   packageVersion = JSON.parse(
     fs.readFileSync(path.join(packageRoot, "package.json"), "utf8"),

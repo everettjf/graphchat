@@ -27,7 +27,7 @@ test.describe("Graph Chat", () => {
     expect(await (await request.get("/health")).json()).toEqual({
       ok: true,
       service: "graphchat",
-      version: "0.2.0",
+      version: "0.2.1",
       databaseSchemaVersion: 4,
     });
     await page.goto("/");
@@ -270,7 +270,7 @@ test.describe("Graph Chat", () => {
     ).json();
     expect(validation).toMatchObject({
       schemaVersion: 1,
-      appVersion: "0.2.0",
+      appVersion: "0.2.1",
       summary: { eligibleGraphs: 1 },
     });
     expect(JSON.stringify(validation)).not.toContain("Reads see the latest write");

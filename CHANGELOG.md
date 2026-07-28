@@ -2,6 +2,19 @@
 
 All notable Graph Chat changes are documented here.
 
+## 0.2.1 - 2026-07-28
+
+### Fixed
+
+- Made summary navigation return to the structural parent and hid the control on root nodes.
+- Restored readable Markdown tables with borders, spacing, zebra rows, and horizontal scrolling.
+- Made the synthesis-reference toggle expose clear labels and selected-state feedback.
+
+### Changed
+
+- Made the packaged `graphchat` command run on Node.js 22.19+ while retaining Bun support.
+- Added npm installation instructions and npm publishing to the tagged-release workflow.
+
 ## 0.2.0 - 2026-07-28
 
 ### Added
