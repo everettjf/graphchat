@@ -127,6 +127,9 @@ test.describe("Graph Chat", () => {
     await expect(
       page.getByText("Answer saved to the knowledge graph"),
     ).toBeVisible({ timeout: 15_000 });
+    // Completion may focus the newly created run node. Re-select the node that
+    // was active while streaming before checking that no deltas leaked into it.
+    await page.getByTestId("tree-node-vector-db").click();
     await expect(page.getByTestId("node-inspector")).toContainText(
       "Regular databases excel at exact matches",
     );
