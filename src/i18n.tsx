@@ -8,11 +8,33 @@ import {
   type ReactNode,
 } from "react";
 
-export type Locale = "en" | "zh";
+export const locales = ["en", "zh", "es", "fr", "de", "ja", "ko", "zh-TW"] as const;
+export type Locale = (typeof locales)[number];
+
+export const localeMeta: Record<
+  Locale,
+  { label: string; shortLabel: string; htmlLang: string; dir: "ltr" }
+> = {
+  en: { label: "English", shortLabel: "EN", htmlLang: "en", dir: "ltr" },
+  zh: { label: "简体中文", shortLabel: "中文", htmlLang: "zh-CN", dir: "ltr" },
+  es: { label: "Español", shortLabel: "ES", htmlLang: "es", dir: "ltr" },
+  fr: { label: "Français", shortLabel: "FR", htmlLang: "fr", dir: "ltr" },
+  de: { label: "Deutsch", shortLabel: "DE", htmlLang: "de", dir: "ltr" },
+  ja: { label: "日本語", shortLabel: "日本語", htmlLang: "ja", dir: "ltr" },
+  ko: { label: "한국어", shortLabel: "한국어", htmlLang: "ko", dir: "ltr" },
+  "zh-TW": { label: "繁體中文", shortLabel: "繁中", htmlLang: "zh-TW", dir: "ltr" },
+};
 
 const english = {
   "language.english": "EN",
   "language.chinese": "中文",
+  "language.spanish": "Español",
+  "language.french": "Français",
+  "language.german": "Deutsch",
+  "language.japanese": "日本語",
+  "language.korean": "한국어",
+  "language.traditionalChinese": "繁體中文",
+  "language.label": "Language",
   "app.loading": "Opening your knowledge graph…",
   "app.openFailed": "Unable to open Graph Chat",
   "app.serviceUnavailable": "The local service is temporarily unavailable.",
@@ -151,6 +173,8 @@ const english = {
   "settings.authStartFailed": "Unable to start ChatGPT sign-in.",
   "settings.saveFailed": "Unable to save settings",
   "settings.modelId": "Model ID",
+  "settings.activeModel": "Active model",
+  "settings.chooseModel": "Choose model",
   "settings.keySaved": "Already set in this process",
   "settings.keySession": "Kept until the service stops",
   "settings.localFirst": "Local-first boundary",
@@ -174,6 +198,13 @@ const english = {
 const chinese: Record<keyof typeof english, string> = {
   "language.english": "EN",
   "language.chinese": "中文",
+  "language.spanish": "西班牙语",
+  "language.french": "法语",
+  "language.german": "德语",
+  "language.japanese": "日语",
+  "language.korean": "韩语",
+  "language.traditionalChinese": "繁体中文",
+  "language.label": "语言",
   "app.loading": "正在打开你的知识图…",
   "app.openFailed": "无法打开 Graph Chat",
   "app.serviceUnavailable": "本地服务暂时不可用。",
@@ -310,6 +341,8 @@ const chinese: Record<keyof typeof english, string> = {
   "settings.authStartFailed": "无法启动 ChatGPT 登录。",
   "settings.saveFailed": "保存失败",
   "settings.modelId": "模型 ID",
+  "settings.activeModel": "当前模型",
+  "settings.chooseModel": "切换模型",
   "settings.keySaved": "已在当前进程中设置",
   "settings.keySession": "仅保留到服务关闭",
   "settings.localFirst": "本地优先说明",
@@ -329,10 +362,181 @@ const chinese: Record<keyof typeof english, string> = {
   "dialog.close": "关闭",
 };
 
+const spanish: Partial<Record<keyof typeof english, string>> = {
+  "language.label": "Idioma",
+  "app.loading": "Abriendo tu gráfico de conocimiento…",
+  "app.openFailed": "No se pudo abrir Graph Chat",
+  "app.retry": "Reintentar",
+  "sidebar.newStart": "Nuevo hilo",
+  "sidebar.searchPlaceholder": "Buscar nodos…",
+  "sidebar.knowledgeGraph": "Gráfico de conocimiento",
+  "sidebar.insightCards": "Tarjetas de ideas",
+  "sidebar.graphs": "Gráficos",
+  "sidebar.recent": "Vistos recientemente",
+  "sidebar.export": "Exportar todos los datos",
+  "sidebar.settings": "Modelos y ajustes",
+  "sidebar.localOnly": "Los datos permanecen en este dispositivo",
+  "topbar.fit": "Ajustar gráfico",
+  "composer.send": "Enviar",
+  "composer.quick": "Respuesta rápida",
+  "composer.explore": "Explorar gráfico",
+  "composer.synthesize": "Sintetizar ramas",
+  "settings.title": "Modelos y ejecución",
+  "settings.modelId": "ID del modelo",
+  "settings.activeModel": "Modelo activo",
+  "settings.chooseModel": "Cambiar modelo",
+  "settings.cancel": "Cancelar",
+  "settings.save": "Guardar ajustes",
+  "dialog.close": "Cerrar",
+};
+
+const french: Partial<Record<keyof typeof english, string>> = {
+  "language.label": "Langue",
+  "app.loading": "Ouverture de votre graphe de connaissances…",
+  "app.openFailed": "Impossible d’ouvrir Graph Chat",
+  "app.retry": "Réessayer",
+  "sidebar.newStart": "Nouveau fil",
+  "sidebar.searchPlaceholder": "Rechercher des nœuds…",
+  "sidebar.knowledgeGraph": "Graphe de connaissances",
+  "sidebar.insightCards": "Cartes d’idées",
+  "sidebar.graphs": "Graphes",
+  "sidebar.recent": "Consultés récemment",
+  "sidebar.export": "Exporter toutes les données",
+  "sidebar.settings": "Modèles et réglages",
+  "sidebar.localOnly": "Les données restent sur cet appareil",
+  "topbar.fit": "Ajuster le graphe",
+  "composer.send": "Envoyer",
+  "composer.quick": "Réponse rapide",
+  "composer.explore": "Explorer le graphe",
+  "composer.synthesize": "Synthétiser les branches",
+  "settings.title": "Modèles et exécution",
+  "settings.modelId": "ID du modèle",
+  "settings.activeModel": "Modèle actif",
+  "settings.chooseModel": "Changer de modèle",
+  "settings.cancel": "Annuler",
+  "settings.save": "Enregistrer",
+  "dialog.close": "Fermer",
+};
+
+const german: Partial<Record<keyof typeof english, string>> = {
+  "language.label": "Sprache",
+  "app.loading": "Dein Wissensgraph wird geöffnet…",
+  "app.openFailed": "Graph Chat konnte nicht geöffnet werden",
+  "app.retry": "Erneut versuchen",
+  "sidebar.newStart": "Neuer Thread",
+  "sidebar.searchPlaceholder": "Knoten durchsuchen…",
+  "sidebar.knowledgeGraph": "Wissensgraph",
+  "sidebar.insightCards": "Erkenntniskarten",
+  "sidebar.graphs": "Wissensgraphen",
+  "sidebar.recent": "Kürzlich angesehen",
+  "sidebar.export": "Alle Daten exportieren",
+  "sidebar.settings": "Modelle & Einstellungen",
+  "sidebar.localOnly": "Daten bleiben auf diesem Gerät",
+  "topbar.fit": "Graph einpassen",
+  "composer.send": "Senden",
+  "composer.quick": "Kurze Antwort",
+  "composer.explore": "Graph erkunden",
+  "composer.synthesize": "Zweige zusammenführen",
+  "settings.title": "Modelle & Laufzeit",
+  "settings.modelId": "Modell-ID",
+  "settings.activeModel": "Aktives Modell",
+  "settings.chooseModel": "Modell wechseln",
+  "settings.cancel": "Abbrechen",
+  "settings.save": "Einstellungen speichern",
+  "dialog.close": "Schließen",
+};
+
+const japanese: Partial<Record<keyof typeof english, string>> = {
+  "language.label": "言語",
+  "app.loading": "ナレッジグラフを開いています…",
+  "app.openFailed": "Graph Chat を開けません",
+  "app.retry": "再試行",
+  "sidebar.newStart": "新しいスレッド",
+  "sidebar.searchPlaceholder": "ノードを検索…",
+  "sidebar.knowledgeGraph": "ナレッジグラフ",
+  "sidebar.insightCards": "インサイトカード",
+  "sidebar.graphs": "グラフ",
+  "sidebar.recent": "最近表示した項目",
+  "sidebar.export": "すべてのデータをエクスポート",
+  "sidebar.settings": "モデルと設定",
+  "sidebar.localOnly": "データはこのデバイスに保存されます",
+  "topbar.fit": "グラフを表示範囲に合わせる",
+  "composer.send": "送信",
+  "composer.quick": "クイック回答",
+  "composer.explore": "グラフを探索",
+  "composer.synthesize": "ブランチを統合",
+  "settings.title": "モデルとランタイム",
+  "settings.modelId": "モデル ID",
+  "settings.activeModel": "使用中のモデル",
+  "settings.chooseModel": "モデルを切り替える",
+  "settings.cancel": "キャンセル",
+  "settings.save": "設定を保存",
+  "dialog.close": "閉じる",
+};
+
+const korean: Partial<Record<keyof typeof english, string>> = {
+  "language.label": "언어",
+  "app.loading": "지식 그래프를 여는 중…",
+  "app.openFailed": "Graph Chat을 열 수 없습니다",
+  "app.retry": "다시 시도",
+  "sidebar.newStart": "새 스레드",
+  "sidebar.searchPlaceholder": "노드 검색…",
+  "sidebar.knowledgeGraph": "지식 그래프",
+  "sidebar.insightCards": "인사이트 카드",
+  "sidebar.graphs": "그래프",
+  "sidebar.recent": "최근 항목",
+  "sidebar.export": "모든 데이터 내보내기",
+  "sidebar.settings": "모델 및 설정",
+  "sidebar.localOnly": "데이터는 이 기기에만 저장됩니다",
+  "topbar.fit": "그래프 맞춤",
+  "composer.send": "보내기",
+  "composer.quick": "빠른 답변",
+  "composer.explore": "그래프 탐색",
+  "composer.synthesize": "브랜치 종합",
+  "settings.title": "모델 및 런타임",
+  "settings.modelId": "모델 ID",
+  "settings.activeModel": "활성 모델",
+  "settings.chooseModel": "모델 전환",
+  "settings.cancel": "취소",
+  "settings.save": "설정 저장",
+  "dialog.close": "닫기",
+};
+
+const traditionalChinese: Partial<Record<keyof typeof english, string>> = {
+  ...chinese,
+  "language.label": "語言",
+  "app.loading": "正在開啟你的知識圖譜…",
+  "app.openFailed": "無法開啟 Graph Chat",
+  "app.serviceUnavailable": "本機服務暫時無法使用。",
+  "app.retry": "重試",
+  "sidebar.newStart": "新增學習起點",
+  "sidebar.searchPlaceholder": "搜尋節點…",
+  "sidebar.knowledgeGraph": "知識圖譜",
+  "sidebar.insightCards": "理解卡片",
+  "sidebar.graphs": "知識圖譜",
+  "sidebar.recent": "最近瀏覽",
+  "sidebar.export": "匯出全部資料",
+  "sidebar.settings": "模型與設定",
+  "sidebar.localOnly": "資料只儲存在本機",
+  "settings.activeModel": "目前模型",
+  "settings.chooseModel": "切換模型",
+  "settings.cancel": "取消",
+  "settings.save": "儲存設定",
+  "dialog.close": "關閉",
+};
+
 export type TranslationKey = keyof typeof english;
 type Replacements = Record<string, string | number>;
 
 function resolveInitialLocale(): Locale {
+  const requested = new URL(window.location.href).searchParams.get("lang");
+  if (locales.includes(requested as Locale)) return requested as Locale;
+  try {
+    const saved = window.localStorage.getItem("graphchat-language");
+    if (locales.includes(saved as Locale)) return saved as Locale;
+  } catch {
+    // Storage can be unavailable in privacy-restricted contexts.
+  }
   return "en";
 }
 
@@ -358,27 +562,53 @@ export function I18nProvider({ children }: { children: ReactNode }) {
 
   const setLocale = useCallback((next: Locale) => {
     setLocaleState(next);
-    window.localStorage.setItem("graphchat-language", next);
+    try {
+      window.localStorage.setItem("graphchat-language", next);
+    } catch {
+      // The preference still applies for the current session.
+    }
     const url = new URL(window.location.href);
-    if (next === "zh") url.searchParams.set("lang", "zh");
+    if (next !== "en") url.searchParams.set("lang", next);
     else url.searchParams.delete("lang");
     window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
   }, []);
 
   useEffect(() => {
-    document.documentElement.lang = locale === "zh" ? "zh-CN" : "en";
-    document.title =
-      locale === "zh"
-        ? "Graph Chat — 在分支中学习，在图谱中记忆"
-        : "Graph Chat — Learn in branches. Remember in graphs.";
+    document.documentElement.lang = localeMeta[locale].htmlLang;
+    document.documentElement.dir = localeMeta[locale].dir;
+    const titles: Record<Locale, string> = {
+      en: "Graph Chat — Learn in branches. Remember in graphs.",
+      zh: "Graph Chat — 在分支中学习，在图谱中记忆",
+      es: "Graph Chat — Aprende en ramas. Recuerda en gráficos.",
+      fr: "Graph Chat — Apprenez par branches. Retenez par graphes.",
+      de: "Graph Chat — In Zweigen lernen. In Graphen erinnern.",
+      ja: "Graph Chat — 分岐で学び、グラフで記憶する。",
+      ko: "Graph Chat — 브랜치로 배우고, 그래프로 기억하세요.",
+      "zh-TW": "Graph Chat — 在分支中學習，在圖譜中記憶",
+    };
+    document.title = titles[locale];
   }, [locale]);
 
   const value = useMemo<I18nValue>(
     () => ({
       locale,
       setLocale,
-      t: (key, replacements) =>
-        format((locale === "zh" ? chinese : english)[key], replacements),
+      t: (key, replacements) => {
+        const dictionaries: Record<
+          Locale,
+          Partial<Record<TranslationKey, string>>
+        > = {
+          en: english,
+          zh: chinese,
+          es: spanish,
+          fr: french,
+          de: german,
+          ja: japanese,
+          ko: korean,
+          "zh-TW": traditionalChinese,
+        };
+        return format(dictionaries[locale][key] ?? english[key], replacements);
+      },
     }),
     [locale, setLocale],
   );

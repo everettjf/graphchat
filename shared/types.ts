@@ -149,7 +149,7 @@ export const runRequestSchema = z.object({
   selectedText: z.string().nullable().default(null),
   position: z.object({ x: z.number(), y: z.number() }),
   mode: z.enum(["answer", "explore", "synthesize"]).default("answer"),
-  locale: z.enum(["en", "zh"]).default("en"),
+  locale: z.enum(["en", "zh", "es", "fr", "de", "ja", "ko", "zh-TW"]).default("en"),
 });
 
 export const importTextSchema = z.object({

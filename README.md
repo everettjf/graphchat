@@ -65,7 +65,7 @@ Starting question ──→ AI answer ──→ New concept A ──→ Deeper e
 | Other models | OpenAI API, OpenRouter, Ollama, and OpenAI-compatible endpoints |
 | Local data | Bun/Node SQLite, WAL, JSON export, and no external database |
 | Local retrieval | SQLite FTS5 ranking across titles, prompts, summaries, content, tags, and source URLs |
-| English and Chinese | English-first application and documentation with a persistent Chinese switch |
+| Eight interface languages | English-first application and documentation with persistent Simplified Chinese, Spanish, French, German, Japanese, Korean, and Traditional Chinese switching |
 | Resilient runs | Run-scoped streaming, explicit cancellation, and interrupted-run recovery |
 | Privacy boundary | API keys stay in process; OAuth credentials stay in a private local file |
 | Engineering quality | Strict TypeScript, Vitest, database and Pi runtime tests, and Playwright E2E |
@@ -107,7 +107,7 @@ bun run graphchat
 
 The `graphchat` launcher builds the application, starts the local service, and opens it in your browser. For hot-reload development, use `bun run dev` and open [http://localhost:5173](http://localhost:5173).
 
-On first launch, Graph Chat creates an English example graph about RAG. The interface defaults to English and can be switched to Chinese from the top bar. The local demo follows the selected language, needs no credentials, and never contacts an external model.
+On first launch, Graph Chat creates an English example graph about RAG. The interface defaults to English and can be switched from the sidebar to Simplified Chinese, Spanish, French, German, Japanese, Korean, or Traditional Chinese. The selected language is shared with model runs, needs no credentials for the local demo, and is remembered on the device.
 
 Production mode:
 

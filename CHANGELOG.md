@@ -2,6 +2,20 @@
 
 All notable Graph Chat changes are documented here.
 
+## 0.2.2 - 2026-07-28
+
+### Added
+
+- Added persistent language switching across the application and documentation site for
+  English, Simplified Chinese, Spanish, French, German, Japanese, Korean, and Traditional Chinese.
+- Added locale-aware model responses for every supported interface language.
+- Added a top-bar model indicator that opens model and provider settings directly.
+
+### Changed
+
+- Replaced the two-button language control with a compact, accessible language selector.
+- Improved locale-aware relative times and Traditional Chinese behavior throughout the workspace.
+
 ## 0.2.1 - 2026-07-28
 
 ### Fixed

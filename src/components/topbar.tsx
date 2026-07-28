@@ -35,6 +35,7 @@ export function Topbar({
   onViewModeChange: (mode: "content" | "tree" | "graph") => void;
 }) {
   const { sidebarOpen, setSidebarOpen, inspectorOpen, setInspectorOpen } = useWorkspace();
+  const setSettingsOpen = useWorkspace((state) => state.setSettingsOpen);
   const { locale, t } = useI18n();
 
   return (
@@ -56,11 +57,20 @@ export function Topbar({
             <h1 className="truncate font-display text-[15px] font-semibold text-[var(--ink)] sm:text-[16px]">
               {document.graph.title}
             </h1>
-            <Badge className="hidden border-[#d5e3d8] bg-[#edf4ee] text-[#4c7358] sm:inline-flex">
-              {settings.provider === "openai-codex"
-                ? `ChatGPT · ${settings.model}`
-                : settings.model}
-            </Badge>
+            <button
+              type="button"
+              onClick={() => setSettingsOpen(true)}
+              className="group hidden rounded-full sm:block"
+              aria-label={`${t("settings.chooseModel")}: ${settings.model}`}
+              title={t("settings.chooseModel")}
+            >
+              <Badge className="border-[#d5e3d8] bg-[#edf4ee] text-[#4c7358] transition group-hover:border-[#9bc5a7] group-hover:bg-[#e4f1e7]">
+                <span className="mr-1 size-1.5 rounded-full bg-[#69a47e] shadow-[0_0_0_3px_rgb(105_164_126_/_12%)]" />
+                {settings.provider === "openai-codex"
+                  ? `ChatGPT · ${settings.model}`
+                  : settings.model}
+              </Badge>
+            </button>
           </div>
           <p className="mt-0.5 hidden truncate text-[10px] text-[var(--muted-light)] sm:block">
             {document.graph.description}
@@ -82,33 +92,33 @@ export function Topbar({
             size="sm"
             className="h-7 px-1.5 text-[10px] sm:px-2"
             onClick={() => onViewModeChange("content")}
-            aria-label={locale === "zh" ? "内容视图" : "Content view"}
+            aria-label={locale.startsWith("zh") ? "内容视图" : "Content view"}
             aria-pressed={viewMode === "content"}
           >
             <FileText className="size-3" />
-            <span className="hidden 2xl:inline">{locale === "zh" ? "聊天" : "Chat"}</span>
+            <span className="hidden 2xl:inline">{locale.startsWith("zh") ? "聊天" : "Chat"}</span>
           </Button>
           <Button
             variant={viewMode === "tree" ? "soft" : "ghost"}
             size="sm"
             className="h-7 px-1.5 text-[10px] sm:px-2"
             onClick={() => onViewModeChange("tree")}
-            aria-label={locale === "zh" ? "知识树视图" : "Tree view"}
+            aria-label={locale.startsWith("zh") ? "知识树视图" : "Tree view"}
             aria-pressed={viewMode === "tree"}
           >
             <TreePine className="size-3" />
-            <span className="hidden 2xl:inline">{locale === "zh" ? "树" : "Tree"}</span>
+            <span className="hidden 2xl:inline">{locale.startsWith("zh") ? "树" : "Tree"}</span>
           </Button>
           <Button
             variant={viewMode === "graph" ? "soft" : "ghost"}
             size="sm"
             className="h-7 px-1.5 text-[10px] sm:px-2"
             onClick={() => onViewModeChange("graph")}
-            aria-label={locale === "zh" ? "图谱视图" : "Graph view"}
+            aria-label={locale.startsWith("zh") ? "图谱视图" : "Graph view"}
             aria-pressed={viewMode === "graph"}
           >
             <Network className="size-3" />
-            <span className="hidden 2xl:inline">{locale === "zh" ? "图谱" : "Graph"}</span>
+            <span className="hidden 2xl:inline">{locale.startsWith("zh") ? "图谱" : "Graph"}</span>
           </Button>
         </div>
         <div className="size-8 shrink-0">
@@ -125,24 +135,24 @@ export function Topbar({
             </Tooltip>
           )}
         </div>
-        <Tooltip content={locale === "zh" ? "撤销上一步图谱修改" : "Undo last graph change"}>
+        <Tooltip content={locale.startsWith("zh") ? "撤销上一步图谱修改" : "Undo last graph change"}>
           <Button
             variant="ghost"
             size="icon"
             className="size-8"
             onClick={onUndo}
-            aria-label={locale === "zh" ? "撤销" : "Undo"}
+            aria-label={locale.startsWith("zh") ? "撤销" : "Undo"}
           >
             <Undo2 className="size-3.5" />
           </Button>
         </Tooltip>
-        <Tooltip content={locale === "zh" ? "工具" : "Tools"}>
+        <Tooltip content={locale.startsWith("zh") ? "工具" : "Tools"}>
           <Button
             variant="ghost"
             size="icon"
             className="size-8"
             onClick={onOpenTools}
-            aria-label={locale === "zh" ? "工具" : "Tools"}
+            aria-label={locale.startsWith("zh") ? "工具" : "Tools"}
           >
             <Wrench className="size-3.5" />
           </Button>
@@ -151,8 +161,8 @@ export function Topbar({
         {viewMode === "content" && <Tooltip
           content={
             inspectorOpen
-              ? locale === "zh" ? "隐藏知识树" : "Hide knowledge tree"
-              : locale === "zh" ? "显示知识树" : "Show knowledge tree"
+              ? locale.startsWith("zh") ? "隐藏知识树" : "Hide knowledge tree"
+              : locale.startsWith("zh") ? "显示知识树" : "Show knowledge tree"
           }
         >
           <Button

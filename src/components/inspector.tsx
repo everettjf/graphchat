@@ -142,12 +142,12 @@ export function Inspector({
           <div
             className="mt-5 flex gap-1 border-b border-[var(--border)]"
             role="tablist"
-            aria-label={locale === "zh" ? "内容面板" : "Content panel"}
+            aria-label={locale.startsWith("zh") ? "内容面板" : "Content panel"}
           >
             {[
-              ["conversation", locale === "zh" ? "对话" : "Conversation"],
-              ["details", locale === "zh" ? "详情" : "Details"],
-              ["context", locale === "zh" ? "上下文" : "Context"],
+              ["conversation", locale.startsWith("zh") ? "对话" : "Conversation"],
+              ["details", locale.startsWith("zh") ? "详情" : "Details"],
+              ["context", locale.startsWith("zh") ? "上下文" : "Context"],
             ].map(([id, label]) => (
               <button
                 key={id}
@@ -236,10 +236,10 @@ export function Inspector({
           <section className="mt-7 rounded-2xl border border-[#ddd7e8] bg-[#f4f0f8] p-4">
             <div className="mb-2 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.13em] text-[#6d6282]">
               <Braces className="size-3.5" />
-              {locale === "zh" ? "实际使用的上下文" : "Context actually used"}
+              {locale.startsWith("zh") ? "实际使用的上下文" : "Context actually used"}
             </div>
             <p className="mb-3 text-[10px] text-[#756b86]">
-              {locale === "zh"
+              {locale.startsWith("zh")
                 ? `约 ${node.contextSnapshot.estimatedTokens} tokens · ${node.contextSnapshot.items.length} 个来源`
                 : `~${node.contextSnapshot.estimatedTokens} tokens · ${node.contextSnapshot.items.length} sources`}
             </p>
@@ -257,7 +257,7 @@ export function Inspector({
             </div>
             {node.contextSnapshot.omittedNodeIds.length > 0 && (
               <p className="mt-2 text-[9px] text-[#8b6270]">
-                {locale === "zh"
+                {locale.startsWith("zh")
                   ? `${node.contextSnapshot.omittedNodeIds.length} 个节点因上下文预算未使用`
                   : `${node.contextSnapshot.omittedNodeIds.length} nodes omitted by the context budget`}
               </p>
@@ -266,7 +266,7 @@ export function Inspector({
         )}
         {activeTab === "context" && !node.contextSnapshot && (
           <div className="mt-7 rounded-2xl border border-dashed border-[var(--border)] p-6 text-center text-xs leading-5 text-[var(--muted)]">
-            {locale === "zh"
+            {locale.startsWith("zh")
               ? "这个节点没有保存模型上下文。手工笔记和旧节点通常不会包含上下文快照。"
               : "This node has no saved model context. Manual notes and legacy nodes usually do not include a context snapshot."}
           </div>
@@ -276,7 +276,7 @@ export function Inspector({
           <>
         <section className="mt-7 border-t border-[var(--border)] pt-5">
           <div className="mb-3 text-[10px] font-bold uppercase tracking-[0.13em] text-[var(--muted-light)]">
-            {locale === "zh" ? "知识资产" : "Knowledge asset"}
+            {locale.startsWith("zh") ? "知识资产" : "Knowledge asset"}
           </div>
           <Button
             variant="outline"
@@ -288,10 +288,10 @@ export function Inspector({
             }}
           >
             <WandSparkles className="size-3.5" />
-            {locale === "zh" ? "建议标签与摘要" : "Suggest tags and summary"}
+            {locale.startsWith("zh") ? "建议标签与摘要" : "Suggest tags and summary"}
           </Button>
           <label className="mb-3 block text-[10px] text-[var(--muted-light)]">
-            {locale === "zh" ? "标签（逗号分隔）" : "Tags (comma separated)"}
+            {locale.startsWith("zh") ? "标签（逗号分隔）" : "Tags (comma separated)"}
             <input
               key={`${node.id}-${node.tags.join(",")}`}
               defaultValue={node.tags.join(", ")}
@@ -307,7 +307,7 @@ export function Inspector({
             />
           </label>
           <label className="mb-3 block text-[10px] text-[var(--muted-light)]">
-            {locale === "zh" ? "来源链接" : "Source URL"}
+            {locale.startsWith("zh") ? "来源链接" : "Source URL"}
             <input
               key={`${node.id}-${node.sourceUrl}`}
               defaultValue={node.sourceUrl}
@@ -323,13 +323,13 @@ export function Inspector({
                   knowledgeStatus: event.target.value as GraphNode["knowledgeStatus"],
                 })
               }
-              aria-label={locale === "zh" ? "知识状态" : "Knowledge status"}
+              aria-label={locale.startsWith("zh") ? "知识状态" : "Knowledge status"}
               className="h-9 rounded-xl border border-[var(--border)] bg-white/70 px-2 text-[10px]"
             >
-              <option value="exploring">{locale === "zh" ? "探索中" : "Exploring"}</option>
-              <option value="verified">{locale === "zh" ? "已验证" : "Verified"}</option>
-              <option value="conclusion">{locale === "zh" ? "结论" : "Conclusion"}</option>
-              <option value="outdated">{locale === "zh" ? "已过时" : "Outdated"}</option>
+              <option value="exploring">{locale.startsWith("zh") ? "探索中" : "Exploring"}</option>
+              <option value="verified">{locale.startsWith("zh") ? "已验证" : "Verified"}</option>
+              <option value="conclusion">{locale.startsWith("zh") ? "结论" : "Conclusion"}</option>
+              <option value="outdated">{locale.startsWith("zh") ? "已过时" : "Outdated"}</option>
             </select>
             <select
               value={node.mastery}
@@ -338,23 +338,23 @@ export function Inspector({
                   mastery: event.target.value as GraphNode["mastery"],
                 })
               }
-              aria-label={locale === "zh" ? "掌握程度" : "Mastery"}
+              aria-label={locale.startsWith("zh") ? "掌握程度" : "Mastery"}
               className="h-9 rounded-xl border border-[var(--border)] bg-white/70 px-2 text-[10px]"
             >
-              <option value="new">{locale === "zh" ? "未学习" : "New"}</option>
-              <option value="learning">{locale === "zh" ? "学习中" : "Learning"}</option>
-              <option value="mastered">{locale === "zh" ? "已掌握" : "Mastered"}</option>
+              <option value="new">{locale.startsWith("zh") ? "未学习" : "New"}</option>
+              <option value="learning">{locale.startsWith("zh") ? "学习中" : "Learning"}</option>
+              <option value="mastered">{locale.startsWith("zh") ? "已掌握" : "Mastered"}</option>
             </select>
           </div>
           <div className="flex items-center gap-2">
             <span className="mr-auto text-[10px] text-[var(--muted-light)]">
-              {locale === "zh" ? "回答质量" : "Answer quality"}
+              {locale.startsWith("zh") ? "回答质量" : "Answer quality"}
             </span>
             <Button
               size="icon"
               variant={node.rating === 1 ? "soft" : "ghost"}
               className="size-8"
-              aria-label={locale === "zh" ? "有帮助" : "Helpful"}
+              aria-label={locale.startsWith("zh") ? "有帮助" : "Helpful"}
               onClick={() => onUpdate(node.id, { rating: node.rating === 1 ? 0 : 1 })}
             >
               <ThumbsUp className="size-3.5" />
@@ -363,7 +363,7 @@ export function Inspector({
               size="icon"
               variant={node.rating === -1 ? "soft" : "ghost"}
               className="size-8"
-              aria-label={locale === "zh" ? "无帮助" : "Not helpful"}
+              aria-label={locale.startsWith("zh") ? "无帮助" : "Not helpful"}
               onClick={() => onUpdate(node.id, { rating: node.rating === -1 ? 0 : -1 })}
             >
               <ThumbsDown className="size-3.5" />

@@ -63,19 +63,16 @@ nav a { transition: color .2s; }
 nav a:hover { color: var(--ink); }
 .header-actions { display: flex; align-items: center; gap: 9px; }
 .language-switch {
-  height: 34px; padding: 3px; display: inline-flex; align-items: center; gap: 2px;
+  height: 34px; padding: 3px 9px; display: inline-flex; align-items: center; gap: 6px;
   border: 1px solid var(--line); border-radius: 11px; background: rgba(255,255,255,.34);
+  color: #78827d; font-size: 11px;
 }
-.language-switch button {
-  min-width: 34px; height: 26px; padding: 0 8px; border: 0; border-radius: 8px;
-  background: transparent; color: #78827d; font-size: 9px; font-weight: 700;
-  letter-spacing: .03em; white-space: nowrap; cursor: pointer; transition: .18s ease;
+.language-switch select {
+  max-width: 112px; height: 26px; padding: 0 18px 0 2px; border: 0;
+  appearance: none; background: transparent; color: var(--ink); font: inherit;
+  font-size: 10px; font-weight: 700; cursor: pointer; outline: none;
 }
-.language-switch button:hover { color: var(--ink); }
-.language-switch button.active {
-  background: var(--white); color: var(--ink); box-shadow: 0 3px 10px rgba(31,48,40,.09);
-}
-.language-switch button:focus-visible {
+.language-switch:focus-within {
   outline: 2px solid var(--green-deep); outline-offset: 2px;
 }
 .header-cta {
@@ -339,7 +336,7 @@ footer a:hover { color: var(--ink); }
   .site-header > .brand span { display: none; }
   .header-actions { gap: 6px; }
   .language-switch { height: 32px; }
-  .language-switch button { min-width: 34px; height: 24px; padding: 0 6px; }
+  .language-switch select { max-width: 86px; height: 24px; }
   .header-cta { padding: 0 10px; }
   .hero, .principle-strip, .section, .cta-section, footer { margin-left: 16px; margin-right: 16px; }
   .hero { padding-top: 56px; gap: 42px; }

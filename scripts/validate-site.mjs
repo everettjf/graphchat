@@ -18,8 +18,18 @@ for (const required of [
   'id="main"',
   'data-language="en"',
   'data-language="zh"',
+  'data-language="es"',
+  'data-language="fr"',
+  'data-language="de"',
+  'data-language="ja"',
+  'data-language="ko"',
+  'data-language="zh-TW"',
 ]) {
   if (!html.includes(required)) errors.push(`Missing required markup: ${required}`);
+}
+
+if (html.includes('data-language="hi"') || /\bHindi\b|हिन्दी|印地语/.test(html + script)) {
+  errors.push("Hindi must not remain in the documentation language switcher");
 }
 
 if (!readme.includes("## Quick start") || !readme.includes("./README.zh-CN.md")) {

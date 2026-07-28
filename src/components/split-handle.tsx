@@ -31,7 +31,7 @@ export function SplitHandle({
   return (
     <div
       role="separator"
-      aria-label={locale === "zh" ? "调整聊天和知识树宽度" : "Resize conversation and knowledge tree"}
+      aria-label={locale.startsWith("zh") ? "调整聊天和知识树宽度" : "Resize conversation and knowledge tree"}
       aria-valuemin={30}
       aria-valuemax={75}
       aria-valuenow={Math.round(value)}
@@ -53,21 +53,21 @@ export function SplitHandle({
     >
       <div className="absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 flex-col gap-1 rounded-xl border border-black/10 bg-[#fffefb] p-1 opacity-0 shadow-lg transition group-hover:opacity-100 group-focus-within:opacity-100">
         <PresetButton
-          label={locale === "zh" ? "内容优先 70:30" : "Conversation focus 70:30"}
+          label={locale.startsWith("zh") ? "内容优先 70:30" : "Conversation focus 70:30"}
           active={value === 70}
           onClick={() => onChange(70)}
         >
           <ChevronRight className="size-3" />
         </PresetButton>
         <PresetButton
-          label={locale === "zh" ? "平均 50:50" : "Balanced 50:50"}
+          label={locale.startsWith("zh") ? "平均 50:50" : "Balanced 50:50"}
           active={value === 50}
           onClick={() => onChange(50)}
         >
           <Equal className="size-3" />
         </PresetButton>
         <PresetButton
-          label={locale === "zh" ? "知识树优先 35:65" : "Tree focus 35:65"}
+          label={locale.startsWith("zh") ? "知识树优先 35:65" : "Tree focus 35:65"}
           active={value === 35}
           onClick={() => onChange(35)}
         >

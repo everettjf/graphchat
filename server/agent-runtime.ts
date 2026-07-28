@@ -80,6 +80,17 @@ Rules:
 7. For synthesis requests, use four explicit sections: Consensus, Conflicts, Evidence by source node, and Open questions. Do not hide uncertainty or merge incompatible claims.`,
 } as const;
 
+const RESPONSE_LANGUAGES: Record<RunRequest["locale"], string> = {
+  en: "English",
+  zh: "Simplified Chinese",
+  es: "Spanish",
+  fr: "French",
+  de: "German",
+  ja: "Japanese",
+  ko: "Korean",
+  "zh-TW": "Traditional Chinese",
+};
+
 function summarize(content: string): string {
   const plain = content
     .replace(/[#*_`>\[\]]/g, "")
@@ -90,7 +101,7 @@ function summarize(content: string): string {
 
 function buildDemoAnswer(request: RunRequest, context: ContextSnapshot): string {
   const sources = context.items.slice(-3);
-  if (request.locale === "en") {
+  if (!request.locale.startsWith("zh")) {
     const sourceLines =
       sources.length > 0
         ? sources
@@ -145,14 +156,35 @@ Separate “what it is” from “what it does.” The first sets its boundaries
 ${request.selectedText ? `You selected “${request.selectedText}”. This branch should explain that exact phrase without reopening the whole answer.` : "If the idea still feels abstract, select one phrase and create a smaller branch."}`;
   }
 
+  const traditionalChinese = request.locale === "zh-TW";
   const sourceLines =
     sources.length > 0
       ? sources
-          .map((item) => `- **${item.title}**：${summarize(item.content).slice(0, 88)} [节点: ${item.nodeId}]`)
+          .map(
+            (item) =>
+              `- **${item.title}**：${summarize(item.content).slice(0, 88)} [${traditionalChinese ? "節點" : "节点"}: ${item.nodeId}]`,
+          )
           .join("\n")
-      : "- 这是一个新的学习起点，目前没有引用其他节点。";
+      : traditionalChinese
+        ? "- 這是一個新的學習起點，目前沒有引用其他節點。"
+        : "- 这是一个新的学习起点，目前没有引用其他节点。";
 
   if (request.mode === "synthesize") {
+    if (traditionalChinese) {
+      return `### 把這些分支放到同一張圖裡
+
+你正在追問：**${request.prompt}**
+
+從已選擇的上下文中，可以先提煉出這幾條線索：
+
+${sourceLines}
+
+### 它們如何匯聚
+
+這些分支並不是彼此獨立的答案：一個分支通常給出概念的表示方式，另一個分支解釋它在系統中的作用。把它們組合起來時，應該先找共同對象，再區分各自負責的步驟，最後用一條因果鏈重新表述。
+
+一個實用的檢查方式是問自己：**輸入是什麼、經過了什麼轉換、輸出又被誰使用？** 如果能沿這三個問題講通，表示分支已經真正匯聚，而不只是被放在一起。`;
+    }
     return `### 把这些分支放到同一张图里
 
 你正在追问：**${request.prompt}**
@@ -166,6 +198,22 @@ ${sourceLines}
 这些分支并不是彼此独立的答案：一个分支通常给出概念的表示方式，另一个分支解释它在系统中的作用。把它们组合起来时，应该先找共同对象，再区分各自负责的步骤，最后用一条因果链重新表述。
 
 一个实用的检查方式是问自己：**输入是什么、经过了什么转换、输出又被谁使用？** 如果能沿这三个问题讲通，说明分支已经真正汇聚，而不只是被放在一起。`;
+  }
+
+  if (traditionalChinese) {
+    return `### 先抓住核心
+
+你問的是：**${request.prompt}**
+
+可以先把它理解為：新概念不是孤立定義，而是在已有知識鏈條中承擔某個具體作用。目前圖譜給出的相關線索是：
+
+${sourceLines}
+
+### 用一個簡單的方法理解
+
+先區分「它是什麼」和「它用來做什麼」。前者給出邊界，後者把概念放回流程。再找一個反例：如果拿掉它，系統的哪一步會失效？這樣得到的理解通常比背定義更牢固。
+
+${request.selectedText ? `你選中的原文是「${request.selectedText}」。這表示本次分支應圍繞這句話解釋，不需要把整段回答重新展開。` : "如果這個概念仍然抽象，可以繼續選中其中一個詞建立更小的分支。"}`;
   }
 
   return `### 先抓住核心
@@ -220,7 +268,7 @@ export class GraphAgentRuntime {
         runId,
         nodeId: null,
         message:
-          request.locale === "zh"
+          request.locale.startsWith("zh")
             ? "找不到这张知识图。"
             : "This knowledge graph does not exist.",
       };
@@ -300,7 +348,7 @@ export class GraphAgentRuntime {
 
         const graphContext = contextToPrompt(context, request.locale);
         await agent.prompt(
-          request.locale === "zh"
+          request.locale.startsWith("zh")
             ? `以下是由 Graph Chat 明确选择的图谱上下文：\n\n${graphContext}\n\n---\n\n用户当前问题：${request.prompt}`
             : `Here is the graph context explicitly selected by Graph Chat:\n\n${graphContext}\n\n---\n\nCurrent question: ${request.prompt}`,
         );
@@ -313,7 +361,7 @@ export class GraphAgentRuntime {
         if (!fullText.trim()) {
           throw new Error(
             agent.state.errorMessage ||
-              (request.locale === "zh"
+              (request.locale.startsWith("zh")
                 ? "模型没有返回文本。"
                 : "The model returned no text."),
           );
@@ -328,7 +376,7 @@ export class GraphAgentRuntime {
         });
         if (!completed) {
           throw new Error(
-            request.locale === "zh"
+            request.locale.startsWith("zh")
               ? "无法保存生成结果。"
               : "Unable to save the generated answer.",
           );
@@ -351,12 +399,12 @@ export class GraphAgentRuntime {
           Boolean(signal?.aborted) ||
           (error instanceof Error && error.name === "AbortError");
         const message = cancelled
-          ? request.locale === "zh"
+          ? request.locale.startsWith("zh")
             ? "生成已取消。"
             : "Generation cancelled."
           : error instanceof Error
             ? error.message
-            : request.locale === "zh"
+            : request.locale.startsWith("zh")
               ? "生成失败，请检查模型设置。"
               : "Generation failed. Check the model settings.";
         const updated = database.updateNode(node.id, {
@@ -365,7 +413,7 @@ export class GraphAgentRuntime {
             fullText ||
             (cancelled
               ? ""
-              : request.locale === "zh"
+              : request.locale.startsWith("zh")
                 ? `生成失败：${message}`
                 : `Generation failed: ${message}`),
         });
@@ -445,14 +493,14 @@ export class GraphAgentRuntime {
       model = models.getModel("openai-codex", this.settings.model) as Model<any>;
       if (!model) {
         throw new Error(
-          request.locale === "zh"
+          request.locale.startsWith("zh")
             ? `Pi 的 OpenAI Codex 模型目录中没有 ${this.settings.model}。`
             : `${this.settings.model} is not in Pi's OpenAI Codex model catalog.`,
         );
       }
       if (!(await models.checkAuth("openai-codex"))) {
         throw new Error(
-          request.locale === "zh"
+          request.locale.startsWith("zh")
             ? "请先在“模型与设置”中使用 ChatGPT 登录。"
             : "Sign in with ChatGPT from Models & settings first.",
         );
@@ -463,7 +511,7 @@ export class GraphAgentRuntime {
       model = models.getModel("openai", this.settings.model) as Model<any>;
       if (!model) {
         throw new Error(
-          request.locale === "zh"
+          request.locale.startsWith("zh")
             ? `Pi 的 OpenAI 模型目录中没有 ${this.settings.model}。`
             : `${this.settings.model} is not in Pi's OpenAI model catalog.`,
         );
@@ -476,7 +524,7 @@ export class GraphAgentRuntime {
       model = models.getModel("openrouter", this.settings.model) as Model<any>;
       if (!model) {
         throw new Error(
-          request.locale === "zh"
+          request.locale.startsWith("zh")
             ? `Pi 的 OpenRouter 模型目录中没有 ${this.settings.model}。`
             : `${this.settings.model} is not in Pi's OpenRouter model catalog.`,
         );
@@ -490,7 +538,7 @@ export class GraphAgentRuntime {
         (providerId === "ollama" ? "http://127.0.0.1:11434/v1" : "");
       if (!baseUrl) {
         throw new Error(
-          request.locale === "zh"
+          request.locale.startsWith("zh")
             ? "自定义模型需要填写 Base URL。"
             : "A custom model requires a Base URL.",
         );
@@ -544,7 +592,9 @@ export class GraphAgentRuntime {
     const tools = this.createGraphTools(database, request.graphId, request.locale);
     const agent = new Agent({
       initialState: {
-        systemPrompt: SYSTEM_PROMPTS[request.locale],
+        systemPrompt: `${request.locale.startsWith("zh") ? SYSTEM_PROMPTS.zh : SYSTEM_PROMPTS.en}
+
+Always respond in ${RESPONSE_LANGUAGES[request.locale]}.`,
         model,
         tools,
         thinkingLevel: "off",
@@ -567,15 +617,15 @@ export class GraphAgentRuntime {
   ): AgentTool[] {
     const searchTool: AgentTool = {
       name: "graph_search",
-      label: locale === "zh" ? "搜索知识图" : "Search knowledge graph",
+      label: locale.startsWith("zh") ? "搜索知识图" : "Search knowledge graph",
       description:
-        locale === "zh"
+        locale.startsWith("zh")
           ? "在当前 Graph Chat 知识图中搜索与查询相关的节点。"
           : "Search the current Graph Chat graph for nodes related to a query.",
       parameters: Type.Object({
         query: Type.String({
           description:
-            locale === "zh"
+            locale.startsWith("zh")
               ? "要搜索的概念、术语或问题"
               : "Concept, term, or question to search for",
         }),
@@ -585,13 +635,13 @@ export class GraphAgentRuntime {
         const results = database.searchNodes(graphId, query);
         const text =
           results.length === 0
-            ? locale === "zh"
+            ? locale.startsWith("zh")
               ? "没有找到匹配的图谱节点。"
               : "No matching graph nodes were found."
             : results
                 .map(
                   (node) =>
-                    `[${locale === "zh" ? "节点" : "Node"}: ${node.id}] ${node.title}\n${node.summary || summarize(node.content)}`,
+                    `[${locale.startsWith("zh") ? "节点" : "Node"}: ${node.id}] ${node.title}\n${node.summary || summarize(node.content)}`,
                 )
                 .join("\n\n");
         return { content: [{ type: "text", text }], details: { resultCount: results.length } };
@@ -600,21 +650,21 @@ export class GraphAgentRuntime {
 
     const getNodeTool: AgentTool = {
       name: "graph_get_node",
-      label: locale === "zh" ? "读取图谱节点" : "Read graph node",
+      label: locale.startsWith("zh") ? "读取图谱节点" : "Read graph node",
       description:
-        locale === "zh"
+        locale.startsWith("zh")
           ? "按节点 ID 读取一个 Graph Chat 节点的完整内容。"
           : "Read the full content of one Graph Chat node by ID.",
       parameters: Type.Object({
         nodeId: Type.String({
-          description: locale === "zh" ? "图谱节点 ID" : "Graph node ID",
+          description: locale.startsWith("zh") ? "图谱节点 ID" : "Graph node ID",
         }),
       }),
       execute: async (_toolCallId, params) => {
         const node = database.getNode(String((params as { nodeId: string }).nodeId));
         if (!node || node.graphId !== graphId) {
           throw new Error(
-            locale === "zh"
+            locale.startsWith("zh")
               ? "找不到这个图谱节点。"
               : "This graph node does not exist.",
           );
@@ -623,7 +673,7 @@ export class GraphAgentRuntime {
           content: [
             {
               type: "text",
-              text: `[${locale === "zh" ? "节点" : "Node"}: ${node.id}] ${node.title}\n\n${node.content}`,
+              text: `[${locale.startsWith("zh") ? "节点" : "Node"}: ${node.id}] ${node.title}\n\n${node.content}`,
             },
           ],
           details: { nodeId: node.id },
@@ -656,10 +706,10 @@ export class GraphAgentRuntime {
         tool: event.toolName,
         label:
           event.toolName === "graph_search"
-            ? locale === "zh"
+            ? locale.startsWith("zh")
               ? "正在搜索知识图"
               : "Searching the knowledge graph"
-            : locale === "zh"
+            : locale.startsWith("zh")
               ? "正在读取节点"
               : "Reading a graph node",
       });
@@ -670,10 +720,10 @@ export class GraphAgentRuntime {
         nodeId,
         tool: event.toolName,
         summary: event.isError
-          ? locale === "zh"
+          ? locale.startsWith("zh")
             ? "工具执行失败"
             : "Graph tool failed"
-          : locale === "zh"
+          : locale.startsWith("zh")
             ? "图谱信息已加入上下文"
             : "Graph context added",
       });

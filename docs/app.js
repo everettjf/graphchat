@@ -102,6 +102,130 @@ const chinese = {
   footerText: "为好奇心而构建。基于 MIT License 开源。",
 };
 
+const spanish = {
+  language: "Idioma",
+  skipLink: "Saltar al contenido principal",
+  brandSubtitle: "ESPACIO DE APRENDIZAJE",
+  navWorkflow: "Cómo funciona",
+  navFeatures: "Funciones",
+  navArchitecture: "Arquitectura",
+  heroTitleOne: "Aprende en ramas.",
+  heroTitleTwo: "Recuerda en gráficos.",
+  heroLead: "Convierte conversaciones de IA en un gráfico de conocimiento que puede ramificarse, conectarse y seguir creciendo.",
+  heroPrimary: "Empezar en local",
+  heroSecondary: "Ver cómo funciona",
+  featuresTitle: "Un gráfico para todo el camino hacia la comprensión.",
+  modelsChoice: "Tu elección",
+  viewSource: "Ver código en GitHub",
+};
+
+const french = {
+  language: "Langue",
+  skipLink: "Aller au contenu principal",
+  brandSubtitle: "ESPACE D’APPRENTISSAGE",
+  navWorkflow: "Fonctionnement",
+  navFeatures: "Fonctionnalités",
+  navArchitecture: "Architecture",
+  heroTitleOne: "Apprenez par branches.",
+  heroTitleTwo: "Retenez par graphes.",
+  heroLead: "Transformez les conversations IA en un graphe de connaissances qui se ramifie, relie les idées et continue de grandir.",
+  heroPrimary: "Démarrer en local",
+  heroSecondary: "Voir le fonctionnement",
+  featuresTitle: "Un seul graphe pour tout le chemin vers la compréhension.",
+  modelsChoice: "Votre choix",
+  viewSource: "Voir le code sur GitHub",
+};
+
+const german = {
+  language: "Sprache",
+  skipLink: "Zum Hauptinhalt springen",
+  brandSubtitle: "LERNARBEITSBEREICH",
+  navWorkflow: "So funktioniert es",
+  navFeatures: "Funktionen",
+  navArchitecture: "Architektur",
+  heroTitleOne: "In Zweigen lernen.",
+  heroTitleTwo: "In Graphen erinnern.",
+  heroLead: "Verwandle KI-Gespräche in einen Wissensgraphen, der sich verzweigt, Ideen verbindet und weiter wächst.",
+  heroPrimary: "Lokal starten",
+  heroSecondary: "Funktionsweise ansehen",
+  featuresTitle: "Ein Graph für den gesamten Weg zum Verständnis.",
+  modelsChoice: "Deine Wahl",
+  viewSource: "Quellcode auf GitHub",
+};
+
+const japanese = {
+  language: "言語",
+  skipLink: "メインコンテンツへ移動",
+  brandSubtitle: "学習ワークスペース",
+  navWorkflow: "使い方",
+  navFeatures: "機能",
+  navArchitecture: "アーキテクチャ",
+  heroTitleOne: "分岐で学ぶ。",
+  heroTitleTwo: "グラフで記憶する。",
+  heroLead: "AI との会話を、分岐し、アイデアを結び、成長し続けるナレッジグラフに変えます。",
+  heroPrimary: "ローカルで始める",
+  heroSecondary: "使い方を見る",
+  featuresTitle: "理解への道のり全体を、一つのグラフに。",
+  modelsChoice: "自由に選択",
+  viewSource: "GitHub でソースを見る",
+};
+
+const korean = {
+  language: "언어",
+  skipLink: "본문으로 건너뛰기",
+  brandSubtitle: "학습 워크스페이스",
+  navWorkflow: "작동 방식",
+  navFeatures: "기능",
+  navArchitecture: "아키텍처",
+  heroTitleOne: "브랜치로 배우세요.",
+  heroTitleTwo: "그래프로 기억하세요.",
+  heroLead: "AI 대화를 브랜치하고 아이디어를 연결하며 계속 성장하는 지식 그래프로 바꾸세요.",
+  heroPrimary: "로컬에서 시작",
+  heroSecondary: "작동 방식 보기",
+  featuresTitle: "이해에 이르는 모든 과정을 위한 하나의 그래프.",
+  modelsChoice: "자유롭게 선택",
+  viewSource: "GitHub에서 소스 보기",
+};
+
+const traditionalChinese = {
+  ...chinese,
+  language: "語言",
+  skipLink: "跳至主要內容",
+  brandSubtitle: "學習工作空間",
+  navWorkflow: "運作方式",
+  navFeatures: "功能",
+  navArchitecture: "架構",
+  heroTitleOne: "在分支中學習。",
+  heroTitleTwo: "在圖譜中記憶。",
+  heroLead: "把 AI 對話變成能夠分支、連結想法並持續成長的知識圖譜。",
+  heroPrimary: "在本機開始",
+  heroSecondary: "查看運作方式",
+  featuresTitle: "用一張圖譜保留完整的理解路徑。",
+  modelsChoice: "自由選擇",
+  viewSource: "在 GitHub 查看原始碼",
+};
+
+const dictionaries = {
+  zh: chinese,
+  es: spanish,
+  fr: french,
+  de: german,
+  ja: japanese,
+  ko: korean,
+  "zh-TW": traditionalChinese,
+};
+const supportedLanguages = ["en", "zh", "es", "fr", "de", "ja", "ko", "zh-TW"];
+const htmlLanguages = {
+  en: "en",
+  zh: "zh-CN",
+  es: "es",
+  fr: "fr",
+  de: "de",
+  ja: "ja",
+  ko: "ko",
+  "zh-TW": "zh-TW",
+};
+
 const textNodes = [...document.querySelectorAll("[data-i18n]")];
 const contentNodes = [...document.querySelectorAll("[data-i18n-content]")];
 const ariaNodes = [...document.querySelectorAll("[data-i18n-aria]")];
@@ -117,12 +241,12 @@ const english = {
 let currentLanguage = "en";
 
 function translated(key, fallback, language = currentLanguage) {
-  return language === "zh" && chinese[key] ? chinese[key] : fallback;
+  return dictionaries[language]?.[key] ?? fallback;
 }
 
 function applyLanguage(language) {
-  currentLanguage = language === "zh" ? "zh" : "en";
-  document.documentElement.lang = currentLanguage === "zh" ? "zh-CN" : "en";
+  currentLanguage = supportedLanguages.includes(language) ? language : "en";
+  document.documentElement.lang = htmlLanguages[currentLanguage];
   document.documentElement.dataset.currentLanguage = currentLanguage;
 
   for (const node of textNodes) {
@@ -152,6 +276,8 @@ function applyLanguage(language) {
     button.classList.toggle("active", active);
     button.setAttribute("aria-pressed", String(active));
   }
+  const select = document.querySelector("[data-language-select]");
+  if (select) select.value = currentLanguage;
 }
 
 function savedLanguage() {
@@ -163,7 +289,21 @@ function savedLanguage() {
 }
 
 const requestedLanguage = new URL(window.location.href).searchParams.get("lang");
-applyLanguage(requestedLanguage === "zh" ? "zh" : requestedLanguage === "en" ? "en" : savedLanguage());
+applyLanguage(supportedLanguages.includes(requestedLanguage) ? requestedLanguage : savedLanguage());
+
+document.querySelector("[data-language-select]")?.addEventListener("change", (event) => {
+  const language = supportedLanguages.includes(event.target.value) ? event.target.value : "en";
+  applyLanguage(language);
+  try {
+    window.localStorage.setItem("graphchat-language", language);
+  } catch {
+    // Language switching still works when storage is unavailable.
+  }
+  const url = new URL(window.location.href);
+  if (language === "en") url.searchParams.delete("lang");
+  else url.searchParams.set("lang", language);
+  window.history.replaceState(null, "", url);
+});
 
 for (const button of document.querySelectorAll("button[data-language]")) {
   button.addEventListener("click", () => {

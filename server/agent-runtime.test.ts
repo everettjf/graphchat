@@ -132,6 +132,27 @@ describe("GraphAgentRuntime", () => {
     database.close();
   });
 
+  it("uses Traditional Chinese for the local demo", async () => {
+    const { database, runtime } = setup();
+    let finished: Extract<RunStreamEvent, { type: "run_finished" }> | undefined;
+    for await (const event of runtime.run(database, {
+      graphId: "learning-rag",
+      parentNodeId: "embedding",
+      referenceNodeIds: ["vector-db"],
+      prompt: "這些概念如何一起運作？",
+      selectedText: null,
+      position: { x: 1200, y: 200 },
+      mode: "synthesize",
+      locale: "zh-TW",
+    })) {
+      if (event.type === "run_finished") finished = event;
+    }
+    expect(finished?.node.content).toContain("把這些分支");
+    expect(finished?.node.content).toContain("[節點:");
+    expect(finished?.node.content).not.toContain("把这些分支");
+    database.close();
+  });
+
   it("requires ChatGPT login before running an OpenAI Codex model", async () => {
     const { database, runtime } = setup();
     runtime.configure({

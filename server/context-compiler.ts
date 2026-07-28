@@ -1,4 +1,9 @@
-import type { ContextItem, ContextSnapshot, GraphDocument } from "../shared/types.js";
+import type {
+  ContextItem,
+  ContextSnapshot,
+  GraphDocument,
+  RunRequest,
+} from "../shared/types.js";
 
 export type CompileContextInput = {
   graph: GraphDocument;
@@ -6,7 +11,7 @@ export type CompileContextInput = {
   referenceNodeIds: string[];
   selectedText: string | null;
   maxEstimatedTokens?: number;
-  locale?: "en" | "zh";
+  locale?: RunRequest["locale"];
 };
 
 const estimateTokens = (text: string) => Math.max(1, Math.ceil(text.length / 3));
@@ -19,6 +24,7 @@ export function compileContext({
   maxEstimatedTokens = 8_000,
   locale = "en",
 }: CompileContextInput): ContextSnapshot {
+  const traditionalChinese = locale === "zh-TW";
   const nodeMap = new Map(graph.nodes.map((node) => [node.id, node]));
   const incomingBranch = new Map<string, string>();
   for (const edge of graph.edges) {
@@ -41,7 +47,8 @@ export function compileContext({
     const node = nodeMap.get(nodeId);
     if (!node) continue;
     const content = [
-      node.prompt && `${locale === "zh" ? "问题" : "Question"}: ${node.prompt}`,
+      node.prompt &&
+        `${traditionalChinese ? "問題" : locale.startsWith("zh") ? "问题" : "Question"}: ${node.prompt}`,
       node.content,
     ]
       .filter(Boolean)
@@ -75,7 +82,13 @@ export function compileContext({
     const node = nodeMap.get(parentNodeId);
     candidates.push({
       nodeId: parentNodeId,
-      title: node?.title ?? (locale === "zh" ? "选中的原文" : "Selected text"),
+      title:
+        node?.title ??
+        (traditionalChinese
+          ? "選中的原文"
+          : locale.startsWith("zh")
+            ? "选中的原文"
+            : "Selected text"),
       reason: "selection",
       detail: "selection",
       content: selectedText,
@@ -100,17 +113,22 @@ export function compileContext({
 
 export function contextToPrompt(
   snapshot: ContextSnapshot,
-  locale: "en" | "zh" = "en",
+  locale: RunRequest["locale"] = "en",
 ): string {
+  const traditionalChinese = locale === "zh-TW";
   if (snapshot.items.length === 0) {
-    return locale === "zh"
+    return traditionalChinese
+      ? "沒有額外的圖譜上下文。"
+      : locale.startsWith("zh")
       ? "没有额外的图谱上下文。"
       : "No additional graph context.";
   }
   return snapshot.items
     .map(
       (item, index) =>
-        locale === "zh"
+        traditionalChinese
+          ? `[來源 ${index + 1} · 節點 ${item.nodeId} · ${item.title}]\n${item.content}`
+          : locale.startsWith("zh")
           ? `[来源 ${index + 1} · 节点 ${item.nodeId} · ${item.title}]\n${item.content}`
           : `[Source ${index + 1} · Node ${item.nodeId} · ${item.title}]\n${item.content}`,
     )

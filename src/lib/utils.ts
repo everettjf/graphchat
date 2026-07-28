@@ -9,8 +9,10 @@ export function cn(...inputs: ClassValue[]) {
 export function formatRelativeTime(iso: string, locale: Locale = "en") {
   const difference = Date.now() - new Date(iso).getTime();
   const minutes = Math.max(0, Math.floor(difference / 60_000));
-  if (minutes < 1) return locale === "zh" ? "刚刚" : "just now";
-  const formatter = new Intl.RelativeTimeFormat(locale === "zh" ? "zh-CN" : "en", {
+  if (minutes < 1) {
+    return new Intl.RelativeTimeFormat(locale, { numeric: "auto" }).format(0, "second");
+  }
+  const formatter = new Intl.RelativeTimeFormat(locale, {
     numeric: "always",
   });
   if (minutes < 60) return formatter.format(-minutes, "minute");

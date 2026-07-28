@@ -154,11 +154,11 @@ export default function App() {
 
     await createGraph({
       title:
-        locale === "zh"
+        locale.startsWith("zh")
           ? `学习线程 ${graphs.length + 1}`
           : `Thread ${graphs.length + 1}`,
       description:
-        locale === "zh"
+        locale.startsWith("zh")
           ? "从一个新问题开始的独立学习空间"
           : "An independent learning space starting from a new question",
     });
@@ -342,7 +342,7 @@ export default function App() {
     try {
       const restored = await api.undoGraph(document.graph.id);
       setDocumentState(restored);
-      setToast(locale === "zh" ? "已撤销上一步图谱修改" : "Last graph change undone");
+      setToast(locale.startsWith("zh") ? "已撤销上一步图谱修改" : "Last graph change undone");
       setTimeout(() => setToast(""), 2_400);
     } catch (error) {
       setToast(error instanceof Error ? error.message : "Nothing to undo");
@@ -448,10 +448,10 @@ export default function App() {
                   <BookOpen className="size-5" />
                 </div>
                 <h2 className="font-display text-xl font-semibold">
-                  {locale === "zh" ? "从第一个问题开始" : "Start with your first question"}
+                  {locale.startsWith("zh") ? "从第一个问题开始" : "Start with your first question"}
                 </h2>
                 <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
-                  {locale === "zh"
+                  {locale.startsWith("zh")
                     ? "详细内容会显示在这里，右侧知识树会随着追问逐步生长。"
                     : "Detailed content appears here while the knowledge tree grows on the right."}
                 </p>

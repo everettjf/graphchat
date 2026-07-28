@@ -27,7 +27,7 @@ test.describe("Graph Chat", () => {
     expect(await (await request.get("/health")).json()).toEqual({
       ok: true,
       service: "graphchat",
-      version: "0.2.1",
+      version: "0.2.2",
       databaseSchemaVersion: 4,
     });
     await page.goto("/");
@@ -192,11 +192,22 @@ test.describe("Graph Chat", () => {
     await expect(page.getByText("Cancelled", { exact: true }).last()).toBeVisible();
   });
 
-  test("keeps the current product surface focused on English", async ({ page }) => {
-    await page.goto("/?lang=zh");
-    await expect(page.locator("html")).toHaveAttribute("lang", "en");
-    await expect(page.getByRole("group", { name: "Language" })).toHaveCount(0);
-    await expect(page.getByRole("button", { name: "New thread" })).toBeVisible();
+  test("switches and persists supported interface languages", async ({ page }) => {
+    await page.goto("/?lang=zh-TW");
+    await expect(page.locator("html")).toHaveAttribute("lang", "zh-TW");
+    const language = page.getByRole("combobox", { name: "語言" });
+    await expect(language).toHaveValue("zh-TW");
+    await expect(language.locator('option[value="hi"]')).toHaveCount(0);
+
+    await language.selectOption("de");
+    await expect(page.locator("html")).toHaveAttribute("lang", "de");
+    await expect(page).toHaveURL(/\?lang=de$/);
+    expect(
+      await page.evaluate(() => window.localStorage.getItem("graphchat-language")),
+    ).toBe("de");
+
+    await page.reload();
+    await expect(page.getByRole("combobox", { name: "Sprache" })).toHaveValue("de");
   });
 
   test("changes provider settings and exposes a credential-free data export", async ({
@@ -270,7 +281,7 @@ test.describe("Graph Chat", () => {
     ).json();
     expect(validation).toMatchObject({
       schemaVersion: 1,
-      appVersion: "0.2.1",
+      appVersion: "0.2.2",
       summary: { eligibleGraphs: 1 },
     });
     expect(JSON.stringify(validation)).not.toContain("Reads see the latest write");

@@ -90,10 +90,10 @@ export function KnowledgeTree({
         <div>
           <div className="flex items-center gap-2 text-xs font-semibold">
             <Network className="size-4 text-[#5d8068]" />
-            {locale === "zh" ? "知识树" : "Knowledge tree"}
+            {locale.startsWith("zh") ? "知识树" : "Knowledge tree"}
           </div>
           <p className="mt-0.5 text-[9px] text-[var(--muted-light)]">
-            {document.nodes.length} {locale === "zh" ? "个内容节点" : "content nodes"}
+            {document.nodes.length} {locale.startsWith("zh") ? "个内容节点" : "content nodes"}
           </p>
         </div>
         {mode === "split" && <Button
@@ -101,7 +101,7 @@ export function KnowledgeTree({
           size="icon"
           className="size-8 xl:hidden"
           onClick={() => setInspectorOpen(false)}
-          aria-label={locale === "zh" ? "关闭知识树" : "Close knowledge tree"}
+          aria-label={locale.startsWith("zh") ? "关闭知识树" : "Close knowledge tree"}
         >
           <X className="size-4" />
         </Button>}
@@ -110,7 +110,7 @@ export function KnowledgeTree({
       <div className="min-h-0 flex-1 overflow-y-auto px-2.5 py-3">
         {entries.length === 0 ? (
           <div className="m-2 rounded-2xl border border-dashed border-[var(--border)] p-5 text-center text-xs leading-5 text-[var(--muted)]">
-            {locale === "zh"
+            {locale.startsWith("zh")
               ? "提出第一个问题后，这里会形成内容树。"
               : "Ask the first question to grow a content tree here."}
           </div>

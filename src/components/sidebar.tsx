@@ -5,6 +5,7 @@ import {
   CircleHelp,
   Download,
   GitFork,
+  Globe2,
   MoreHorizontal,
   PanelLeftClose,
   Plus,
@@ -18,7 +19,7 @@ import { BrandMark } from "./brand-mark";
 import { Button } from "./ui/button";
 import { cn, formatRelativeTime } from "@/lib/utils";
 import { useWorkspace } from "@/store/workspace";
-import { useI18n } from "@/i18n";
+import { localeMeta, locales, useI18n } from "@/i18n";
 import {
   Dialog,
   DialogContent,
@@ -64,7 +65,7 @@ export function Sidebar({
   onDeleteArchivedGraph,
   onDeleteAllArchivedGraphs,
 }: SidebarProps) {
-  const { locale, t } = useI18n();
+  const { locale, setLocale, t } = useI18n();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [archiveDialogOpen, setArchiveDialogOpen] = useState(false);
   const [editingGraph, setEditingGraph] = useState<GraphMeta | null>(null);
@@ -155,9 +156,9 @@ export function Sidebar({
           <SidebarItem
             icon={BookMarked}
             label={t("sidebar.insightCards")}
-            active={search === (locale === "zh" ? "概念" : "concept")}
+            active={search === (locale.startsWith("zh") ? "概念" : "concept")}
             badge={nodes.filter((node) => node.kind === "concept").length}
-            onClick={() => setSearch(locale === "zh" ? "概念" : "concept")}
+            onClick={() => setSearch(locale.startsWith("zh") ? "概念" : "concept")}
           />
         </nav>
 
@@ -265,6 +266,23 @@ export function Sidebar({
         </section>
 
         <div className="mt-2 space-y-0.5 border-t border-[var(--border)] pt-2">
+          <label className="group flex h-9 items-center gap-2.5 rounded-lg px-2.5 text-[10px] font-medium text-[var(--muted)] transition hover:bg-black/[0.035]">
+            <Globe2 className="size-3.5 shrink-0" />
+            <span className="sr-only">{t("language.label")}</span>
+            <select
+              value={locale}
+              onChange={(event) => setLocale(event.target.value as typeof locale)}
+              aria-label={t("language.label")}
+              className="min-w-0 flex-1 cursor-pointer appearance-none bg-transparent font-medium text-[var(--muted)] outline-none group-hover:text-[var(--ink)]"
+            >
+              {locales.map((language) => (
+                <option key={language} value={language}>
+                  {localeMeta[language].label}
+                </option>
+              ))}
+            </select>
+            <span className="text-[9px] text-[var(--muted-light)]">⌄</span>
+          </label>
           {archivedGraphs.length > 0 && (
             <button
               type="button"
