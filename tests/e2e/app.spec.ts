@@ -14,7 +14,7 @@ test.describe("Graph Chat", () => {
       ok: true,
       service: "graphchat",
       version: "0.2.0",
-      databaseSchemaVersion: 2,
+      databaseSchemaVersion: 3,
     });
     await page.goto("/");
     await expect(page.locator("html")).toHaveAttribute("lang", "en");
@@ -227,7 +227,9 @@ test.describe("Graph Chat", () => {
     await page.getByLabel("Source URL (optional)").fill("https://example.com/cap");
     await page
       .getByRole("textbox", { name: "Content", exact: true })
-      .fill("# Consistency\n\nReads see the latest write.\n\n# Availability\n\nRequests receive a response.");
+      .fill(
+        "# Consistency\n\nReads see the latest write.\n\n```mermaid\ngraph LR\n  Write --> Read\n```\n\n# Availability\n\nRequests receive a response.",
+      );
     await page.getByRole("button", { name: "Import into graph" }).click();
     await expect(page.getByText("Explain: Consistency")).toBeVisible();
 
@@ -250,6 +252,7 @@ test.describe("Graph Chat", () => {
 
     await page.getByText("Close", { exact: true }).click();
     await page.getByTestId("knowledge-tree").getByText("Consistency", { exact: true }).click();
+    await expect(page.locator(".mermaid-diagram svg")).toBeVisible();
     await page.getByTestId("content-tab-details").click();
     await page.getByLabel("Knowledge status").selectOption("verified");
     await page.getByLabel("Mastery").selectOption("learning");
@@ -309,6 +312,7 @@ test.describe("Graph Chat", () => {
     await page
       .getByRole("button", { name: "Edit graph: Distributed systems" })
       .click();
+    await page.getByRole("menuitem", { name: "Rename & edit" }).click();
     await page.getByLabel("Title").fill("Reliable distributed systems");
     await page.getByRole("button", { name: "Save changes" }).click();
     await expect(
@@ -319,7 +323,7 @@ test.describe("Graph Chat", () => {
     await page
       .getByRole("button", { name: "Edit graph: Reliable distributed systems" })
       .click();
-    await page.getByRole("button", { name: "Archive graph" }).click();
+    await page.getByRole("menuitem", { name: "Archive" }).click();
     await expect(
       page.getByRole("heading", {
         name: "Understanding RAG: from new concepts to a complete picture",

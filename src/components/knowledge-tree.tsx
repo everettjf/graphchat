@@ -1,5 +1,5 @@
-import { GitBranch, Link2, Network, X } from "lucide-react";
-import type { GraphDocument, GraphNode } from "@shared/types";
+import { ArrowDown, GitBranch, Link2, Network, X } from "lucide-react";
+import type { GraphDocument, GraphEdge, GraphNode } from "@shared/types";
 import { useWorkspace } from "@/store/workspace";
 import { useI18n } from "@/i18n";
 import { cn } from "@/lib/utils";
@@ -9,15 +9,18 @@ type TreeEntry = {
   node: GraphNode;
   depth: number;
   referenceCount: number;
+  relationship: GraphEdge["kind"] | "root";
 };
 
 function buildTree(document: GraphDocument): TreeEntry[] {
   const nodeById = new Map(document.nodes.map((node) => [node.id, node]));
-  const children = new Map<string, string[]>();
+  const children = new Map<string, Array<{ id: string; kind: GraphEdge["kind"] }>>();
   const childIds = new Set<string>();
-  for (const edge of document.edges.filter((edge) => edge.kind === "branch")) {
+  for (const edge of document.edges.filter(
+    (edge) => edge.kind === "branch" || edge.kind === "continuation",
+  )) {
     const current = children.get(edge.source) || [];
-    current.push(edge.target);
+    current.push({ id: edge.target, kind: edge.kind });
     children.set(edge.source, current);
     childIds.add(edge.target);
   }
@@ -30,21 +33,32 @@ function buildTree(document: GraphDocument): TreeEntry[] {
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
   const entries: TreeEntry[] = [];
   const visited = new Set<string>();
-  const visit = (node: GraphNode, depth: number) => {
+  const visit = (
+    node: GraphNode,
+    depth: number,
+    relationship: GraphEdge["kind"] | "root",
+  ) => {
     if (visited.has(node.id)) return;
     visited.add(node.id);
     entries.push({
       node,
       depth,
       referenceCount: references.get(node.id) || 0,
+      relationship,
     });
-    for (const childId of children.get(node.id) || []) {
-      const child = nodeById.get(childId);
-      if (child) visit(child, depth + 1);
+    for (const childEntry of children.get(node.id) || []) {
+      const child = nodeById.get(childEntry.id);
+      if (child) {
+        visit(
+          child,
+          depth + (childEntry.kind === "branch" ? 1 : 0),
+          childEntry.kind,
+        );
+      }
     }
   };
-  for (const root of roots) visit(root, 0);
-  for (const node of document.nodes) visit(node, 0);
+  for (const root of roots) visit(root, 0, "root");
+  for (const node of document.nodes) visit(node, 0, "root");
   return entries;
 }
 
@@ -102,7 +116,7 @@ export function KnowledgeTree({
           </div>
         ) : (
           <div className="space-y-0.5">
-            {entries.map(({ node, depth, referenceCount }) => (
+            {entries.map(({ node, depth, referenceCount, relationship }) => (
               <button
                 key={node.id}
                 type="button"
@@ -111,21 +125,41 @@ export function KnowledgeTree({
                   onNodeOpen?.(node.id);
                 }}
                 className={cn(
-                  "group flex w-full items-start gap-2 rounded-xl py-2 pr-2 text-left transition hover:bg-black/[0.035]",
+                  "group flex min-h-8 w-full items-center gap-1.5 rounded-lg py-1 pr-1.5 text-left transition hover:bg-black/[0.035]",
                   selectedNodeId === node.id && "bg-white shadow-sm ring-1 ring-black/[0.05]",
                 )}
-                style={{ paddingLeft: `${10 + Math.min(depth, 7) * 16}px` }}
+                style={{ paddingLeft: `${8 + Math.min(depth, 7) * 14}px` }}
                 data-testid={`tree-node-${node.id}`}
               >
-                <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-md bg-[#e5eee7] text-[#50715a]">
-                  <GitBranch className="size-3" />
+                <span
+                  className={cn(
+                    "flex size-4 shrink-0 items-center justify-center rounded bg-[#e5eee7] text-[#50715a]",
+                    relationship === "branch" && "bg-[#eee9f6] text-[#76648d]",
+                  )}
+                  title={
+                    relationship === "branch"
+                      ? "Branch"
+                      : relationship === "continuation"
+                        ? "Continue"
+                        : "Thread start"
+                  }
+                >
+                  {relationship === "branch" ? (
+                    <GitBranch className="size-2.5" />
+                  ) : (
+                    <ArrowDown className="size-2.5" />
+                  )}
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="line-clamp-2 block text-[11px] font-medium leading-4 text-[var(--ink)]">
+                  <span className="block truncate text-[10px] font-medium leading-3.5 text-[var(--ink)]">
                     {node.title}
                   </span>
-                  <span className="mt-1 flex items-center gap-1.5 text-[8px] uppercase text-[var(--muted-light)]">
-                    {node.kind}
+                  <span className="mt-0.5 flex items-center gap-1 text-[7px] uppercase leading-none text-[var(--muted-light)]">
+                    {relationship === "branch"
+                      ? "Branch"
+                      : relationship === "continuation"
+                        ? "Continue"
+                        : node.kind}
                     {referenceCount > 0 && (
                       <span className="inline-flex items-center gap-0.5">
                         <Link2 className="size-2.5" /> {referenceCount}

@@ -22,7 +22,9 @@ export function compileContext({
   const nodeMap = new Map(graph.nodes.map((node) => [node.id, node]));
   const incomingBranch = new Map<string, string>();
   for (const edge of graph.edges) {
-    if (edge.kind === "branch") incomingBranch.set(edge.target, edge.source);
+    if (edge.kind === "branch" || edge.kind === "continuation") {
+      incomingBranch.set(edge.target, edge.source);
+    }
   }
 
   const mainPathIds: string[] = [];

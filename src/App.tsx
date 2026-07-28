@@ -102,6 +102,11 @@ export default function App() {
     if (!document) return;
     const fresh = await api.graph(document.graph.id);
     setDocumentState(fresh);
+    setGraphs((current) =>
+      current.map((graph) =>
+        graph.id === fresh.graph.id ? fresh.graph : graph,
+      ),
+    );
   }, [document]);
 
   const openGraph = useCallback(
@@ -239,12 +244,15 @@ export default function App() {
           const edges = [...current.edges];
           if (parentNodeId) {
             edges.push({
-              id: `optimistic-branch-${event.node.id}`,
+              id: `optimistic-${event.relationKind}-${event.node.id}`,
               graphId: current.graph.id,
               source: parentNodeId,
               target: event.node.id,
-              kind: "branch",
-              label: t("edge.continue"),
+              kind: event.relationKind,
+              label:
+                event.relationKind === "branch"
+                  ? t("edge.branch")
+                  : t("edge.continue"),
               includeInContext: true,
               createdAt: new Date().toISOString(),
             });
@@ -310,17 +318,6 @@ export default function App() {
     },
     [refreshGraph, selectNode, setDocument, t],
   );
-
-  const handleDelete = async (id: string) => {
-    if (!window.confirm(t("app.deleteConfirm"))) return;
-    await api.deleteNode(id);
-    setDocument((current) => ({
-      ...current,
-      nodes: current.nodes.filter((node) => node.id !== id),
-      edges: current.edges.filter((edge) => edge.source !== id && edge.target !== id),
-    }));
-    selectNode(null);
-  };
 
   const handleUpdateNode = useCallback(async (id: string, input: Parameters<typeof api.updateNode>[1]) => {
     const updated = await api.updateNode(id, input);
@@ -429,7 +426,6 @@ export default function App() {
               embedded
               node={selectedNode}
               document={document}
-              onDelete={(id) => void handleDelete(id)}
               onUpdate={(id, input) => void handleUpdateNode(id, input)}
             />
           ) : (

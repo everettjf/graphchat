@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import {
+  ArrowDown,
   ArrowUp,
   BrainCircuit,
   CircleStop,
@@ -49,6 +50,9 @@ export function Composer({
   const [prompt, setPrompt] = useState("");
   const [isRunning, setIsRunning] = useState(false);
   const [activity, setActivity] = useState("");
+  const [relationKind, setRelationKind] = useState<"continuation" | "branch">(
+    selectedText ? "branch" : "continuation",
+  );
   const controllerRef = useRef<AbortController | null>(null);
   const activeRunRef = useRef<{ runId: string; nodeId: string } | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
@@ -58,6 +62,10 @@ export function Composer({
   useEffect(() => {
     if (composerOpen) setTimeout(() => textareaRef.current?.focus(), 40);
   }, [composerOpen]);
+
+  useEffect(() => {
+    setRelationKind(selectedText ? "branch" : "continuation");
+  }, [selectedText]);
 
   const submit = async () => {
     const text = prompt.trim();
@@ -72,6 +80,7 @@ export function Composer({
         {
           graphId: document.graph.id,
           parentNodeId: selectedNode?.id ?? null,
+          relationKind,
           referenceNodeIds,
           prompt: text,
           selectedText,
@@ -146,6 +155,34 @@ export function Composer({
               <span data-testid="selection-context">
                 <ContextChip icon={Quote} label={`“${selectedText.slice(0, 32)}${selectedText.length > 32 ? "…" : ""}”`} quote />
               </span>
+            )}
+            {selectedNode && (
+              <div className="flex rounded-lg bg-black/[0.045] p-0.5">
+                <button
+                  type="button"
+                  className={cn(
+                    "flex h-6 items-center gap-1 rounded-md px-2 text-[9px] font-medium",
+                    relationKind === "continuation"
+                      ? "bg-white text-[var(--ink)] shadow-sm"
+                      : "text-[var(--muted)]",
+                  )}
+                  onClick={() => setRelationKind("continuation")}
+                >
+                  <ArrowDown className="size-3" /> Continue
+                </button>
+                <button
+                  type="button"
+                  className={cn(
+                    "flex h-6 items-center gap-1 rounded-md px-2 text-[9px] font-medium",
+                    relationKind === "branch"
+                      ? "bg-white text-[var(--ink)] shadow-sm"
+                      : "text-[var(--muted)]",
+                  )}
+                  onClick={() => setRelationKind("branch")}
+                >
+                  <GitBranch className="size-3" /> Branch
+                </button>
+              </div>
             )}
             <button
               className="ml-auto grid size-7 place-items-center rounded-lg text-[var(--muted-light)] hover:bg-black/5 hover:text-[var(--ink)]"
@@ -257,11 +294,13 @@ function getNewNodePosition(document: GraphDocument, parent: GraphNode | null) {
     return { x: maxX + 360, y: 180 };
   }
   const childCount = document.edges.filter(
-    (edge) => edge.source === parent.id && edge.kind === "branch",
+    (edge) =>
+      edge.source === parent.id &&
+      (edge.kind === "branch" || edge.kind === "continuation"),
   ).length;
   return {
-    x: parent.x + 370,
-    y: parent.y + (childCount === 0 ? 0 : childCount % 2 === 0 ? 180 : -180),
+    x: parent.x + 460,
+    y: parent.y + (childCount === 0 ? 0 : childCount % 2 === 0 ? 260 : -260),
   };
 }
 

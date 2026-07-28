@@ -49,7 +49,7 @@ export function GraphCanvas({
     const hidden = new Set<string>();
     const outgoing = new Map<string, string[]>();
     for (const edge of document.edges) {
-      if (edge.kind !== "branch") continue;
+      if (edge.kind !== "branch" && edge.kind !== "continuation") continue;
       outgoing.set(edge.source, [...(outgoing.get(edge.source) || []), edge.target]);
     }
     for (const root of collapsedRoots) {
@@ -109,7 +109,16 @@ export function GraphCanvas({
         id: edge.id,
         source: edge.source,
         target: edge.target,
-        label: edge.label,
+        label:
+          edge.kind === "continuation"
+            ? "Continue"
+            : edge.kind === "branch"
+              ? "Branch"
+              : edge.kind === "reference"
+                ? "Reference"
+                : edge.kind === "supports"
+                  ? "Supports"
+                  : "Contradicts",
         type: edge.kind === "reference" ? "bezier" : "smoothstep",
         animated:
           document.nodes.find((node) => node.id === edge.target)?.status === "streaming",
@@ -210,13 +219,16 @@ export function GraphCanvas({
           onClick={() => {
             const incoming = new Set(
               document.edges
-                .filter((edge) => edge.kind === "branch")
+                .filter(
+                  (edge) =>
+                    edge.kind === "branch" || edge.kind === "continuation",
+                )
                 .map((edge) => edge.target),
             );
             const roots = document.nodes.filter((node) => !incoming.has(node.id));
             const children = new Map<string, string[]>();
             for (const edge of document.edges) {
-              if (edge.kind !== "branch") continue;
+              if (edge.kind !== "branch" && edge.kind !== "continuation") continue;
               children.set(edge.source, [...(children.get(edge.source) || []), edge.target]);
             }
             const positions = new Map<string, { x: number; y: number }>();
@@ -226,7 +238,10 @@ export function GraphCanvas({
               const current = queue.shift()!;
               const order = depthCounts.get(current.depth) || 0;
               depthCounts.set(current.depth, order + 1);
-              positions.set(current.id, { x: 60 + current.depth * 360, y: 40 + order * 220 });
+              positions.set(current.id, {
+                x: 80 + current.depth * 460,
+                y: 60 + order * 300,
+              });
               for (const child of children.get(current.id) || []) {
                 queue.push({ id: child, depth: current.depth + 1, lane: order });
               }
@@ -238,7 +253,7 @@ export function GraphCanvas({
             setDocument((current) => ({ ...current, nodes: nextNodes }));
             void Promise.all(
               nextNodes.map((node) => api.updateNode(node.id, { x: node.x, y: node.y })),
-            ).then(() => flowRef.current?.fitView({ padding: 0.18, duration: 450 }));
+            ).then(() => flowRef.current?.fitView({ padding: 0.28, duration: 450 }));
           }}
         >
           <LayoutGrid className="size-3" /> Layout

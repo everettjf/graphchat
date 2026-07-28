@@ -5,6 +5,7 @@ import {
   CircleHelp,
   Download,
   GitFork,
+  MoreHorizontal,
   Plus,
   Pencil,
   RotateCcw,
@@ -62,6 +63,11 @@ export function Sidebar({
   const { locale, t } = useI18n();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingGraph, setEditingGraph] = useState<GraphMeta | null>(null);
+  const [contextMenu, setContextMenu] = useState<{
+    graph: GraphMeta;
+    x: number;
+    y: number;
+  } | null>(null);
   const {
     search,
     setSearch,
@@ -89,7 +95,7 @@ export function Sidebar({
           !sidebarOpen && "max-lg:-translate-x-full",
         )}
       >
-        <div className="mb-5 flex items-center justify-between px-2">
+        <div className="mb-4 flex items-center justify-between px-2">
           <BrandMark />
           <Button
             variant="ghost"
@@ -104,7 +110,7 @@ export function Sidebar({
 
         <Button
           variant="accent"
-          className="mb-4 h-11 w-full justify-start rounded-xl px-3.5 shadow-none"
+          className="mb-3 h-10 w-full justify-start rounded-xl px-3.5 shadow-none"
           onClick={() => void onNewThread()}
         >
           <Plus className="size-4" /> {t("sidebar.newStart")}
@@ -113,7 +119,7 @@ export function Sidebar({
           </span>
         </Button>
 
-        <div className="relative mb-5">
+        <div className="relative mb-3">
           <Search className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-[var(--muted-light)]" />
           <input
             value={search}
@@ -141,7 +147,7 @@ export function Sidebar({
           />
         </nav>
 
-        <div className="my-5 h-px bg-[var(--border)]" />
+        <div className="my-3 h-px bg-[var(--border)]" />
 
         <section className="min-h-0 flex-1 overflow-auto">
           <div className="mb-2 flex items-center justify-between px-2">
@@ -164,13 +170,22 @@ export function Sidebar({
             <div
               key={graph.id}
               className={cn(
-                "group mb-1 flex items-center rounded-xl border border-transparent bg-white/45 transition hover:bg-white",
+                "group mb-0.5 flex items-center rounded-lg border border-transparent bg-white/45 transition hover:bg-white",
                 graph.id === activeGraphId &&
                   "border-[var(--border)] bg-white/80 shadow-sm",
               )}
+              onContextMenu={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                setContextMenu({
+                  graph,
+                  x: Math.min(event.clientX, window.innerWidth - 180),
+                  y: Math.min(event.clientY, window.innerHeight - 110),
+                });
+              }}
             >
               <button
-                className="min-w-0 flex-1 px-3 py-2.5 text-left"
+                className="min-w-0 flex-1 px-2.5 py-1.5 text-left"
                 onClick={() => {
                   setSearch("");
                   setSidebarOpen(false);
@@ -178,23 +193,28 @@ export function Sidebar({
                 }}
                 aria-current={graph.id === activeGraphId ? "page" : undefined}
               >
-                <span className="mb-1 block truncate text-xs font-semibold text-[var(--ink)]">
+                <span className="mb-0.5 block truncate text-[11px] font-semibold leading-4 text-[var(--ink)]">
                   {graph.title}
                 </span>
-                <span className="block truncate text-[10px] text-[var(--muted-light)]">
+                <span className="block truncate text-[9px] leading-3 text-[var(--muted-light)]">
                   {graph.description || "—"}
                 </span>
               </button>
               <button
                 type="button"
-                className="mr-2 grid size-7 shrink-0 place-items-center rounded-lg text-[var(--muted-light)] opacity-0 transition hover:bg-black/5 hover:text-[var(--ink)] group-hover:opacity-100 focus:opacity-100"
+                className="mr-1.5 grid size-6 shrink-0 place-items-center rounded-md text-[var(--muted-light)] opacity-0 transition hover:bg-black/5 hover:text-[var(--ink)] group-hover:opacity-100 focus:opacity-100"
                 aria-label={`${t("graph.edit")}: ${graph.title}`}
-                onClick={() => {
-                  setEditingGraph(graph);
-                  setDialogOpen(true);
+                onClick={(event) => {
+                  event.stopPropagation();
+                  const rect = event.currentTarget.getBoundingClientRect();
+                  setContextMenu({
+                    graph,
+                    x: Math.min(rect.right - 160, window.innerWidth - 180),
+                    y: Math.min(rect.bottom + 4, window.innerHeight - 110),
+                  });
                 }}
               >
-                <Pencil className="size-3" />
+                <MoreHorizontal className="size-3" />
               </button>
             </div>
           ))}
@@ -282,6 +302,53 @@ export function Sidebar({
         onUpdate={onUpdateGraph}
         onArchive={onArchiveGraph}
       />
+      {contextMenu && (
+        <>
+          <button
+            type="button"
+            className="fixed inset-0 z-[79] cursor-default"
+            aria-label="Close thread menu"
+            onClick={() => setContextMenu(null)}
+          />
+          <div
+            className="fixed z-[80] w-40 rounded-xl border border-[var(--border)] bg-[#fffefb] p-1.5 shadow-xl"
+            style={{ left: contextMenu.x, top: contextMenu.y }}
+            role="menu"
+            aria-label={`Thread actions: ${contextMenu.graph.title}`}
+          >
+          <button
+            type="button"
+            role="menuitem"
+            className="flex h-8 w-full items-center gap-2 rounded-lg px-2.5 text-left text-[11px] text-[var(--ink)] hover:bg-black/[0.045]"
+            onClick={() => {
+              setEditingGraph(contextMenu.graph);
+              setDialogOpen(true);
+              setContextMenu(null);
+            }}
+          >
+            <Pencil className="size-3.5" /> Rename & edit
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            disabled={graphs.length <= 1}
+            className="flex h-8 w-full items-center gap-2 rounded-lg px-2.5 text-left text-[11px] text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40"
+            onClick={() => {
+              const graph = contextMenu.graph;
+              setContextMenu(null);
+              if (
+                graphs.length > 1 &&
+                window.confirm(t("graph.archiveConfirm", { title: graph.title }))
+              ) {
+                void onArchiveGraph(graph.id);
+              }
+            }}
+          >
+            <Archive className="size-3.5" /> Archive
+          </button>
+          </div>
+        </>
+      )}
     </>
   );
 }

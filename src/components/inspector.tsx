@@ -8,7 +8,6 @@ import {
   MessageSquarePlus,
   Network,
   Quote,
-  Trash2,
   ThumbsDown,
   ThumbsUp,
   WandSparkles,
@@ -27,13 +26,11 @@ import { api } from "@/lib/api";
 export function Inspector({
   node,
   document,
-  onDelete,
   onUpdate,
   embedded = false,
 }: {
   node: GraphNode | null;
   document: GraphDocument;
-  onDelete: (id: string) => void;
   onUpdate: (id: string, input: UpdateNodeInput) => void;
   embedded?: boolean;
 }) {
@@ -418,14 +415,6 @@ export function Inspector({
             <Link2 className="size-4" />
           </Button>
         </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          className={cn("mt-2 w-full text-[var(--muted-light)] hover:text-red-600")}
-          onClick={() => onDelete(node.id)}
-        >
-          <Trash2 className="size-3.5" /> {t("inspector.delete")}
-        </Button>
         </div>
       </footer>
     </aside>

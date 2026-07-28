@@ -54,6 +54,29 @@ describe("GraphDatabase", () => {
         expect.objectContaining({ source: "vector-db", target: node.id, kind: "reference" }),
       ]),
     );
+    const continued = database.createNode({
+      graphId: graph.graph.id,
+      parentNodeId: node.id,
+      parentEdgeKind: "continuation",
+      referenceNodeIds: [],
+      kind: "answer",
+      title: "Continue the same thread",
+      prompt: "What happens next?",
+      content: "",
+      summary: "",
+      selectedText: null,
+      x: 560,
+      y: 200,
+    });
+    expect(
+      database
+        .getGraph(graph.graph.id)!
+        .edges.find((edge) => edge.target === continued.id),
+    ).toMatchObject({
+      source: node.id,
+      kind: "continuation",
+      label: "Continue",
+    });
     database.close();
   });
 
@@ -220,7 +243,7 @@ describe("GraphDatabase", () => {
     database.close();
   });
 
-  it("migrates a v0.1.1 database in place and marks schema version 2", () => {
+  it("migrates a v0.1.1 database in place and marks schema version 3", () => {
     const directory = fs.mkdtempSync(path.join(os.tmpdir(), "graphchat-migration-"));
     directories.push(directory);
     const filename = path.join(directory, "graphchat.sqlite");
@@ -269,7 +292,7 @@ describe("GraphDatabase", () => {
           user_version: number;
         }
       ).user_version,
-    ).toBe(2);
+    ).toBe(3);
     inspected.close();
   });
 

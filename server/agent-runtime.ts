@@ -246,6 +246,7 @@ export class GraphAgentRuntime {
       {
         graphId: request.graphId,
         parentNodeId: request.parentNodeId,
+        parentEdgeKind: request.relationKind,
         referenceNodeIds: request.referenceNodeIds,
         kind: request.mode === "synthesize" ? "summary" : "answer",
         title: request.prompt.length > 42 ? `${request.prompt.slice(0, 39)}…` : request.prompt,
@@ -260,6 +261,15 @@ export class GraphAgentRuntime {
       this.settings.provider,
       this.settings.model,
     );
+    if (
+      graph.nodes.length === 0 &&
+      /^(?:Learning thread|Thread)\s+\d+$/i.test(graph.graph.title)
+    ) {
+      const title = request.prompt.replace(/\s+/g, " ").trim();
+      database.updateGraph(request.graphId, {
+        title: title.length > 56 ? `${title.slice(0, 53)}…` : title,
+      });
+    }
     database.updateNode(node.id, { status: "streaming" });
     yield {
       type: "run_started",
@@ -267,6 +277,7 @@ export class GraphAgentRuntime {
       nodeId: node.id,
       node: { ...node, status: "streaming" },
       context,
+      relationKind: request.relationKind,
     };
 
     const events = new AsyncEventQueue<RunStreamEvent>();

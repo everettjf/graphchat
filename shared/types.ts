@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 export const nodeKinds = ["question", "answer", "concept", "summary", "note"] as const;
-export const edgeKinds = ["branch", "reference", "supports", "contradicts"] as const;
+export const edgeKinds = ["continuation", "branch", "reference", "supports", "contradicts"] as const;
 export const nodeStatuses = ["idle", "streaming", "complete", "cancelled", "error"] as const;
 export const knowledgeStatuses = ["exploring", "verified", "conclusion", "outdated"] as const;
 export const masteryLevels = ["new", "learning", "mastered"] as const;
@@ -82,6 +82,7 @@ export const providerSettingsSchema = z.object({
 export const createNodeSchema = z.object({
   graphId: z.string(),
   parentNodeId: z.string().nullable().optional(),
+  parentEdgeKind: z.enum(["continuation", "branch"]).default("branch"),
   referenceNodeIds: z.array(z.string()).default([]),
   kind: z.enum(nodeKinds).default("question"),
   title: z.string().min(1).max(120),
@@ -129,6 +130,7 @@ export const updateGraphSchema = createGraphSchema.partial().refine(
 export const runRequestSchema = z.object({
   graphId: z.string(),
   parentNodeId: z.string().nullable(),
+  relationKind: z.enum(["continuation", "branch"]).default("continuation"),
   referenceNodeIds: z.array(z.string()).default([]),
   prompt: z.string().min(1).max(20_000),
   selectedText: z.string().nullable().default(null),
@@ -258,6 +260,7 @@ export type RunStreamEvent =
       nodeId: string;
       node: GraphNode;
       context: ContextSnapshot;
+      relationKind: "continuation" | "branch";
     }
   | { type: "text_delta"; runId: string; nodeId: string; delta: string }
   | {

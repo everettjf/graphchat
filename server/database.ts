@@ -156,6 +156,22 @@ export class GraphDatabase {
         this.db.exec(`ALTER TABLE nodes ADD COLUMN ${name} ${definition};`);
       }
     }
+    const currentSchemaVersion = Number(
+      (this.db.prepare("PRAGMA user_version").get() as { user_version: number })
+        .user_version,
+    );
+    if (currentSchemaVersion < 3) {
+      this.db.exec(`
+        UPDATE edges
+        SET kind = 'continuation', label = 'Continue'
+        WHERE kind = 'branch'
+          AND target IN (SELECT id FROM nodes WHERE selected_text IS NULL);
+        UPDATE edges SET label = 'Branch' WHERE kind = 'branch';
+        UPDATE edges SET label = 'Reference' WHERE kind = 'reference';
+        UPDATE edges SET label = 'Supports' WHERE kind = 'supports';
+        UPDATE edges SET label = 'Contradicts' WHERE kind = 'contradicts';
+      `);
+    }
     this.db.exec(`PRAGMA user_version = ${DATABASE_SCHEMA_VERSION};`);
   }
 
@@ -567,13 +583,26 @@ export class GraphDatabase {
         node.updatedAt,
       );
     if (input.parentNodeId) this.createEdge(input.graphId, input.parentNodeId, node.id, "branch", "继续追问");
+    if (input.parentNodeId && input.parentEdgeKind === "continuation") {
+      this.db
+        .prepare(
+          "UPDATE edges SET kind = 'continuation', label = 'Continue' WHERE graph_id = ? AND source = ? AND target = ?",
+        )
+        .run(input.graphId, input.parentNodeId, node.id);
+    }
     for (const referenceNodeId of input.referenceNodeIds ?? []) {
       if (referenceNodeId !== input.parentNodeId) {
         this.createEdge(input.graphId, referenceNodeId, node.id, "reference", "引用");
       }
     }
     if (input.parentNodeId) {
-      this.recordEvent(input.graphId, "branch-created", { nodeId: node.id });
+      this.recordEvent(
+        input.graphId,
+        input.parentEdgeKind === "continuation"
+          ? "continuation-created"
+          : "branch-created",
+        { nodeId: node.id },
+      );
     }
     if ((input.referenceNodeIds?.length || 0) >= 2 || node.kind === "summary") {
       this.recordEvent(input.graphId, "synthesis-created", { nodeId: node.id });
