@@ -38,6 +38,11 @@ export function Markdown({
             if (isValidElement(child) && child.type === MermaidDiagram) return child;
             return <pre>{preChildren}</pre>;
           },
+          table: (props: ComponentProps<"table">) => (
+            <div className="markdown-table-scroll" tabIndex={0}>
+              <table {...props} />
+            </div>
+          ),
           blockquote: (props: ComponentProps<"blockquote">) => <blockquote {...props} />,
         }}
       >

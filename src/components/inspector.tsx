@@ -42,6 +42,7 @@ export function Inspector({
     openComposer,
     setInspectorOpen,
     inspectorOpen,
+    selectNode,
   } = useWorkspace();
   const [activeTab, setActiveTab] = useState<
     "conversation" | "details" | "context"
@@ -54,6 +55,12 @@ export function Inspector({
   if (!node || (!embedded && !inspectorOpen)) return null;
   const incoming = document.edges.filter((edge) => edge.target === node.id);
   const outgoing = document.edges.filter((edge) => edge.source === node.id);
+  const parentEdge = incoming.find(
+    (edge) => edge.kind === "branch" || edge.kind === "continuation",
+  );
+  const parentNode = parentEdge
+    ? document.nodes.find((candidate) => candidate.id === parentEdge.source)
+    : null;
   const isReferenced = referenceNodeIds.includes(node.id);
   const conversationContent = stripTrailingMainThreadSection(node.content);
 
@@ -204,13 +211,23 @@ export function Inspector({
           )}
         </div>
 
-        {node.summary && (
-          <div className="mt-7 rounded-2xl border border-[#d7e6da] bg-[#edf5ee] p-4">
+        {node.summary && parentNode && (
+          <button
+            type="button"
+            data-testid="back-to-main-thread"
+            aria-label={t("inspector.backToParent", {
+              title: parentNode.title,
+            })}
+            onClick={() => selectNode(parentNode.id)}
+            className="group mt-7 w-full rounded-2xl border border-[#d7e6da] bg-[#edf5ee] p-4 text-left transition hover:border-[#b8d2be] hover:bg-[#e6f1e8] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6f9b7b] focus-visible:ring-offset-2"
+          >
             <div className="mb-2 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.13em] text-[#4d775b]">
-              <CheckCircle2 className="size-3.5" /> {t("inspector.backToMain")}
+              <CheckCircle2 className="size-3.5" />
+              <span>{t("inspector.backToMain")}</span>
+              <ArrowLeft className="ml-auto size-3.5 transition-transform group-hover:-translate-x-0.5" />
             </div>
             <p className="text-xs leading-5 text-[#42634d]">{node.summary}</p>
-          </div>
+          </button>
         )}
           </>
         )}
@@ -406,15 +423,27 @@ export function Inspector({
           </Button>
           <Button
             variant={isReferenced ? "soft" : "outline"}
-            size="icon"
+            size="sm"
+            className="shrink-0 px-3"
             onClick={() => toggleReference(node.id)}
+            aria-pressed={isReferenced}
+            data-testid="reference-toggle"
             aria-label={
               isReferenced
                 ? t("inspector.removeReference")
                 : t("inspector.addReference")
             }
           >
-            <Link2 className="size-4" />
+            {isReferenced ? (
+              <CheckCircle2 className="size-4" />
+            ) : (
+              <Link2 className="size-4" />
+            )}
+            <span>
+              {isReferenced
+                ? t("inspector.removeReference")
+                : t("inspector.addReference")}
+            </span>
           </Button>
         </div>
         </div>

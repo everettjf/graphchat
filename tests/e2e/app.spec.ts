@@ -60,7 +60,15 @@ test.describe("Graph Chat", () => {
     await expect(
       page.getByText("semantic coordinates", { exact: false }).first(),
     ).toBeVisible();
-
+    const backToMain = page.getByTestId("back-to-main-thread");
+    await expect(backToMain).toBeVisible();
+    await backToMain.click();
+    await expect(
+      page.getByTestId("node-inspector").getByRole("heading", {
+        name: "What is RAG?",
+      }),
+    ).toBeVisible();
+    await expect(page.getByTestId("back-to-main-thread")).toHaveCount(0);
   });
 
   test("merges a cross-branch reference into a streamed Pi answer and persists it", async ({
@@ -71,7 +79,11 @@ test.describe("Graph Chat", () => {
     await openGraphView(page);
     const initialCount = await page.locator('[data-testid^="graph-node-"]').count();
     await page.getByTestId("graph-node-vector-db").click();
-    await page.getByRole("button", { name: "Add to synthesis" }).click();
+    const referenceToggle = page.getByTestId("reference-toggle");
+    await expect(referenceToggle).toHaveAttribute("aria-pressed", "false");
+    await referenceToggle.click();
+    await expect(referenceToggle).toHaveAttribute("aria-pressed", "true");
+    await expect(referenceToggle).toHaveText("Remove reference");
     await page.getByTestId("tree-node-embedding").click();
 
     const input = page.getByTestId("composer-input");
