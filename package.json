@@ -16,7 +16,7 @@
     "url": "https://github.com/everettjf/graphchat/issues"
   },
   "bin": {
-    "graphchat": "./scripts/graphchat.mjs"
+    "graphchat": "scripts/graphchat.mjs"
   },
   "files": [
     "dist",
