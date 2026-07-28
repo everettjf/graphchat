@@ -74,7 +74,9 @@ button {
 .inspector-shell {
   transition:
     transform 220ms ease,
-    width 220ms ease;
+    width 220ms ease,
+    padding 220ms ease,
+    opacity 140ms ease;
 }
 
 .brand-mark {
@@ -152,16 +154,29 @@ button {
 }
 
 .react-flow__node {
-  border-radius: 20px;
+  border-radius: 18px;
 }
 
 .graph-node {
+  --node-accent: #98bda4;
   border-color: #dddfd8;
   transform-origin: center;
 }
 
+.graph-node::before {
+  position: absolute;
+  top: 0;
+  right: 16px;
+  left: 16px;
+  height: 2px;
+  border-radius: 0 0 4px 4px;
+  background: var(--node-accent);
+  content: "";
+  opacity: 0.82;
+}
+
 .graph-node:hover {
-  transform: translateY(-2px);
+  transform: translateY(-1px);
   border-color: #c8cec6;
   box-shadow: 0 18px 42px rgb(44 48 42 / 12%);
 }
@@ -193,9 +208,17 @@ button {
   background: #e3f1e6;
 }
 
+.node-green {
+  --node-accent: #82b293;
+}
+
 .node-amber .node-kind-icon {
   color: #8b6e28;
   background: #f8efd2;
+}
+
+.node-amber {
+  --node-accent: #d5b968;
 }
 
 .node-violet .node-kind-icon {
@@ -203,14 +226,26 @@ button {
   background: #eee9f5;
 }
 
+.node-violet {
+  --node-accent: #a899c0;
+}
+
 .node-blue .node-kind-icon {
   color: #587898;
   background: #e9f0f5;
 }
 
+.node-blue {
+  --node-accent: #8fa9c0;
+}
+
 .node-stone .node-kind-icon {
   color: #6e706d;
   background: #eeeeeb;
+}
+
+.node-stone {
+  --node-accent: #aaa9a4;
 }
 
 .graph-handle {

@@ -117,6 +117,19 @@ export const updateNodeSchema = z.object({
   status: z.enum(nodeStatuses),
 }).partial();
 
+export const updateGraphLayoutSchema = z.object({
+  positions: z
+    .array(
+      z.object({
+        id: z.string().min(1),
+        x: z.number().finite(),
+        y: z.number().finite(),
+      }),
+    )
+    .min(1)
+    .max(5_000),
+});
+
 export const createGraphSchema = z.object({
   title: z.string().trim().min(1).max(120),
   description: z.string().trim().max(300).default(""),
@@ -164,6 +177,7 @@ export type GraphDocument = z.infer<typeof graphDocumentSchema>;
 export type ProviderSettings = z.infer<typeof providerSettingsSchema>;
 export type CreateNodeInput = z.input<typeof createNodeSchema>;
 export type UpdateNodeInput = z.infer<typeof updateNodeSchema>;
+export type UpdateGraphLayoutInput = z.infer<typeof updateGraphLayoutSchema>;
 export type CreateGraphInput = z.infer<typeof createGraphSchema>;
 export type UpdateGraphInput = z.infer<typeof updateGraphSchema>;
 export type RunRequest = z.infer<typeof runRequestSchema>;

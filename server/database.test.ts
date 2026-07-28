@@ -243,7 +243,141 @@ describe("GraphDatabase", () => {
     database.close();
   });
 
-  it("migrates a v0.1.1 database in place and marks schema version 3", () => {
+  it("keeps the full-text index synchronized across updates and deletes", () => {
+    const database = createDatabase();
+    const node = database.createNode({
+      graphId: "learning-rag",
+      parentNodeId: null,
+      referenceNodeIds: [],
+      kind: "note",
+      title: "Xylophonic marker",
+      prompt: "",
+      content: "Initial searchable material",
+      summary: "",
+      selectedText: null,
+      x: 0,
+      y: 0,
+    });
+    expect(database.searchNodes("learning-rag", "xylophonic")[0]?.id).toBe(
+      node.id,
+    );
+
+    database.updateNode(node.id, {
+      title: "Completely renamed note",
+      content: "A heliotropic replacement phrase",
+    });
+    expect(database.searchNodes("learning-rag", "xylophonic")).toHaveLength(0);
+    expect(database.searchNodes("learning-rag", "heliotropic")[0]?.id).toBe(node.id);
+
+    database.deleteNode(node.id);
+    expect(database.searchNodes("learning-rag", "heliotropic")).toHaveLength(0);
+    database.close();
+  });
+
+  it("supports substring retrieval for Chinese text", () => {
+    const database = createDatabase();
+    const node = database.createNode({
+      graphId: "learning-rag",
+      parentNodeId: null,
+      referenceNodeIds: [],
+      kind: "note",
+      title: "分布式系统中的一致性协议",
+      prompt: "",
+      content: "",
+      summary: "",
+      selectedText: null,
+      x: 0,
+      y: 0,
+    });
+    expect(database.searchNodes("learning-rag", "一致性")[0]?.id).toBe(node.id);
+    database.close();
+  });
+
+  it("updates an entire graph layout atomically", () => {
+    const database = createDatabase();
+    const before = database.getGraph("learning-rag")!;
+    const targets = before.nodes.slice(0, 2);
+    const updated = database.updateGraphLayout("learning-rag", {
+      positions: targets.map((node, index) => ({
+        id: node.id,
+        x: 1_000 + index * 100,
+        y: 2_000 + index * 100,
+      })),
+    });
+
+    expect(updated).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: targets[0]!.id, x: 1_000, y: 2_000 }),
+        expect.objectContaining({ id: targets[1]!.id, x: 1_100, y: 2_100 }),
+      ]),
+    );
+    database.close();
+  });
+
+  it("rejects a layout containing nodes from another graph without moving any node", () => {
+    const database = createDatabase();
+    const other = database.createGraph({
+      title: "Other graph",
+      description: "",
+    });
+    const otherNode = database.createNode({
+      graphId: other.graph.id,
+      parentNodeId: null,
+      referenceNodeIds: [],
+      kind: "note",
+      title: "Other graph node",
+      prompt: "",
+      content: "",
+      summary: "",
+      selectedText: null,
+      x: 0,
+      y: 0,
+    });
+    const original = database.getNode("embedding")!;
+
+    expect(() =>
+      database.updateGraphLayout("learning-rag", {
+        positions: [
+          { id: original.id, x: 9_999, y: 9_999 },
+          { id: otherNode.id, x: 100, y: 100 },
+        ],
+      }),
+    ).toThrow("LAYOUT_NODE_MISMATCH");
+    expect(database.getNode(original.id)).toMatchObject({
+      x: original.x,
+      y: original.y,
+    });
+    database.close();
+  });
+
+  it("permanently deletes only archived graphs, individually or in bulk", () => {
+    const database = createDatabase();
+    const first = database.createGraph({
+      title: "First archived graph",
+      description: "",
+    });
+    const second = database.createGraph({
+      title: "Second archived graph",
+      description: "",
+    });
+    database.archiveGraph(first.graph.id);
+    database.archiveGraph(second.graph.id);
+
+    expect(database.deleteArchivedGraph("learning-rag")).toBeNull();
+    expect(database.getGraph("learning-rag")).not.toBeNull();
+    expect(database.deleteArchivedGraph(first.graph.id)).toMatchObject({
+      id: first.graph.id,
+      archivedAt: expect.any(String),
+    });
+    expect(database.getGraph(first.graph.id)).toBeNull();
+    expect(database.deleteAllArchivedGraphs()).toBe(1);
+    expect(database.listArchivedGraphs()).toEqual([]);
+    expect(database.getGraph(second.graph.id)).toBeNull();
+    expect(database.getGraph("learning-rag")).not.toBeNull();
+    database.close();
+  });
+
+  it("migrates a v0.1.1 database in place and marks schema version 4", () => {
     const directory = fs.mkdtempSync(path.join(os.tmpdir(), "graphchat-migration-"));
     directories.push(directory);
     const filename = path.join(directory, "graphchat.sqlite");
@@ -292,7 +426,7 @@ describe("GraphDatabase", () => {
           user_version: number;
         }
       ).user_version,
-    ).toBe(3);
+    ).toBe(4);
     inspected.close();
   });
 

@@ -64,6 +64,7 @@ Starting question ──→ AI answer ──→ New concept A ──→ Deeper e
 | ChatGPT subscription | Pi `openai-codex` device-code OAuth with automatic token refresh |
 | Other models | OpenAI API, OpenRouter, Ollama, and OpenAI-compatible endpoints |
 | Local data | Bun/Node SQLite, WAL, JSON export, and no external database |
+| Local retrieval | SQLite FTS5 ranking across titles, prompts, summaries, content, tags, and source URLs |
 | English and Chinese | English-first application and documentation with a persistent Chinese switch |
 | Resilient runs | Run-scoped streaming, explicit cancellation, and interrupted-run recovery |
 | Privacy boundary | API keys stay in process; OAuth credentials stay in a private local file |
@@ -189,7 +190,7 @@ bun run test:all   # complete verification
 
 ## Roadmap
 
-- SQLite FTS and optional vector-backed pluggable retrieval
+- Hybrid retrieval with optional vector-backed ranking on top of local SQLite FTS
 - Safe web capture, OCR, and incremental source refresh
 - Optional end-to-end encrypted sync
 - Collaborative sharing and read-only graph publishing

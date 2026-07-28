@@ -1,6 +1,8 @@
 import { create } from "zustand";
 
 type ComposerMode = "answer" | "explore" | "synthesize";
+const sidebarStartsOpen =
+  typeof window === "undefined" || window.innerWidth >= 1024;
 
 type WorkspaceState = {
   selectedNodeId: string | null;
@@ -31,7 +33,7 @@ export const useWorkspace = create<WorkspaceState>((set) => ({
   selectedText: null,
   composerOpen: false,
   settingsOpen: false,
-  sidebarOpen: false,
+  sidebarOpen: sidebarStartsOpen,
   inspectorOpen: true,
   mode: "answer",
   selectNode: (id) => set({ selectedNodeId: id }),

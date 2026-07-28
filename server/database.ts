@@ -17,18 +17,20 @@ import type {
   StudyCard,
   UpdateGraphInput,
   UpdateNodeInput,
+  UpdateGraphLayoutInput,
 } from "../shared/types.js";
-import { APP_VERSION, DATABASE_SCHEMA_VERSION } from "../shared/version.js";
+import { APP_VERSION } from "../shared/version.js";
+import { migrateGraphDatabase } from "./database-migrations.js";
 
 const now = () => new Date().toISOString();
 
-interface SQLiteStatement {
+export interface SQLiteStatement {
   all(...params: unknown[]): unknown[];
   get(...params: unknown[]): unknown;
   run(...params: unknown[]): unknown;
 }
 
-interface SQLiteDatabase {
+export interface SQLiteDatabase {
   close(): void;
   exec(sql: string): unknown;
   prepare(sql: string): SQLiteStatement;
@@ -59,120 +61,22 @@ export class GraphDatabase {
     fs.mkdirSync(absoluteDirectory, { recursive: true });
     this.db = new DatabaseConstructor(path.join(absoluteDirectory, "graphchat.sqlite"));
     this.db.exec("PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;");
-    this.migrate();
+    migrateGraphDatabase(this.db);
     this.recoverInterruptedRuns();
     this.seed();
     this.historyEnabled = true;
   }
 
-  private migrate() {
-    this.db.exec(`
-      CREATE TABLE IF NOT EXISTS graphs (
-        id TEXT PRIMARY KEY,
-        title TEXT NOT NULL,
-        description TEXT NOT NULL DEFAULT '',
-        created_at TEXT NOT NULL,
-        updated_at TEXT NOT NULL,
-        archived_at TEXT
-      );
-      CREATE TABLE IF NOT EXISTS nodes (
-        id TEXT PRIMARY KEY,
-        graph_id TEXT NOT NULL REFERENCES graphs(id) ON DELETE CASCADE,
-        kind TEXT NOT NULL,
-        title TEXT NOT NULL,
-        prompt TEXT NOT NULL DEFAULT '',
-        content TEXT NOT NULL DEFAULT '',
-        summary TEXT NOT NULL DEFAULT '',
-        tags TEXT NOT NULL DEFAULT '[]',
-        knowledge_status TEXT NOT NULL DEFAULT 'exploring',
-        mastery TEXT NOT NULL DEFAULT 'new',
-        source_url TEXT NOT NULL DEFAULT '',
-        credibility INTEGER,
-        rating INTEGER NOT NULL DEFAULT 0,
-        context_snapshot TEXT,
-        selected_text TEXT,
-        x REAL NOT NULL,
-        y REAL NOT NULL,
-        status TEXT NOT NULL DEFAULT 'complete',
-        provider TEXT,
-        model TEXT,
-        created_at TEXT NOT NULL,
-        updated_at TEXT NOT NULL
-      );
-      CREATE TABLE IF NOT EXISTS edges (
-        id TEXT PRIMARY KEY,
-        graph_id TEXT NOT NULL REFERENCES graphs(id) ON DELETE CASCADE,
-        source TEXT NOT NULL REFERENCES nodes(id) ON DELETE CASCADE,
-        target TEXT NOT NULL REFERENCES nodes(id) ON DELETE CASCADE,
-        kind TEXT NOT NULL,
-        label TEXT NOT NULL DEFAULT '',
-        include_in_context INTEGER NOT NULL DEFAULT 1,
-        created_at TEXT NOT NULL
-      );
-      CREATE TABLE IF NOT EXISTS settings (
-        key TEXT PRIMARY KEY,
-        value TEXT NOT NULL
-      );
-      CREATE TABLE IF NOT EXISTS graph_revisions (
-        id TEXT PRIMARY KEY,
-        graph_id TEXT NOT NULL REFERENCES graphs(id) ON DELETE CASCADE,
-        label TEXT NOT NULL,
-        snapshot TEXT NOT NULL,
-        created_at TEXT NOT NULL
-      );
-      CREATE TABLE IF NOT EXISTS graph_events (
-        id TEXT PRIMARY KEY,
-        graph_id TEXT NOT NULL REFERENCES graphs(id) ON DELETE CASCADE,
-        type TEXT NOT NULL,
-        metadata TEXT NOT NULL DEFAULT '{}',
-        created_at TEXT NOT NULL
-      );
-      CREATE INDEX IF NOT EXISTS idx_nodes_graph ON nodes(graph_id);
-      CREATE INDEX IF NOT EXISTS idx_edges_graph ON edges(graph_id);
-      CREATE INDEX IF NOT EXISTS idx_edges_target ON edges(target);
-      CREATE INDEX IF NOT EXISTS idx_graph_events_graph_created
-        ON graph_events(graph_id, created_at);
-    `);
-    const graphColumns = this.db
-      .prepare("PRAGMA table_info(graphs)")
-      .all() as Array<{ name: string }>;
-    if (!graphColumns.some((column) => column.name === "archived_at")) {
-      this.db.exec("ALTER TABLE graphs ADD COLUMN archived_at TEXT;");
+  private transaction<T>(operation: () => T): T {
+    this.db.exec("BEGIN IMMEDIATE;");
+    try {
+      const result = operation();
+      this.db.exec("COMMIT;");
+      return result;
+    } catch (error) {
+      this.db.exec("ROLLBACK;");
+      throw error;
     }
-    const nodeColumns = this.db
-      .prepare("PRAGMA table_info(nodes)")
-      .all() as Array<{ name: string }>;
-    const additions = [
-      ["tags", "TEXT NOT NULL DEFAULT '[]'"],
-      ["knowledge_status", "TEXT NOT NULL DEFAULT 'exploring'"],
-      ["mastery", "TEXT NOT NULL DEFAULT 'new'"],
-      ["source_url", "TEXT NOT NULL DEFAULT ''"],
-      ["credibility", "INTEGER"],
-      ["rating", "INTEGER NOT NULL DEFAULT 0"],
-      ["context_snapshot", "TEXT"],
-    ] as const;
-    for (const [name, definition] of additions) {
-      if (!nodeColumns.some((column) => column.name === name)) {
-        this.db.exec(`ALTER TABLE nodes ADD COLUMN ${name} ${definition};`);
-      }
-    }
-    const currentSchemaVersion = Number(
-      (this.db.prepare("PRAGMA user_version").get() as { user_version: number })
-        .user_version,
-    );
-    if (currentSchemaVersion < 3) {
-      this.db.exec(`
-        UPDATE edges
-        SET kind = 'continuation', label = 'Continue'
-        WHERE kind = 'branch'
-          AND target IN (SELECT id FROM nodes WHERE selected_text IS NULL);
-        UPDATE edges SET label = 'Branch' WHERE kind = 'branch';
-        UPDATE edges SET label = 'Reference' WHERE kind = 'reference';
-        UPDATE edges SET label = 'Supports' WHERE kind = 'supports';
-        UPDATE edges SET label = 'Contradicts' WHERE kind = 'contradicts';
-      `);
-    }
-    this.db.exec(`PRAGMA user_version = ${DATABASE_SCHEMA_VERSION};`);
   }
 
   private seed() {
@@ -518,6 +422,30 @@ export class GraphDatabase {
     });
   }
 
+  deleteArchivedGraph(id: string): GraphMeta | null {
+    const existing = this.db
+      .prepare("SELECT * FROM graphs WHERE id = ? AND archived_at IS NOT NULL")
+      .get(id) as Record<string, unknown> | undefined;
+    if (!existing) return null;
+    this.db
+      .prepare("DELETE FROM graphs WHERE id = ? AND archived_at IS NOT NULL")
+      .run(id);
+    return this.mapGraph(existing);
+  }
+
+  deleteAllArchivedGraphs(): number {
+    const result = this.db
+      .prepare(
+        "SELECT COUNT(*) AS count FROM graphs WHERE archived_at IS NOT NULL",
+      )
+      .get() as { count: number };
+    const count = Number(result.count);
+    if (count > 0) {
+      this.db.prepare("DELETE FROM graphs WHERE archived_at IS NOT NULL").run();
+    }
+    return count;
+  }
+
   getNode(id: string): GraphNode | null {
     const row = this.db.prepare("SELECT * FROM nodes WHERE id = ?").get(id) as Record<string, unknown> | undefined;
     return row ? this.mapNode(row) : null;
@@ -664,6 +592,40 @@ export class GraphDatabase {
     return next;
   }
 
+  updateGraphLayout(
+    graphId: string,
+    input: UpdateGraphLayoutInput,
+  ): GraphNode[] | null {
+    if (!this.getGraph(graphId)) return null;
+    const uniquePositions = new Map(
+      input.positions.map((position) => [position.id, position]),
+    );
+    const existingNodes = [...uniquePositions.keys()].map((id) => this.getNode(id));
+    if (
+      existingNodes.some(
+        (node) => !node || node.graphId !== graphId,
+      )
+    ) {
+      throw new Error("LAYOUT_NODE_MISMATCH");
+    }
+
+    const timestamp = now();
+    const update = this.db.prepare(
+      "UPDATE nodes SET x = ?, y = ?, updated_at = ? WHERE id = ? AND graph_id = ?",
+    );
+    this.transaction(() => {
+      this.recordRevision(graphId, "update-layout");
+      for (const position of uniquePositions.values()) {
+        update.run(position.x, position.y, timestamp, position.id, graphId);
+      }
+      this.touchGraph(graphId);
+    });
+
+    return [...uniquePositions.keys()]
+      .map((id) => this.getNode(id))
+      .filter((node): node is GraphNode => Boolean(node));
+  }
+
   deleteNode(id: string): boolean {
     const existing = this.getNode(id);
     if (!existing) return false;
@@ -679,9 +641,34 @@ export class GraphDatabase {
     const queryTokens = new Set(
       normalized.match(/[\p{L}\p{N}-]{2,}/gu) || [normalized],
     );
-    const rows = this.db
-      .prepare("SELECT * FROM nodes WHERE graph_id = ?")
-      .all(graphId) as Record<string, unknown>[];
+    const hasCjk = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/u.test(
+      normalized,
+    );
+    const ftsQuery = [...queryTokens]
+      .map((token) => `"${token.replaceAll('"', '""')}"*`)
+      .join(" OR ");
+    const rows = (
+      hasCjk
+        ? this.db
+            .prepare(
+              `SELECT * FROM nodes
+               WHERE graph_id = ?
+                 AND lower(title || ' ' || prompt || ' ' || summary || ' ' ||
+                   content || ' ' || tags || ' ' || source_url) LIKE ?
+               LIMIT ?`,
+            )
+            .all(graphId, `%${normalized}%`, Math.max(limit * 8, 48))
+        : this.db
+            .prepare(
+              `SELECT nodes.*
+               FROM nodes_fts
+               JOIN nodes ON nodes.rowid = nodes_fts.rowid
+               WHERE nodes_fts MATCH ? AND nodes.graph_id = ?
+               ORDER BY bm25(nodes_fts, 0, 0, 8, 3, 5, 1, 4, 1)
+               LIMIT ?`,
+            )
+            .all(ftsQuery, graphId, Math.max(limit * 8, 48))
+    ) as Record<string, unknown>[];
     return rows
       .map(this.mapNode)
       .map((node) => {

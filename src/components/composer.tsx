@@ -168,7 +168,7 @@ export function Composer({
                   )}
                   onClick={() => setRelationKind("continuation")}
                 >
-                  <ArrowDown className="size-3" /> Continue
+                  <ArrowDown className="size-3" /> {t("edge.continue")}
                 </button>
                 <button
                   type="button"
@@ -180,7 +180,7 @@ export function Composer({
                   )}
                   onClick={() => setRelationKind("branch")}
                 >
-                  <GitBranch className="size-3" /> Branch
+                  <GitBranch className="size-3" /> {t("edge.branch")}
                 </button>
               </div>
             )}
@@ -290,17 +290,31 @@ export function Composer({
 
 function getNewNodePosition(document: GraphDocument, parent: GraphNode | null) {
   if (!parent) {
-    const maxX = Math.max(0, ...document.nodes.map((node) => node.x));
-    return { x: maxX + 360, y: 180 };
+    const incoming = new Set(
+      document.edges
+        .filter(
+          (edge) =>
+            edge.kind === "branch" || edge.kind === "continuation",
+        )
+        .map((edge) => edge.target),
+    );
+    const rootCount = document.nodes.filter(
+      (node) => !incoming.has(node.id),
+    ).length;
+    return { x: 120 + rootCount * 376, y: 100 };
   }
   const childCount = document.edges.filter(
     (edge) =>
       edge.source === parent.id &&
       (edge.kind === "branch" || edge.kind === "continuation"),
   ).length;
+  const siblingLane =
+    childCount === 0
+      ? 0
+      : Math.ceil(childCount / 2) * (childCount % 2 === 1 ? -1 : 1);
   return {
-    x: parent.x + 460,
-    y: parent.y + (childCount === 0 ? 0 : childCount % 2 === 0 ? 260 : -260),
+    x: parent.x + siblingLane * 376,
+    y: parent.y + 236,
   };
 }
 

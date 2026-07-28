@@ -163,7 +163,7 @@ export function WorkspaceTools({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[88vh] w-[min(94vw,760px)] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{locale === "zh" ? "学习工作台" : "Learning workspace"}</DialogTitle>
+          <DialogTitle>{locale === "zh" ? "工具" : "Tools"}</DialogTitle>
           <DialogDescription>
             {locale === "zh"
               ? "导入资料、检查学习闭环，并从低掌握节点开始复习。"

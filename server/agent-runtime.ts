@@ -22,6 +22,7 @@ import type {
   RunRequest,
   RunStreamEvent,
 } from "../shared/types.js";
+import { stripTrailingMainThreadSection } from "../shared/answer-content.js";
 import { compileContext, contextToPrompt } from "./context-compiler.js";
 import type { GraphDatabase } from "./database.js";
 
@@ -65,7 +66,7 @@ const SYSTEM_PROMPTS = {
 2. 当信息不足且工具可用时，先读取图谱，而不是猜测。
 3. 用清晰的小标题、类比和具体例子解释；保持准确，不把类比当作严格定义。
 4. 引用图中信息时使用 [节点: ID]，让用户可以追溯来源。
-5. 回答结尾给出一句“带回主线”的总结，说明这次理解如何帮助原问题。
+5. 不要在正文中添加“带回主线”或类似的总结段；界面会单独展示摘要。
 6. 不要自行修改图谱，只能读取；需要新增知识卡时，用文字提出建议。`,
   en: `You are Graph Chat's learning partner. Help the user understand unfamiliar ideas instead of showing off terminology.
 
@@ -74,7 +75,7 @@ Rules:
 2. When information is missing and tools are available, read the graph instead of guessing.
 3. Use clear headings, analogies, and concrete examples. Keep analogies distinct from strict definitions.
 4. Cite graph information as [Node: ID] so the user can trace it.
-5. End with a short "Back to the main thread" summary explaining how this helps the original question.
+5. Do not add a "Back to the main thread" or similar summary section to the answer body; the interface presents the summary separately.
 6. Never modify the graph yourself. Graph tools are read-only; suggest useful new cards in prose.
 7. For synthesis requests, use four explicit sections: Consensus, Conflicts, Evidence by source node, and Open questions. Do not hide uncertainty or merge incompatible claims.`,
 } as const;
@@ -126,9 +127,7 @@ ${sourceLines}
 - Which claim still depends on an unstated assumption?
 - What observation or counterexample would distinguish the branches?
 
-A useful check is: **What is the input, what transformation happens, and who uses the output?** If you can explain all three, the branches have genuinely converged instead of merely sitting next to each other.
-
-> **Back to the main thread:** You can now compress several local explanations into one mechanism and test whether it explains the original question.`;
+A useful check is: **What is the input, what transformation happens, and who uses the output?** If you can explain all three, the branches have genuinely converged instead of merely sitting next to each other.`;
     }
 
     return `### Start with the core
@@ -143,9 +142,7 @@ ${sourceLines}
 
 Separate “what it is” from “what it does.” The first sets its boundaries; the second puts it back into the process. Then look for a counterexample: if you removed it, which step would stop working? This usually creates a stronger understanding than memorizing a definition.
 
-${request.selectedText ? `You selected “${request.selectedText}”. This branch should explain that exact phrase without reopening the whole answer.` : "If the idea still feels abstract, select one phrase and create a smaller branch."}
-
-> **Back to the main thread:** Restate this explanation in one sentence, then return to the parent node and see whether the original answer now reads clearly.`;
+${request.selectedText ? `You selected “${request.selectedText}”. This branch should explain that exact phrase without reopening the whole answer.` : "If the idea still feels abstract, select one phrase and create a smaller branch."}`;
   }
 
   const sourceLines =
@@ -168,9 +165,7 @@ ${sourceLines}
 
 这些分支并不是彼此独立的答案：一个分支通常给出概念的表示方式，另一个分支解释它在系统中的作用。把它们组合起来时，应该先找共同对象，再区分各自负责的步骤，最后用一条因果链重新表述。
 
-一个实用的检查方式是问自己：**输入是什么、经过了什么转换、输出又被谁使用？** 如果能沿这三个问题讲通，说明分支已经真正汇聚，而不只是被放在一起。
-
-> **带回主线：** 你现在可以把多个局部解释压缩成一条完整机制，再回到最初问题检验它是否解释了整体。`;
+一个实用的检查方式是问自己：**输入是什么、经过了什么转换、输出又被谁使用？** 如果能沿这三个问题讲通，说明分支已经真正汇聚，而不只是被放在一起。`;
   }
 
   return `### 先抓住核心
@@ -185,9 +180,7 @@ ${sourceLines}
 
 先区分“它是什么”和“它用来做什么”。前者给出边界，后者把概念放回流程。再找一个反例：如果拿掉它，系统的哪一步会失效？这样得到的理解通常比背定义更牢固。
 
-${request.selectedText ? `你选中的原文是“${request.selectedText}”。这说明本次分支应围绕这句话解释，不需要把整段回答重新展开。` : "如果这个概念仍然抽象，可以继续选中其中一个词创建更小的分支。"}
-
-> **带回主线：** 把这次解释压缩成一句自己的话，然后返回父节点，看原回答是否已经能够顺畅读下去。`;
+${request.selectedText ? `你选中的原文是“${request.selectedText}”。这说明本次分支应围绕这句话解释，不需要把整段回答重新展开。` : "如果这个概念仍然抽象，可以继续选中其中一个词创建更小的分支。"}`;
 }
 
 export class GraphAgentRuntime {
@@ -325,9 +318,10 @@ export class GraphAgentRuntime {
                 : "The model returned no text."),
           );
         }
+        const completedContent = stripTrailingMainThreadSection(fullText);
         const completed = database.updateNode(node.id, {
-          content: fullText,
-          summary: summarize(fullText),
+          content: completedContent,
+          summary: summarize(completedContent),
           status: "complete",
           provider: this.settings.provider,
           model: this.settings.model,

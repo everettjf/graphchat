@@ -71,7 +71,7 @@ export function KnowledgeTree({
   mode?: "split" | "full";
   onNodeOpen?: (nodeId: string) => void;
 }) {
-  const { locale } = useI18n();
+  const { locale, t } = useI18n();
   const { selectedNodeId, selectNode, inspectorOpen, setInspectorOpen } =
     useWorkspace();
   const entries = buildTree(document);
@@ -86,7 +86,7 @@ export function KnowledgeTree({
       )}
       data-testid="knowledge-tree"
     >
-      <header className="flex h-16 shrink-0 items-center justify-between border-b border-[var(--border)] px-4">
+      <header className="flex h-14 shrink-0 items-center justify-between border-b border-[var(--border)] px-4">
         <div>
           <div className="flex items-center gap-2 text-xs font-semibold">
             <Network className="size-4 text-[#5d8068]" />
@@ -125,7 +125,7 @@ export function KnowledgeTree({
                   onNodeOpen?.(node.id);
                 }}
                 className={cn(
-                  "group flex min-h-8 w-full items-center gap-1.5 rounded-lg py-1 pr-1.5 text-left transition hover:bg-black/[0.035]",
+                  "group flex h-7 w-full items-center gap-1.5 rounded-md py-0.5 pr-1.5 text-left transition hover:bg-black/[0.035]",
                   selectedNodeId === node.id && "bg-white shadow-sm ring-1 ring-black/[0.05]",
                 )}
                 style={{ paddingLeft: `${8 + Math.min(depth, 7) * 14}px` }}
@@ -138,10 +138,10 @@ export function KnowledgeTree({
                   )}
                   title={
                     relationship === "branch"
-                      ? "Branch"
+                      ? t("edge.branch")
                       : relationship === "continuation"
-                        ? "Continue"
-                        : "Thread start"
+                        ? t("edge.continue")
+                        : t("relation.threadStart")
                   }
                 >
                   {relationship === "branch" ? (
@@ -150,23 +150,21 @@ export function KnowledgeTree({
                     <ArrowDown className="size-2.5" />
                   )}
                 </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[10px] font-medium leading-3.5 text-[var(--ink)]">
+                <span className="min-w-0 flex-1 truncate text-[10px] font-medium leading-3.5 text-[var(--ink)]">
                     {node.title}
-                  </span>
-                  <span className="mt-0.5 flex items-center gap-1 text-[7px] uppercase leading-none text-[var(--muted-light)]">
-                    {relationship === "branch"
-                      ? "Branch"
-                      : relationship === "continuation"
-                        ? "Continue"
-                        : node.kind}
-                    {referenceCount > 0 && (
-                      <span className="inline-flex items-center gap-0.5">
-                        <Link2 className="size-2.5" /> {referenceCount}
-                      </span>
-                    )}
-                  </span>
                 </span>
+                {relationship !== "root" && (
+                  <span className="shrink-0 text-[7px] uppercase text-[var(--muted-light)]">
+                    {relationship === "branch"
+                      ? t("edge.branch")
+                      : t("edge.continue")}
+                  </span>
+                )}
+                {referenceCount > 0 && (
+                  <span className="inline-flex shrink-0 items-center gap-0.5 text-[7px] text-[var(--muted-light)]">
+                    <Link2 className="size-2.5" /> {referenceCount}
+                  </span>
+                )}
               </button>
             ))}
           </div>

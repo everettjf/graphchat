@@ -48,11 +48,8 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      - name: Validate release metadata and both lockfiles
-        run: bun run release:validate
-
       - name: Install Chromium
         run: bunx playwright install --with-deps chromium
 
       - name: Verify
-        run: bun run test:all
+        run: bun run verify

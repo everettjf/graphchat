@@ -64,6 +64,7 @@ Graph Chat 是一个本地优先、图谱原生的 AI 学习工作区。面对�
 | ChatGPT 订阅 | Pi `openai-codex` 设备码 OAuth，支持自动 token refresh |
 | 其他模型 | OpenAI API、OpenRouter、Ollama、OpenAI-compatible endpoint |
 | 本地数据 | Bun/Node SQLite、WAL、JSON 导出、无需外部数据库 |
+| 本地检索 | SQLite FTS5 对标题、问题、摘要、正文、标签和来源地址进行排序检索 |
 | 中英文 | 应用与文档默认英文，可持久化切换为中文 |
 | 可靠运行 | 流式事件绑定运行节点，支持显式取消与中断恢复 |
 | 隐私边界 | API Key 仅在进程内；OAuth 凭据只保存在本机私有文件 |
@@ -177,8 +178,8 @@ bun run test:all   # 完整验证
 
 ## 路线图
 
-- 图谱快照与 Markdown 导入
-- 可插拔的检索、网页和文件工具
+- 在本地 SQLite FTS 之上增加可选的向量排序与混合检索
+- 安全网页抓取、OCR 与来源增量刷新
 - 端到端加密的可选同步服务
 - 协作分享与只读知识图发布
 

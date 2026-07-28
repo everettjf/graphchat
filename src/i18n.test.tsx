@@ -8,6 +8,8 @@ function Probe() {
     <div>
       <span data-testid="locale">{locale}</span>
       <span>{t("sidebar.newStart")}</span>
+      <span>{t("sidebar.archivedThreads")}</span>
+      <span>{t("graph.layout")}</span>
       <button onClick={() => setLocale("zh")}>switch</button>
     </div>
   );
@@ -32,6 +34,8 @@ describe("I18nProvider", () => {
     fireEvent.click(screen.getByRole("button", { name: "switch" }));
     expect(screen.getByTestId("locale")).toHaveTextContent("zh");
     expect(window.localStorage.getItem("graphchat-language")).toBe("zh");
+    expect(screen.getByText("已归档对话")).toBeVisible();
+    expect(screen.getByText("自动布局")).toBeVisible();
     expect(window.location.search).toBe("?lang=zh");
     expect(document.documentElement.lang).toBe("zh-CN");
   });

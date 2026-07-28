@@ -6,6 +6,20 @@ async function openGraphView(page: import("@playwright/test").Page) {
 }
 
 test.describe("Graph Chat", () => {
+  test("collapses and reopens the sidebar", async ({ page }) => {
+    await page.goto("/");
+    const sidebar = page.getByTestId("sidebar");
+    await expect(sidebar).toHaveAttribute("data-state", "open");
+
+    await page.getByRole("button", { name: "Close sidebar" }).click();
+    await expect(sidebar).toHaveAttribute("data-state", "closed");
+    await expect(page.getByRole("button", { name: "Open sidebar" })).toBeVisible();
+
+    await page.getByRole("button", { name: "Open sidebar" }).click();
+    await expect(sidebar).toHaveAttribute("data-state", "open");
+    await expect(page.getByRole("button", { name: "Close sidebar" })).toBeVisible();
+  });
+
   test("opens the English-first learning graph and inspects a node", async ({
     page,
     request,
@@ -14,7 +28,7 @@ test.describe("Graph Chat", () => {
       ok: true,
       service: "graphchat",
       version: "0.2.0",
-      databaseSchemaVersion: 3,
+      databaseSchemaVersion: 4,
     });
     await page.goto("/");
     await expect(page.locator("html")).toHaveAttribute("lang", "en");
@@ -210,8 +224,8 @@ test.describe("Graph Chat", () => {
     request,
   }) => {
     await page.goto("/");
-    await page.getByRole("button", { name: "Learning workspace" }).click();
-    await expect(page.getByRole("heading", { name: "Learning workspace" })).toBeVisible();
+    await page.getByRole("button", { name: "Tools" }).click();
+    await expect(page.getByRole("heading", { name: "Tools" })).toBeVisible();
     await expect(page.getByText("Local graph metrics")).toBeVisible();
     await expect(page.getByText("Product validation")).toBeVisible();
 
@@ -329,7 +343,19 @@ test.describe("Graph Chat", () => {
         name: "Understanding RAG: from new concepts to a complete picture",
       }),
     ).toBeVisible();
-    await expect(page.getByText("Archived", { exact: true })).toBeVisible();
+    await page.getByRole("button", { name: /Archived threads/ }).click();
+    await expect(
+      page.getByRole("heading", { name: "Archived threads" }),
+    ).toBeVisible();
+    await expect(page.getByText(/Showing \d+ of \d+/)).toBeVisible();
+    await page
+      .getByRole("textbox", { name: "Search archived threads" })
+      .fill("Reliable distributed");
+    await expect(
+      page.getByRole("button", {
+        name: "Restore Reliable distributed systems",
+      }),
+    ).toBeVisible();
 
     await page
       .getByRole("button", {
@@ -349,6 +375,92 @@ test.describe("Graph Chat", () => {
     await expect(
       page.getByRole("heading", { name: "Reliable distributed systems" }),
     ).toBeVisible();
+  });
+
+  test("permanently deletes archived threads only after confirmation", async ({
+    page,
+    request,
+  }) => {
+    const createArchivedGraph = async (title: string) => {
+      const createdResponse = await request.post("/api/graphs", {
+        data: { title, description: "Delete confirmation test" },
+      });
+      expect(createdResponse.status()).toBe(201);
+      const created = await createdResponse.json();
+      const archiveResponse = await request.delete(
+        `/api/graphs/${created.graph.id}`,
+      );
+      expect(archiveResponse.ok()).toBeTruthy();
+      return created.graph.id as string;
+    };
+
+    const firstId = await createArchivedGraph("Archived deletion one");
+    await createArchivedGraph("Archived deletion two");
+    expect(
+      (await request.delete("/api/archived-graphs/learning-rag")).status(),
+    ).toBe(404);
+
+    await page.goto("/");
+    await page.getByRole("button", { name: /Archived threads/ }).click();
+
+    page.once("dialog", async (dialog) => {
+      expect(dialog.message()).toContain("This cannot be undone");
+      await dialog.dismiss();
+    });
+    await page
+      .getByRole("button", {
+        name: "Delete archived thread Archived deletion one",
+      })
+      .click();
+    await expect(
+      page.getByRole("button", {
+        name: "Delete archived thread Archived deletion one",
+      }),
+    ).toBeVisible();
+
+    page.once("dialog", async (dialog) => {
+      expect(dialog.message()).toContain("Archived deletion one");
+      await dialog.accept();
+    });
+    await page
+      .getByRole("button", {
+        name: "Delete archived thread Archived deletion one",
+      })
+      .click();
+    await expect(
+      page.getByRole("button", {
+        name: "Delete archived thread Archived deletion one",
+      }),
+    ).toHaveCount(0);
+    const afterSingleDelete = await (await request.get("/api/bootstrap")).json();
+    expect(
+      afterSingleDelete.archivedGraphs.some(
+        (graph: { id: string }) => graph.id === firstId,
+      ),
+    ).toBe(false);
+
+    page.once("dialog", async (dialog) => {
+      expect(dialog.message()).toContain("all 1 archived threads");
+      await dialog.dismiss();
+    });
+    await page.getByRole("button", { name: "Delete all" }).click();
+    await expect(
+      page.getByRole("button", {
+        name: "Delete archived thread Archived deletion two",
+      }),
+    ).toBeVisible();
+
+    page.once("dialog", async (dialog) => {
+      expect(dialog.message()).toContain("all 1 archived threads");
+      await dialog.accept();
+    });
+    await page.getByRole("button", { name: "Delete all" }).click();
+    await expect(
+      page.getByRole("heading", { name: "Archived threads" }),
+    ).toHaveCount(0);
+    const afterDeleteAll = await (await request.get("/api/bootstrap")).json();
+    expect(afterDeleteAll.archivedGraphs).toEqual([]);
+    expect(afterDeleteAll.graphs.length).toBeGreaterThan(0);
   });
 
   test("turns selected answer text into a branch-ready composer context", async ({

@@ -1,8 +1,8 @@
 import {
   FileText,
-  Menu,
   Maximize2,
   Network,
+  PanelLeftOpen,
   PanelRightClose,
   PanelRightOpen,
   Sparkles,
@@ -34,21 +34,23 @@ export function Topbar({
   viewMode: "content" | "tree" | "graph";
   onViewModeChange: (mode: "content" | "tree" | "graph") => void;
 }) {
-  const { setSidebarOpen, inspectorOpen, setInspectorOpen } = useWorkspace();
+  const { sidebarOpen, setSidebarOpen, inspectorOpen, setInspectorOpen } = useWorkspace();
   const { locale, t } = useI18n();
 
   return (
-    <header className="topbar-shell z-10 flex h-16 shrink-0 items-center justify-between border-b border-[var(--border)] bg-[#f8f6f0]/86 px-4 backdrop-blur-xl sm:px-5">
+    <header className="topbar-shell z-10 flex h-14 shrink-0 items-center justify-between border-b border-[var(--border)] bg-[#f8f6f0]/86 px-4 backdrop-blur-xl sm:px-5">
       <div className="flex min-w-0 items-center gap-3">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="lg:hidden"
-          onClick={() => setSidebarOpen(true)}
-          aria-label={t("topbar.openNav")}
-        >
-          <Menu className="size-4" />
-        </Button>
+        {!sidebarOpen && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-8 shrink-0"
+            onClick={() => setSidebarOpen(true)}
+            aria-label={t("sidebar.open")}
+          >
+            <PanelLeftOpen className="size-4" />
+          </Button>
+        )}
         <div className="min-w-0">
           <div className="flex items-center gap-2">
             <h1 className="truncate font-display text-[15px] font-semibold text-[var(--ink)] sm:text-[16px]">
@@ -109,13 +111,20 @@ export function Topbar({
             <span className="hidden 2xl:inline">{locale === "zh" ? "图谱" : "Graph"}</span>
           </Button>
         </div>
-        {viewMode === "graph" && (
-          <Tooltip content={t("topbar.fit")}>
-            <Button variant="ghost" size="icon" className="size-8" onClick={onFitView}>
-              <Maximize2 className="size-3.5" />
-            </Button>
-          </Tooltip>
-        )}
+        <div className="size-8 shrink-0">
+          {viewMode === "graph" && (
+            <Tooltip content={t("topbar.fit")}>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-8"
+                onClick={onFitView}
+              >
+                <Maximize2 className="size-3.5" />
+              </Button>
+            </Tooltip>
+          )}
+        </div>
         <Tooltip content={locale === "zh" ? "撤销上一步图谱修改" : "Undo last graph change"}>
           <Button
             variant="ghost"
@@ -127,17 +136,18 @@ export function Topbar({
             <Undo2 className="size-3.5" />
           </Button>
         </Tooltip>
-        <Tooltip content={locale === "zh" ? "学习工作台" : "Learning workspace"}>
+        <Tooltip content={locale === "zh" ? "工具" : "Tools"}>
           <Button
             variant="ghost"
             size="icon"
             className="size-8"
             onClick={onOpenTools}
-            aria-label={locale === "zh" ? "学习工作台" : "Learning workspace"}
+            aria-label={locale === "zh" ? "工具" : "Tools"}
           >
             <Wrench className="size-3.5" />
           </Button>
         </Tooltip>
+        <div className="size-8 shrink-0">
         {viewMode === "content" && <Tooltip
           content={
             inspectorOpen
@@ -154,6 +164,7 @@ export function Topbar({
             {inspectorOpen ? <PanelRightClose className="size-3.5" /> : <PanelRightOpen className="size-3.5" />}
           </Button>
         </Tooltip>}
+        </div>
       </div>
     </header>
   );

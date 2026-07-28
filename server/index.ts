@@ -14,6 +14,7 @@ import {
   type ProviderSettings,
   updateGraphSchema,
   updateNodeSchema,
+  updateGraphLayoutSchema,
 } from "../shared/types.js";
 import { APP_VERSION, DATABASE_SCHEMA_VERSION } from "../shared/version.js";
 import { GraphAgentRuntime } from "./agent-runtime.js";
@@ -166,6 +167,21 @@ app.post<{ Params: { id: string } }>(
   },
 );
 
+app.delete<{ Params: { id: string } }>(
+  "/api/archived-graphs/:id",
+  async (request, reply) => {
+    const graph = database.deleteArchivedGraph(request.params.id);
+    if (!graph) {
+      return reply.code(404).send({ message: "Archived graph not found" });
+    }
+    return graph;
+  },
+);
+
+app.delete("/api/archived-graphs", async () => ({
+  deleted: database.deleteAllArchivedGraphs(),
+}));
+
 app.get<{ Params: { id: string } }>("/api/graphs/:id", async (request, reply) => {
   const graph = database.getGraph(request.params.id);
   if (!graph) return reply.code(404).send({ message: "Graph not found" });
@@ -260,6 +276,27 @@ app.patch<{ Params: { id: string } }>("/api/nodes/:id", async (request, reply) =
   const node = database.updateNode(request.params.id, parsed.data);
   if (!node) return reply.code(404).send({ message: "Node not found" });
   return node;
+});
+
+app.put<{ Params: { id: string } }>("/api/graphs/:id/layout", async (request, reply) => {
+  const parsed = updateGraphLayoutSchema.safeParse(request.body);
+  if (!parsed.success) {
+    return reply
+      .code(400)
+      .send({ message: "Invalid graph layout", issues: parsed.error.issues });
+  }
+  try {
+    const nodes = database.updateGraphLayout(request.params.id, parsed.data);
+    if (!nodes) return reply.code(404).send({ message: "Graph not found" });
+    return { nodes };
+  } catch (error) {
+    if (error instanceof Error && error.message === "LAYOUT_NODE_MISMATCH") {
+      return reply
+        .code(400)
+        .send({ message: "Layout contains a node outside this graph" });
+    }
+    throw error;
+  }
 });
 
 app.post<{ Params: { id: string } }>("/api/nodes/:id/suggest-metadata", async (request, reply) => {

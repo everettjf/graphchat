@@ -1,5 +1,16 @@
 import { Handle, Position, type NodeProps } from "@xyflow/react";
-import { BookOpen, Check, GitBranch, Lightbulb, LoaderCircle, Merge, MessageCircleQuestion, StickyNote } from "lucide-react";
+import {
+  ArrowDown,
+  BookOpen,
+  Cpu,
+  GitBranch,
+  Lightbulb,
+  LoaderCircle,
+  Merge,
+  MessageCircleQuestion,
+  Sparkles,
+  StickyNote,
+} from "lucide-react";
 import type { GraphNode } from "@shared/types";
 import { cn } from "@/lib/utils";
 import { useI18n, type TranslationKey } from "@/i18n";
@@ -8,6 +19,7 @@ export type GraphNodeData = {
   node: GraphNode;
   dimmed: boolean;
   referenced: boolean;
+  relationKind: "branch" | "continuation" | null;
   [key: string]: unknown;
 };
 
@@ -21,9 +33,15 @@ const kindMeta = {
 
 export function GraphNodeCard({ data, selected }: NodeProps) {
   const { t } = useI18n();
-  const { node, dimmed, referenced } = data as GraphNodeData;
+  const { node, dimmed, referenced, relationKind } = data as GraphNodeData;
   const meta = kindMeta[node.kind];
   const Icon = meta.icon;
+  const RelationIcon =
+    relationKind === "branch"
+      ? GitBranch
+      : relationKind === "continuation"
+        ? ArrowDown
+        : Sparkles;
   const isStreaming = node.status === "streaming";
   const isCancelled = node.status === "cancelled";
   const isError = node.status === "error";
@@ -31,15 +49,15 @@ export function GraphNodeCard({ data, selected }: NodeProps) {
     <article
       data-testid={`graph-node-${node.id}`}
       className={cn(
-        "graph-node group relative w-[282px] rounded-[20px] border bg-white/92 p-4 shadow-[0_12px_35px_rgba(44,48,42,0.08)] backdrop-blur transition duration-200",
+        "graph-node group relative w-[304px] overflow-hidden rounded-[18px] border bg-white/94 p-3.5 shadow-[0_10px_28px_rgba(44,48,42,0.075)] backdrop-blur transition duration-200",
         `node-${meta.color}`,
         selected && "is-selected",
         referenced && "is-referenced",
         dimmed && "opacity-25 grayscale",
       )}
     >
-      <Handle type="target" position={Position.Left} className="graph-handle" />
-      <div className="mb-3 flex items-start justify-between gap-3">
+      <Handle type="target" position={Position.Top} className="graph-handle" />
+      <div className="mb-2.5 flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <span className="node-kind-icon">
             <Icon className="size-3.5" />
@@ -57,20 +75,36 @@ export function GraphNodeCard({ data, selected }: NodeProps) {
             {isCancelled ? t("node.cancelled") : t("node.failed")}
           </span>
         ) : (
-          <Check className="size-3.5 text-[#8fb59e] opacity-0 transition group-hover:opacity-100" />
+          <span
+            className={cn(
+              "flex h-5 items-center gap-1 rounded-md px-1.5 text-[8px] font-semibold",
+              relationKind === "branch"
+                ? "bg-[#e5f0e8] text-[#4c795a]"
+                : relationKind === "continuation"
+                  ? "bg-[#edf0ed] text-[#68736c]"
+                  : "bg-[#f0ede6] text-[#777168]",
+            )}
+          >
+            <RelationIcon className="size-2.5" />
+            {relationKind === "branch"
+              ? t("edge.branch")
+              : relationKind === "continuation"
+                ? t("edge.continue")
+                : t("relation.start")}
+          </span>
         )}
       </div>
-      <h3 className="mb-2 line-clamp-2 font-display text-[16px] font-semibold leading-5 text-[var(--ink)]">
+      <h3 className="mb-1.5 line-clamp-2 font-display text-[15px] font-semibold leading-[19px] text-[var(--ink)]">
         {node.title}
       </h3>
-      <p className="line-clamp-3 min-h-[54px] text-xs leading-[18px] text-[var(--muted)]">
+      <p className="line-clamp-3 min-h-12 text-[11px] leading-4 text-[var(--muted)]">
         {node.summary ||
           node.content ||
           (isCancelled ? t("node.cancelledBody") : t("node.waiting"))}
       </p>
-      <div className="mt-3 flex items-center justify-between border-t border-black/[0.055] pt-3">
+      <div className="mt-2.5 flex items-center justify-between border-t border-black/[0.055] pt-2.5">
         <span className="flex items-center gap-1 text-[10px] text-[var(--muted-light)]">
-          <GitBranch className="size-3" />
+          <Cpu className="size-3" />
           {node.model || t("node.manualNote")}
         </span>
         {referenced && (
@@ -79,7 +113,7 @@ export function GraphNodeCard({ data, selected }: NodeProps) {
           </span>
         )}
       </div>
-      <Handle type="source" position={Position.Right} className="graph-handle" />
+      <Handle type="source" position={Position.Bottom} className="graph-handle" />
     </article>
   );
 }

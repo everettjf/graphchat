@@ -230,6 +230,16 @@ export default function App() {
     setGraphs((current) => [restored, ...current]);
   }, []);
 
+  const deleteArchivedGraph = useCallback(async (id: string) => {
+    await api.deleteArchivedGraph(id);
+    setArchivedGraphs((current) => current.filter((graph) => graph.id !== id));
+  }, []);
+
+  const deleteAllArchivedGraphs = useCallback(async () => {
+    await api.deleteAllArchivedGraphs();
+    setArchivedGraphs([]);
+  }, []);
+
   const selectedNode = useMemo(
     () => document?.nodes.find((node) => node.id === selectedNodeId) ?? null,
     [document, selectedNodeId],
@@ -384,6 +394,8 @@ export default function App() {
         onUpdateGraph={updateGraph}
         onArchiveGraph={archiveGraph}
         onRestoreGraph={restoreGraph}
+        onDeleteArchivedGraph={deleteArchivedGraph}
+        onDeleteAllArchivedGraphs={deleteAllArchivedGraphs}
       />
       <div className="flex min-w-0 flex-1 flex-col">
         <Topbar
@@ -410,9 +422,10 @@ export default function App() {
             <GraphCanvas
               document={document}
               setDocument={setDocument}
-              onFlowReady={(instance) => {
-                flowRef.current = instance;
-              }}
+          onFlowReady={(instance) => {
+            flowRef.current = instance;
+          }}
+          onError={setToast}
               onNodeOpen={() => setViewMode("content")}
             />
           ) : viewMode === "tree" ? (

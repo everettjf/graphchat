@@ -19,6 +19,12 @@ import { GraphNodeCard, type GraphNodeData } from "./graph-node-card";
 import { useWorkspace } from "@/store/workspace";
 import { api } from "@/lib/api";
 import { useI18n } from "@/i18n";
+import {
+  GRAPH_NODE_WIDTH,
+  GRAPH_ROW_GAP,
+  getGraphDepth,
+  layoutGraphNodes,
+} from "@/lib/graph-layout";
 
 const nodeTypes = { graphNode: GraphNodeCard };
 
@@ -27,6 +33,7 @@ type GraphCanvasProps = {
   setDocument: (updater: (document: GraphDocument) => GraphDocument) => void;
   onFlowReady?: (instance: GraphFlowInstance) => void;
   onNodeOpen?: (nodeId: string) => void;
+  onError?: (message: string) => void;
 };
 
 export type GraphFlowInstance = ReactFlowInstance<Node<GraphNodeData>, Edge>;
@@ -36,6 +43,7 @@ export function GraphCanvas({
   setDocument,
   onFlowReady,
   onNodeOpen,
+  onError,
 }: GraphCanvasProps) {
   const { t } = useI18n();
   const selectedNodeId = useWorkspace((state) => state.selectedNodeId);
@@ -73,6 +81,11 @@ export function GraphCanvas({
             : node.kind === "summary"
               ? t("node.summary")
               : t("node.answer");
+        const incomingRelation = document.edges.find(
+          (edge) =>
+            edge.target === node.id &&
+            (edge.kind === "branch" || edge.kind === "continuation"),
+        );
         const haystack =
           `${node.title} ${node.prompt} ${node.content} ${node.summary} ${node.kind} ${kindLabel}`.toLocaleLowerCase();
         return {
@@ -84,10 +97,15 @@ export function GraphCanvas({
             node,
             dimmed: Boolean(search) && !haystack.includes(search),
             referenced: referenceNodeIds.includes(node.id),
+            relationKind:
+              incomingRelation?.kind === "branch" ||
+              incomingRelation?.kind === "continuation"
+                ? incomingRelation.kind
+                : null,
           },
         };
       }),
-    [document.nodes, hiddenNodeIds, referenceNodeIds, search, selectedNodeId, t],
+    [document.edges, document.nodes, hiddenNodeIds, referenceNodeIds, search, selectedNodeId, t],
   );
   const [nodes, setNodes] = useState(projectedNodes);
 
@@ -110,28 +128,41 @@ export function GraphCanvas({
         source: edge.source,
         target: edge.target,
         label:
-          edge.kind === "continuation"
-            ? "Continue"
-            : edge.kind === "branch"
-              ? "Branch"
-              : edge.kind === "reference"
-                ? "Reference"
-                : edge.kind === "supports"
-                  ? "Supports"
-                  : "Contradicts",
+          edge.kind === "reference"
+            ? "Reference"
+            : edge.kind === "supports"
+              ? "Supports"
+              : edge.kind === "contradicts"
+                ? "Contradicts"
+                : undefined,
         type: edge.kind === "reference" ? "bezier" : "smoothstep",
         animated:
           document.nodes.find((node) => node.id === edge.target)?.status === "streaming",
         markerEnd: {
           type: MarkerType.ArrowClosed,
-          width: 13,
-          height: 13,
-          color: edge.kind === "reference" ? "#a69ac2" : "#9cab9f",
+          width: 12,
+          height: 12,
+          color:
+            edge.kind === "reference"
+              ? "#a69ac2"
+              : edge.kind === "continuation"
+                ? "#aab5ae"
+                : "#89a993",
         },
         style: {
-          stroke: edge.kind === "reference" ? "#a69ac2" : "#aeb8ad",
-          strokeWidth: edge.kind === "reference" ? 1.4 : 1.6,
-          strokeDasharray: edge.kind === "reference" ? "5 5" : undefined,
+          stroke:
+            edge.kind === "reference"
+              ? "#a69ac2"
+              : edge.kind === "continuation"
+                ? "#aab5ae"
+                : "#91aa99",
+          strokeWidth: edge.kind === "reference" ? 1.35 : 1.55,
+          strokeDasharray:
+            edge.kind === "reference"
+              ? "5 5"
+              : edge.kind === "continuation"
+                ? "7 5"
+                : undefined,
         },
         labelStyle: {
           fill: edge.kind === "reference" ? "#786d8f" : "#737c74",
@@ -176,12 +207,41 @@ export function GraphCanvas({
     void api.updateNode(flowNode.id, { x: flowNode.position.x, y: flowNode.position.y });
   }, []);
 
+  const applyAutomaticLayout = useCallback(async () => {
+    const previousNodes = document.nodes;
+    const nextNodes = layoutGraphNodes(document.nodes, document.edges);
+    setDocument((current) => ({ ...current, nodes: nextNodes }));
+    try {
+      await api.updateGraphLayout(document.graph.id, {
+        positions: nextNodes.map((node) => ({
+          id: node.id,
+          x: node.x,
+          y: node.y,
+        })),
+      });
+      const top = Math.min(...nextNodes.map((node) => node.y));
+      const readableWindow =
+        nextNodes.length > 6
+          ? nextNodes.filter((node) => node.y <= top + 720)
+          : nextNodes;
+      await flowRef.current?.fitView({
+        nodes: readableWindow.map((node) => ({ id: node.id })),
+        padding: 0.22,
+        duration: 450,
+        maxZoom: 0.95,
+      });
+    } catch {
+      setDocument((current) => ({ ...current, nodes: previousNodes }));
+      onError?.(t("graph.layoutFailed"));
+    }
+  }, [document.edges, document.graph.id, document.nodes, onError, setDocument, t]);
+
   return (
     <div className="relative h-full w-full" data-testid="graph-canvas">
-      <div className="absolute left-4 top-4 z-10 flex gap-2">
+      <div className="absolute left-4 top-4 z-10 flex gap-0 overflow-hidden rounded-xl border border-[var(--border)] bg-white/88 shadow-sm backdrop-blur">
         <button
           type="button"
-          className="flex h-8 items-center gap-1.5 rounded-lg border border-[var(--border)] bg-white/85 px-2.5 text-[10px] font-medium text-[var(--muted)] shadow-sm"
+          className="flex h-8 items-center gap-1.5 border-r border-[var(--border)] px-2.5 text-[10px] font-medium text-[var(--muted)] hover:bg-black/[0.035]"
           onClick={() => {
             if (!selectedNodeId) return;
             setCollapsedRoots((current) => {
@@ -195,11 +255,13 @@ export function GraphCanvas({
           title={t("topbar.fit")}
         >
           <Network className="size-3" />
-          {collapsedRoots.has(selectedNodeId || "") ? "Expand" : "Collapse"}
+          {collapsedRoots.has(selectedNodeId || "")
+            ? t("graph.expand")
+            : t("graph.collapse")}
         </button>
         <button
           type="button"
-          className="flex h-8 items-center gap-1.5 rounded-lg border border-[var(--border)] bg-white/85 px-2.5 text-[10px] font-medium text-[var(--muted)] shadow-sm"
+          className="flex h-8 items-center gap-1.5 border-r border-[var(--border)] px-2.5 text-[10px] font-medium text-[var(--muted)] hover:bg-black/[0.035]"
           onClick={() => {
             if (!selectedNodeId) return;
             void flowRef.current?.fitView({
@@ -211,52 +273,14 @@ export function GraphCanvas({
           }}
           disabled={!selectedNodeId}
         >
-          <Focus className="size-3" /> Focus
+          <Focus className="size-3" /> {t("graph.focus")}
         </button>
         <button
           type="button"
-          className="flex h-8 items-center gap-1.5 rounded-lg border border-[var(--border)] bg-white/85 px-2.5 text-[10px] font-medium text-[var(--muted)] shadow-sm"
-          onClick={() => {
-            const incoming = new Set(
-              document.edges
-                .filter(
-                  (edge) =>
-                    edge.kind === "branch" || edge.kind === "continuation",
-                )
-                .map((edge) => edge.target),
-            );
-            const roots = document.nodes.filter((node) => !incoming.has(node.id));
-            const children = new Map<string, string[]>();
-            for (const edge of document.edges) {
-              if (edge.kind !== "branch" && edge.kind !== "continuation") continue;
-              children.set(edge.source, [...(children.get(edge.source) || []), edge.target]);
-            }
-            const positions = new Map<string, { x: number; y: number }>();
-            const queue = roots.map((node, index) => ({ id: node.id, depth: 0, lane: index }));
-            const depthCounts = new Map<number, number>();
-            while (queue.length) {
-              const current = queue.shift()!;
-              const order = depthCounts.get(current.depth) || 0;
-              depthCounts.set(current.depth, order + 1);
-              positions.set(current.id, {
-                x: 80 + current.depth * 460,
-                y: 60 + order * 300,
-              });
-              for (const child of children.get(current.id) || []) {
-                queue.push({ id: child, depth: current.depth + 1, lane: order });
-              }
-            }
-            const nextNodes = document.nodes.map((node) => ({
-              ...node,
-              ...(positions.get(node.id) || {}),
-            }));
-            setDocument((current) => ({ ...current, nodes: nextNodes }));
-            void Promise.all(
-              nextNodes.map((node) => api.updateNode(node.id, { x: node.x, y: node.y })),
-            ).then(() => flowRef.current?.fitView({ padding: 0.28, duration: 450 }));
-          }}
+          className="flex h-8 items-center gap-1.5 px-2.5 text-[10px] font-medium text-[var(--muted)] hover:bg-black/[0.035]"
+          onClick={() => void applyAutomaticLayout()}
         >
-          <LayoutGrid className="size-3" /> Layout
+          <LayoutGrid className="size-3" /> {t("graph.layout")}
         </button>
       </div>
       <ReactFlow
@@ -281,11 +305,49 @@ export function GraphCanvas({
         onInit={(instance) => {
           flowRef.current = instance;
           onFlowReady?.(instance);
+          const incoming = new Set(
+            document.edges
+              .filter(
+                (edge) =>
+                  edge.kind === "branch" || edge.kind === "continuation",
+              )
+              .map((edge) => edge.target),
+          );
+          const root =
+            document.nodes.find((node) => !incoming.has(node.id)) ||
+            document.nodes[0];
+          const selected =
+            document.nodes.find((node) => node.id === selectedNodeId) || root;
+          const graphDepth = getGraphDepth(document.nodes, document.edges);
+          if (
+            document.nodes.length > 1 &&
+            document.nodes.length <= 24 &&
+            graphDepth <= 3
+          ) {
+            window.requestAnimationFrame(() =>
+              instance.fitView({
+                padding: 0.24,
+                maxZoom: 1,
+              }),
+            );
+          } else if (selected) {
+            const centerY =
+              !incoming.has(selected.id) && document.nodes.length > 6
+                ? selected.y + GRAPH_ROW_GAP * 2
+                : selected.y + 80;
+            window.requestAnimationFrame(() =>
+              instance.setCenter(
+                selected.x + GRAPH_NODE_WIDTH / 2,
+                centerY,
+                { zoom: 0.84 },
+              ),
+            );
+          }
         }}
-        minZoom={0.35}
+        minZoom={0.25}
         maxZoom={1.65}
-        defaultViewport={{ x: 70, y: 70, zoom: 0.76 }}
-        fitViewOptions={{ padding: 0.18 }}
+        defaultViewport={{ x: 70, y: 70, zoom: 0.82 }}
+        fitViewOptions={{ padding: 0.22, maxZoom: 1 }}
         deleteKeyCode={null}
         selectionKeyCode="Shift"
         multiSelectionKeyCode="Shift"

@@ -15,6 +15,7 @@ import type {
   StudyCard,
   UpdateGraphInput,
   UpdateNodeInput,
+  UpdateGraphLayoutInput,
 } from "@shared/types";
 import { APP_VERSION } from "@shared/version";
 
@@ -65,6 +66,14 @@ export const api = {
     fetch(`/api/graphs/${id}/restore`, { method: "POST" }).then((response) =>
       parseResponse<GraphMeta>(response),
     ),
+  deleteArchivedGraph: (id: string) =>
+    fetch(`/api/archived-graphs/${id}`, { method: "DELETE" }).then((response) =>
+      parseResponse<GraphMeta>(response),
+    ),
+  deleteAllArchivedGraphs: () =>
+    fetch("/api/archived-graphs", { method: "DELETE" }).then((response) =>
+      parseResponse<{ deleted: number }>(response),
+    ),
   updateNode: (id: string, input: UpdateNodeInput) =>
     fetch(`/api/nodes/${id}`, {
       method: "PATCH",
@@ -106,6 +115,12 @@ export const api = {
     }).then((response) => {
       if (!response.ok) throw new Error("Unable to record graph activity.");
     }),
+  updateGraphLayout: (id: string, input: UpdateGraphLayoutInput) =>
+    fetch(`/api/graphs/${id}/layout`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+    }).then((response) => parseResponse<{ nodes: GraphNode[] }>(response)),
   validationReport: () =>
     fetch("/api/validation/export.json", { cache: "no-store" }).then((response) =>
       parseResponse<ProductValidationReport>(response),

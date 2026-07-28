@@ -63,8 +63,10 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "test:providers": "node scripts/provider-smoke.mjs",
+    "test:seed-realistic": "node scripts/seed-realistic-learning-data.mjs",
     "test:site": "node scripts/validate-site.mjs",
-    "test:all": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.server.json --noEmit && vitest run && node scripts/validate-site.mjs && vite build && tsc -p tsconfig.server.json && playwright test"
+    "test:all": "npm run release:validate && tsc -p tsconfig.json --noEmit && tsc -p tsconfig.server.json --noEmit && vitest run && node scripts/validate-site.mjs && vite build && tsc -p tsconfig.server.json && playwright test",
+    "verify": "npm run release:validate && npm audit --omit=dev --audit-level=moderate && npm run test:all"
   },
   "dependencies": {
     "@earendil-works/pi-agent-core": "0.82.1",
@@ -79,7 +81,7 @@
     "clsx": "^2.1.1",
     "fastify": "^5.6.1",
     "lucide-react": "^0.548.0",
-    "mermaid": "^11.12.0",
+    "mermaid": "^11.16.0",
     "nanoid": "^5.1.6",
     "pdfjs-dist": "^6.1.200",
     "react": "^19.2.0",
@@ -87,7 +89,7 @@
     "react-markdown": "^10.1.0",
     "remark-gfm": "^4.0.1",
     "tailwind-merge": "^3.3.1",
-    "undici": "^7.16.0",
+    "undici": "^8.9.0",
     "zod": "^4.1.12",
     "zustand": "^5.0.8"
   },

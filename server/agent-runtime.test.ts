@@ -127,7 +127,8 @@ describe("GraphAgentRuntime", () => {
       if (event.type === "run_finished") finished = event;
     }
     expect(finished?.node.content).toContain("Put the branches on one map");
-    expect(finished?.node.content).toContain("Back to the main thread");
+    expect(finished?.node.content).not.toContain("Back to the main thread");
+    expect(finished?.node.summary).toBeTruthy();
     database.close();
   });
 

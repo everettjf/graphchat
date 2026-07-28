@@ -22,6 +22,7 @@ import { useWorkspace } from "@/store/workspace";
 import { cn, formatRelativeTime } from "@/lib/utils";
 import { useI18n } from "@/i18n";
 import { api } from "@/lib/api";
+import { stripTrailingMainThreadSection } from "@shared/answer-content";
 
 export function Inspector({
   node,
@@ -54,6 +55,7 @@ export function Inspector({
   const incoming = document.edges.filter((edge) => edge.target === node.id);
   const outgoing = document.edges.filter((edge) => edge.source === node.id);
   const isReferenced = referenceNodeIds.includes(node.id);
+  const conversationContent = stripTrailingMainThreadSection(node.content);
 
   const captureSelection = () => {
     const selection = window.getSelection()?.toString().trim();
@@ -70,7 +72,7 @@ export function Inspector({
       )}
       data-testid="node-inspector"
     >
-      <header className="flex h-16 shrink-0 items-center justify-between border-b border-[var(--border)] px-5">
+      <header className="flex h-14 shrink-0 items-center justify-between border-b border-[var(--border)] px-5">
         <div className="flex items-center gap-2">
           {!embedded && (
             <Button
@@ -92,7 +94,7 @@ export function Inspector({
             variant="ghost"
             size="icon"
             className="size-8"
-            onClick={() => void navigator.clipboard.writeText(node.content)}
+            onClick={() => void navigator.clipboard.writeText(conversationContent)}
             aria-label={t("inspector.copy")}
           >
             <Copy className="size-3.5" />
@@ -198,7 +200,7 @@ export function Inspector({
               {t("inspector.cancelledBody")}
             </p>
           ) : (
-            <Markdown>{node.content}</Markdown>
+            <Markdown>{conversationContent}</Markdown>
           )}
         </div>
 
