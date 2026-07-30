@@ -100,7 +100,7 @@ export function Sidebar({
       )}
       <aside
         className={cn(
-          "sidebar-shell z-40 flex h-full shrink-0 flex-col overflow-hidden bg-[#f1efe8]/95 py-3 backdrop-blur-xl max-lg:fixed max-lg:inset-y-0 max-lg:left-0 max-lg:shadow-2xl",
+          "sidebar-shell z-40 flex h-full shrink-0 flex-col overflow-hidden bg-[var(--paper)]/95 py-3 backdrop-blur-xl max-lg:fixed max-lg:inset-y-0 max-lg:left-0 max-lg:shadow-[var(--shadow-lg)]",
           sidebarOpen
             ? "w-[252px] border-r border-[var(--border)] px-3.5 opacity-100"
             : "pointer-events-none w-0 -translate-x-full border-r-0 px-0 opacity-0",
@@ -129,7 +129,7 @@ export function Sidebar({
           onClick={() => void onNewThread()}
         >
           <Plus className="size-4" /> {t("sidebar.newStart")}
-          <span className="ml-auto rounded-md border border-black/10 px-1.5 py-0.5 text-[9px] opacity-60">
+          <span className="ml-auto rounded-md border border-current px-1.5 py-0.5 text-[9px] opacity-70">
             N
           </span>
         </Button>
@@ -139,7 +139,7 @@ export function Sidebar({
           <input
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            className="h-8 w-full rounded-lg border border-transparent bg-black/[0.035] pl-8 pr-3 text-[11px] text-[var(--ink)] outline-none transition placeholder:text-[var(--muted-light)] focus:border-[var(--border)] focus:bg-white/65"
+            className="h-8 w-full rounded-lg border border-transparent bg-[var(--hover)] pl-8 pr-3 text-[11px] text-[var(--ink)] outline-none transition placeholder:text-[var(--muted-light)] focus:border-[var(--accent)] focus:bg-[var(--surface)] focus:ring-2 focus:ring-[var(--accent-ring)]"
             placeholder={t("sidebar.searchPlaceholder")}
             aria-label={t("sidebar.searchLabel")}
           />
@@ -168,13 +168,13 @@ export function Sidebar({
           <div className="mb-2 flex items-center justify-between px-2">
             <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--muted-light)]">
               {t("sidebar.graphs")}
-              <span className="rounded-md bg-black/[0.04] px-1.5 py-0.5 text-[8px] font-medium tracking-normal">
+              <span className="rounded-md bg-[var(--hover)] px-1.5 py-0.5 text-[8px] font-medium tracking-normal">
                 {graphs.length}
               </span>
             </span>
             <button
               type="button"
-              className="grid size-6 place-items-center rounded-md text-[var(--muted-light)] hover:bg-black/5 hover:text-[var(--ink)]"
+              className="grid size-6 place-items-center rounded-md text-[var(--muted-light)] hover:bg-[var(--hover)] hover:text-[var(--ink)]"
               aria-label={t("graph.new")}
               onClick={() => {
                 setEditingGraph(null);
@@ -184,13 +184,13 @@ export function Sidebar({
               <Plus className="size-3.5" />
             </button>
           </div>
-          <div className="overflow-hidden rounded-xl border border-black/[0.055] bg-white/30">
+          <div className="overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-xs)]">
           {graphs.map((graph) => (
             <div
               key={graph.id}
               className={cn(
-                "group relative flex h-9 items-center border-b border-black/[0.045] transition last:border-b-0 hover:bg-white/70",
-                graph.id === activeGraphId && "bg-white/90",
+                "group relative flex h-9 items-center border-b border-[var(--border)] transition last:border-b-0 hover:bg-[var(--hover)]",
+                graph.id === activeGraphId && "bg-[var(--paper-deep)]",
               )}
               onContextMenu={(event) => {
                 event.preventDefault();
@@ -203,7 +203,7 @@ export function Sidebar({
               }}
             >
               {graph.id === activeGraphId && (
-                <span className="absolute inset-y-1.5 left-0 w-0.5 rounded-r-full bg-[#6ba17d]" />
+                <span className="absolute inset-y-1.5 left-0 w-0.5 rounded-r-sm bg-[var(--accent)]" />
               )}
               <button
                 className="min-w-0 flex-1 px-3 text-left"
@@ -223,7 +223,7 @@ export function Sidebar({
               </button>
               <button
                 type="button"
-                className="mr-1.5 grid size-6 shrink-0 place-items-center rounded-md text-[var(--muted-light)] opacity-0 transition hover:bg-black/5 hover:text-[var(--ink)] group-hover:opacity-100 focus:opacity-100"
+                className="mr-1.5 grid size-6 shrink-0 place-items-center rounded-md text-[var(--muted-light)] opacity-0 transition hover:bg-[var(--hover)] hover:text-[var(--ink)] group-hover:opacity-100 focus:opacity-100"
                 aria-label={`${t("graph.edit")}: ${graph.title}`}
                 onClick={(event) => {
                   event.stopPropagation();
@@ -244,11 +244,11 @@ export function Sidebar({
           <div className="mb-1 mt-3 px-2 text-[9px] font-bold uppercase tracking-[0.16em] text-[var(--muted-light)]">
             {t("sidebar.recent")}
           </div>
-          <div className="overflow-hidden rounded-lg bg-black/[0.018]">
+          <div className="overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-xs)]">
             {recentNodes.map((node) => (
               <button
                 key={node.id}
-                className="group h-8 w-full border-b border-black/[0.035] px-2.5 text-left last:border-b-0 hover:bg-white/60"
+                className="group h-8 w-full border-b border-[var(--border)] px-2.5 text-left last:border-b-0 hover:bg-[var(--hover)]"
                 onClick={() => {
                   selectNode(node.id);
                   closeOnNarrowScreen();
@@ -266,7 +266,7 @@ export function Sidebar({
         </section>
 
         <div className="mt-2 space-y-0.5 border-t border-[var(--border)] pt-2">
-          <label className="group flex h-9 items-center gap-2.5 rounded-lg px-2.5 text-[10px] font-medium text-[var(--muted)] transition hover:bg-black/[0.035]">
+          <label className="group flex h-9 items-center gap-2.5 rounded-lg px-2.5 text-[10px] font-medium text-[var(--muted)] transition hover:bg-[var(--hover)]">
             <Globe2 className="size-3.5 shrink-0" />
             <span className="sr-only">{t("language.label")}</span>
             <select
@@ -286,12 +286,12 @@ export function Sidebar({
           {archivedGraphs.length > 0 && (
             <button
               type="button"
-              className="flex h-8 w-full items-center gap-2.5 rounded-lg px-2.5 text-[10px] font-medium text-[var(--muted)] hover:bg-black/[0.035] hover:text-[var(--ink)]"
+              className="flex h-8 w-full items-center gap-2.5 rounded-lg px-2.5 text-[10px] font-medium text-[var(--muted)] hover:bg-[var(--hover)] hover:text-[var(--ink)]"
               onClick={() => setArchiveDialogOpen(true)}
             >
               <Archive className="size-3.5" />
               <span>{t("sidebar.archivedThreads")}</span>
-              <span className="ml-auto rounded-md bg-black/[0.045] px-1.5 py-0.5 text-[8px] text-[var(--muted-light)]">
+              <span className="ml-auto rounded-md bg-[var(--hover)] px-1.5 py-0.5 text-[8px] text-[var(--muted-light)]">
                 {archivedGraphs.length}
               </span>
             </button>
@@ -299,17 +299,17 @@ export function Sidebar({
           <a
             href="/api/export"
             download
-            className="flex h-8 items-center gap-2.5 rounded-lg px-2.5 text-[10px] font-medium text-[var(--muted)] hover:bg-black/[0.035] hover:text-[var(--ink)]"
+            className="flex h-8 items-center gap-2.5 rounded-lg px-2.5 text-[10px] font-medium text-[var(--muted)] hover:bg-[var(--hover)] hover:text-[var(--ink)]"
           >
             <Download className="size-3.5" /> {t("sidebar.export")}
           </a>
           <button
             onClick={() => setSettingsOpen(true)}
-            className="flex h-8 w-full items-center gap-2.5 rounded-lg px-2.5 text-[10px] font-medium text-[var(--muted)] hover:bg-black/[0.035] hover:text-[var(--ink)]"
+            className="flex h-8 w-full items-center gap-2.5 rounded-lg px-2.5 text-[10px] font-medium text-[var(--muted)] hover:bg-[var(--hover)] hover:text-[var(--ink)]"
           >
             <Settings2 className="size-3.5" /> {t("sidebar.settings")}
           </button>
-          <div className="mt-1 flex h-8 items-center gap-2 rounded-lg bg-[#e4eee6]/70 px-2.5 text-[9px] text-[#4a7158]">
+          <div className="mt-1 flex h-8 items-center gap-2 rounded-lg bg-[var(--accent-soft)] px-2.5 text-[9px] text-[var(--accent-fg)]">
             <Sparkles className="size-3.5" />
             <span>{t("sidebar.localOnly")}</span>
             <CircleHelp className="ml-auto size-3" />
@@ -351,7 +351,7 @@ export function Sidebar({
             onClick={() => setContextMenu(null)}
           />
           <div
-            className="fixed z-[80] w-40 rounded-xl border border-[var(--border)] bg-[#fffefb] p-1.5 shadow-xl"
+            className="fixed z-[80] w-40 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-1.5 shadow-[var(--shadow-lg)]"
             style={{ left: contextMenu.x, top: contextMenu.y }}
             role="menu"
             aria-label={`Thread actions: ${contextMenu.graph.title}`}
@@ -359,7 +359,7 @@ export function Sidebar({
           <button
             type="button"
             role="menuitem"
-            className="flex h-8 w-full items-center gap-2 rounded-lg px-2.5 text-left text-[11px] text-[var(--ink)] hover:bg-black/[0.045]"
+            className="flex h-8 w-full items-center gap-2 rounded-lg px-2.5 text-left text-[11px] text-[var(--ink)] hover:bg-[var(--hover)]"
             onClick={() => {
               setEditingGraph(contextMenu.graph);
               setDialogOpen(true);
@@ -372,7 +372,7 @@ export function Sidebar({
             type="button"
             role="menuitem"
             disabled={graphs.length <= 1}
-            className="flex h-8 w-full items-center gap-2 rounded-lg px-2.5 text-left text-[11px] text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40"
+            className="flex h-8 w-full items-center gap-2 rounded-lg px-2.5 text-left text-[11px] text-[var(--danger)] hover:bg-[var(--danger-soft)] disabled:cursor-not-allowed disabled:opacity-40"
             onClick={() => {
               const graph = contextMenu.graph;
               setContextMenu(null);
@@ -501,12 +501,12 @@ function GraphDialog({
             />
           </div>
         </div>
-        {error && <p className="mt-3 text-xs text-red-600">{error}</p>}
+        {error && <p className="mt-3 text-xs text-[var(--danger)]">{error}</p>}
         <div className="mt-5 flex items-center gap-2">
           {graph && (
             <Button
-              variant="ghost"
-              className="mr-auto text-red-600 hover:text-red-700"
+              variant="danger"
+              className="mr-auto"
               disabled={!canArchive || busy}
               onClick={() => void archive()}
               title={!canArchive ? t("graph.lastActive") : undefined}
@@ -545,14 +545,14 @@ function SidebarItem({
       className={cn(
         "flex h-8 w-full items-center gap-2.5 rounded-lg px-3 text-[11px] font-medium transition",
         active
-          ? "bg-[var(--ink)] text-white shadow-sm"
-          : "text-[var(--muted)] hover:bg-black/[0.035] hover:text-[var(--ink)]",
+          ? "bg-[var(--ink)] text-[var(--accent-contrast)] shadow-[var(--shadow-xs)]"
+          : "text-[var(--muted)] hover:bg-[var(--hover)] hover:text-[var(--ink)]",
       )}
     >
       <Icon className="size-3.5" />
       {label}
       {badge !== undefined && (
-        <span className={cn("ml-auto text-[10px]", active ? "text-white/55" : "text-[var(--muted-light)]")}>
+        <span className={cn("ml-auto text-[10px]", active ? "text-[var(--accent-contrast)] opacity-60" : "text-[var(--muted-light)]")}>
           {badge}
         </span>
       )}

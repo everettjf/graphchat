@@ -6,14 +6,19 @@ import type {
 import { cn } from "@/lib/utils";
 
 export function Label(props: LabelHTMLAttributes<HTMLLabelElement>) {
-  return <label className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.12em] text-[var(--muted)]" {...props} />;
+  return (
+    <label
+      className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.1em] text-[var(--muted)]"
+      {...props}
+    />
+  );
 }
 
 export function Input({ className, ...props }: InputHTMLAttributes<HTMLInputElement>) {
   return (
     <input
       className={cn(
-        "h-11 w-full rounded-xl border border-[var(--border)] bg-white/75 px-3.5 text-sm text-[var(--ink)] outline-none transition placeholder:text-[#aaa99f] focus:border-[var(--accent)] focus:ring-3 focus:ring-[var(--accent)]/10",
+        "h-10 w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 text-sm text-[var(--ink)] shadow-[var(--shadow-xs)] outline-none transition placeholder:text-[var(--muted-light)] hover:border-[var(--border-strong)] focus:border-[var(--accent)] focus:ring-3 focus:ring-[var(--accent-ring)]",
         className,
       )}
       {...props}
@@ -28,7 +33,7 @@ export function Textarea({
   return (
     <textarea
       className={cn(
-        "w-full resize-none rounded-2xl border border-[var(--border)] bg-white/82 px-4 py-3 text-sm leading-6 text-[var(--ink)] outline-none transition placeholder:text-[#aaa99f] focus:border-[var(--accent)] focus:ring-3 focus:ring-[var(--accent)]/10",
+        "w-full resize-none rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3.5 py-3 text-sm leading-6 text-[var(--ink)] shadow-[var(--shadow-xs)] outline-none transition placeholder:text-[var(--muted-light)] hover:border-[var(--border-strong)] focus:border-[var(--accent)] focus:ring-3 focus:ring-[var(--accent-ring)]",
         className,
       )}
       {...props}

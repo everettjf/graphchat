@@ -16,17 +16,17 @@ export function DialogContent({
   const { t } = useI18n();
   return (
     <DialogPrimitive.Portal>
-      <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-[#17201c]/35 backdrop-blur-[3px] data-[state=open]:animate-in" />
+      <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-[#101418]/40 backdrop-blur-[2px] data-[state=open]:animate-in" />
       <DialogPrimitive.Content
         className={cn(
-          "fixed left-1/2 top-1/2 z-50 max-h-[88vh] w-[min(92vw,560px)] -translate-x-1/2 -translate-y-1/2 overflow-auto rounded-[24px] border border-white/80 bg-[var(--paper)] p-6 shadow-2xl shadow-black/20 outline-none",
+          "fixed left-1/2 top-1/2 z-50 max-h-[88vh] w-[min(92vw,560px)] -translate-x-1/2 -translate-y-1/2 overflow-auto rounded-2xl border border-[var(--border)] bg-[var(--paper)] p-6 shadow-[var(--shadow-lg)] outline-none",
           className,
         )}
         {...props}
       >
         {children}
         <DialogPrimitive.Close
-          className="absolute right-4 top-4 grid size-8 place-items-center rounded-full text-[var(--muted)] transition hover:bg-black/5 hover:text-[var(--ink)]"
+          className="absolute right-4 top-4 grid size-7 place-items-center rounded-md text-[var(--muted-light)] transition hover:bg-[var(--hover)] hover:text-[var(--ink)]"
           aria-label={t("dialog.close")}
         >
           <X className="size-4" />
@@ -41,11 +41,21 @@ export function DialogHeader(props: ComponentProps<"div">) {
 }
 
 export function DialogTitle(props: ComponentProps<typeof DialogPrimitive.Title>) {
-  return <DialogPrimitive.Title className="font-display text-2xl font-semibold text-[var(--ink)]" {...props} />;
+  return (
+    <DialogPrimitive.Title
+      className="font-display text-xl font-semibold text-[var(--ink)]"
+      {...props}
+    />
+  );
 }
 
 export function DialogDescription(
   props: ComponentProps<typeof DialogPrimitive.Description>,
 ) {
-  return <DialogPrimitive.Description className="text-sm leading-6 text-[var(--muted)]" {...props} />;
+  return (
+    <DialogPrimitive.Description
+      className="text-[13px] leading-6 text-[var(--muted)]"
+      {...props}
+    />
+  );
 }

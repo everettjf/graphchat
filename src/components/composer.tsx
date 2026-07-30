@@ -133,7 +133,7 @@ export function Composer({
     >
       <div
         className={cn(
-          "pointer-events-auto rounded-[22px] border border-white/90 bg-[#fffefb]/94 p-2 shadow-[0_18px_60px_rgba(40,45,39,0.16)] backdrop-blur-xl transition",
+          "pointer-events-auto rounded-2xl border border-[var(--border)] bg-[var(--surface)]/95 p-2 shadow-[var(--shadow-lg)] backdrop-blur-xl transition",
           composerOpen && "p-3",
         )}
         onClick={() => !composerOpen && openComposer()}
@@ -157,13 +157,13 @@ export function Composer({
               </span>
             )}
             {selectedNode && (
-              <div className="flex rounded-lg bg-black/[0.045] p-0.5">
+              <div className="flex rounded-lg bg-[var(--paper-deep)] p-0.5">
                 <button
                   type="button"
                   className={cn(
                     "flex h-6 items-center gap-1 rounded-md px-2 text-[9px] font-medium",
                     relationKind === "continuation"
-                      ? "bg-white text-[var(--ink)] shadow-sm"
+                      ? "bg-[var(--surface)] text-[var(--ink)] shadow-[var(--shadow-xs)]"
                       : "text-[var(--muted)]",
                   )}
                   onClick={() => setRelationKind("continuation")}
@@ -175,7 +175,7 @@ export function Composer({
                   className={cn(
                     "flex h-6 items-center gap-1 rounded-md px-2 text-[9px] font-medium",
                     relationKind === "branch"
-                      ? "bg-white text-[var(--ink)] shadow-sm"
+                      ? "bg-[var(--surface)] text-[var(--ink)] shadow-[var(--shadow-xs)]"
                       : "text-[var(--muted)]",
                   )}
                   onClick={() => setRelationKind("branch")}
@@ -185,7 +185,7 @@ export function Composer({
               </div>
             )}
             <button
-              className="ml-auto grid size-7 place-items-center rounded-lg text-[var(--muted-light)] hover:bg-black/5 hover:text-[var(--ink)]"
+              className="ml-auto grid size-7 place-items-center rounded-lg text-[var(--muted-light)] hover:bg-[var(--hover)] hover:text-[var(--ink)]"
               onClick={closeComposer}
               aria-label={t("composer.collapse")}
             >
@@ -209,7 +209,7 @@ export function Composer({
               }}
               rows={composerOpen ? 3 : 1}
               className={cn(
-                "block w-full resize-none bg-transparent px-3 py-2 text-sm leading-6 text-[var(--ink)] outline-none placeholder:text-[#a4a39b]",
+                "block w-full resize-none bg-transparent px-3 py-2 text-sm leading-6 text-[var(--ink)] outline-none placeholder:text-[var(--muted-light)]",
                 !composerOpen && "h-10 py-2.5",
               )}
               placeholder={
@@ -252,7 +252,7 @@ export function Composer({
             <Button
               size="icon"
               variant="outline"
-              className="mb-0.5 size-10 rounded-xl border-red-200 text-red-600"
+              className="mb-0.5 size-10 rounded-xl border-[var(--danger-border)] text-[var(--danger)] hover:border-[var(--danger-border)]"
               onClick={() => controllerRef.current?.abort()}
               aria-label={t("composer.stop")}
             >
@@ -273,7 +273,7 @@ export function Composer({
           )}
         </div>
         {isRunning && (
-          <div className="mx-3 mt-1 flex items-center gap-2 border-t border-black/[0.055] pt-2 text-[10px] text-[#4f795d]">
+          <div className="mx-3 mt-1 flex items-center gap-2 border-t border-[var(--border)] pt-2 text-[10px] text-[var(--accent-fg)]">
             <LoaderCircle className="size-3 animate-spin" />
             {activity}
           </div>
@@ -332,9 +332,9 @@ function ContextChip({
   return (
     <span
       className={cn(
-        "flex max-w-[230px] items-center gap-1.5 rounded-lg bg-black/[0.045] px-2 py-1 text-[9px] font-medium text-[var(--muted)]",
-        accent && "bg-[#eee9f6] text-[#6c5d84]",
-        quote && "bg-[#f7f0d9] text-[#776a46]",
+        "flex max-w-[230px] items-center gap-1.5 rounded-lg bg-[var(--paper-deep)] px-2 py-1 text-[9px] font-medium text-[var(--muted)]",
+        accent && "bg-[var(--ref-soft)] text-[var(--ref)]",
+        quote && "bg-[var(--paper-deep)] text-[var(--muted)]",
       )}
     >
       <Icon className="size-3 shrink-0" />
@@ -359,8 +359,8 @@ function ModeButton({
       className={cn(
         "flex h-7 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg px-2 text-[9px] font-semibold leading-none transition",
         active
-          ? "bg-[var(--ink)] text-white"
-          : "text-[var(--muted-light)] hover:bg-black/[0.04] hover:text-[var(--ink)]",
+          ? "bg-[var(--ink)] text-[var(--accent-contrast)]"
+          : "text-[var(--muted-light)] hover:bg-[var(--hover)] hover:text-[var(--ink)]",
       )}
       onClick={onClick}
       type="button"

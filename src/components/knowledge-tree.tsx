@@ -81,7 +81,7 @@ export function KnowledgeTree({
   return (
     <aside
       className={cn(
-        "z-20 flex h-full min-w-0 flex-1 flex-col bg-[#f6f4ed]/96",
+        "z-20 flex h-full min-w-0 flex-1 flex-col bg-[var(--surface)]",
         mode === "split" && "hidden border-l border-[var(--border)] md:flex",
       )}
       data-testid="knowledge-tree"
@@ -89,7 +89,7 @@ export function KnowledgeTree({
       <header className="flex h-14 shrink-0 items-center justify-between border-b border-[var(--border)] px-4">
         <div>
           <div className="flex items-center gap-2 text-xs font-semibold">
-            <Network className="size-4 text-[#5d8068]" />
+            <Network className="size-4 text-[var(--accent)]" />
             {locale.startsWith("zh") ? "知识树" : "Knowledge tree"}
           </div>
           <p className="mt-0.5 text-[9px] text-[var(--muted-light)]">
@@ -109,7 +109,7 @@ export function KnowledgeTree({
 
       <div className="min-h-0 flex-1 overflow-y-auto px-2.5 py-3">
         {entries.length === 0 ? (
-          <div className="m-2 rounded-2xl border border-dashed border-[var(--border)] p-5 text-center text-xs leading-5 text-[var(--muted)]">
+          <div className="m-2 rounded-xl border border-dashed border-[var(--border)] p-5 text-center text-xs leading-5 text-[var(--muted)]">
             {locale.startsWith("zh")
               ? "提出第一个问题后，这里会形成内容树。"
               : "Ask the first question to grow a content tree here."}
@@ -125,16 +125,16 @@ export function KnowledgeTree({
                   onNodeOpen?.(node.id);
                 }}
                 className={cn(
-                  "group flex h-7 w-full items-center gap-1.5 rounded-md py-0.5 pr-1.5 text-left transition hover:bg-black/[0.035]",
-                  selectedNodeId === node.id && "bg-white shadow-sm ring-1 ring-black/[0.05]",
+                  "group flex h-7 w-full items-center gap-1.5 rounded-md py-0.5 pr-1.5 text-left transition hover:bg-[var(--hover)]",
+                  selectedNodeId === node.id && "bg-[var(--accent-soft)] ring-1 ring-[var(--accent)]/20",
                 )}
                 style={{ paddingLeft: `${8 + Math.min(depth, 7) * 14}px` }}
                 data-testid={`tree-node-${node.id}`}
               >
                 <span
                   className={cn(
-                    "flex size-4 shrink-0 items-center justify-center rounded bg-[#e5eee7] text-[#50715a]",
-                    relationship === "branch" && "bg-[#eee9f6] text-[#76648d]",
+                    "flex size-4 shrink-0 items-center justify-center rounded bg-[var(--accent-soft)] text-[var(--accent-fg)]",
+                    relationship === "branch" && "bg-[var(--ref-soft)] text-[var(--ref)]",
                   )}
                   title={
                     relationship === "branch"

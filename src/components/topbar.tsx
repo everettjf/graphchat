@@ -1,11 +1,13 @@
 import {
   FileText,
   Maximize2,
+  Moon,
   Network,
   PanelLeftOpen,
   PanelRightClose,
   PanelRightOpen,
   Sparkles,
+  Sun,
   TreePine,
   Undo2,
   Wrench,
@@ -15,6 +17,7 @@ import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { Tooltip } from "./ui/tooltip";
 import { useWorkspace } from "@/store/workspace";
+import { toggleTheme, useTheme } from "@/lib/theme";
 import { useI18n } from "@/i18n";
 
 export function Topbar({
@@ -36,10 +39,11 @@ export function Topbar({
 }) {
   const { sidebarOpen, setSidebarOpen, inspectorOpen, setInspectorOpen } = useWorkspace();
   const setSettingsOpen = useWorkspace((state) => state.setSettingsOpen);
+  const theme = useTheme();
   const { locale, t } = useI18n();
 
   return (
-    <header className="topbar-shell z-10 flex h-14 shrink-0 items-center justify-between border-b border-[var(--border)] bg-[#f8f6f0]/86 px-4 backdrop-blur-xl sm:px-5">
+    <header className="topbar-shell z-10 flex h-14 shrink-0 items-center justify-between border-b border-[var(--border)] bg-[var(--surface)]/85 px-4 backdrop-blur-xl sm:px-5">
       <div className="flex min-w-0 items-center gap-3">
         {!sidebarOpen && (
           <Button
@@ -64,8 +68,8 @@ export function Topbar({
               aria-label={`${t("settings.chooseModel")}: ${settings.model}`}
               title={t("settings.chooseModel")}
             >
-              <Badge className="border-[#d5e3d8] bg-[#edf4ee] text-[#4c7358] transition group-hover:border-[#9bc5a7] group-hover:bg-[#e4f1e7]">
-                <span className="mr-1 size-1.5 rounded-full bg-[#69a47e] shadow-[0_0_0_3px_rgb(105_164_126_/_12%)]" />
+              <Badge className="border-[var(--accent)]/20 bg-[var(--accent-soft)] text-[var(--accent-fg)] transition group-hover:border-[var(--accent)]/35 group-hover:bg-[var(--hover-strong)]">
+                <span className="mr-1 size-1.5 rounded-full bg-[var(--accent)] shadow-[0_0_0_3px_var(--accent-ring)]" />
                 {settings.provider === "openai-codex"
                   ? `ChatGPT · ${settings.model}`
                   : settings.model}
@@ -80,13 +84,13 @@ export function Topbar({
 
       <div className="flex items-center gap-1">
         <div className="mr-2 hidden items-center gap-1.5 text-[10px] text-[var(--muted-light)] xl:flex">
-          <Sparkles className="size-3 text-[#78ad8b]" />
+          <Sparkles className="size-3 text-[var(--accent)]" />
           {t("topbar.stats", {
             nodes: document.nodes.length,
             edges: document.edges.length,
           })}
         </div>
-        <div className="flex rounded-lg border border-black/[0.06] bg-white/55 p-0.5">
+        <div className="flex rounded-lg border border-[var(--border)] bg-[var(--paper-deep)] p-0.5">
           <Button
             variant={viewMode === "content" ? "soft" : "ghost"}
             size="sm"
@@ -175,6 +179,28 @@ export function Topbar({
           </Button>
         </Tooltip>}
         </div>
+        <Tooltip
+          content={
+            theme === "dark"
+              ? locale.startsWith("zh") ? "切换到浅色模式" : "Switch to light mode"
+              : locale.startsWith("zh") ? "切换到深色模式" : "Switch to dark mode"
+          }
+        >
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-8"
+            onClick={toggleTheme}
+            aria-label={
+              theme === "dark"
+                ? locale.startsWith("zh") ? "切换到浅色模式" : "Switch to light mode"
+                : locale.startsWith("zh") ? "切换到深色模式" : "Switch to dark mode"
+            }
+            data-testid="theme-toggle"
+          >
+            {theme === "dark" ? <Sun className="size-3.5" /> : <Moon className="size-3.5" />}
+          </Button>
+        </Tooltip>
       </div>
     </header>
   );

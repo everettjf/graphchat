@@ -64,7 +64,7 @@ export function ArchivedGraphsDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             {t("sidebar.archivedThreads")}
-            <span className="rounded-md bg-black/[0.05] px-1.5 py-0.5 font-sans text-[10px] font-medium text-[var(--muted)]">
+            <span className="rounded-md bg-[var(--hover)] px-1.5 py-0.5 font-sans text-[10px] font-medium text-[var(--muted)]">
               {graphs.length}
             </span>
           </DialogTitle>
@@ -74,7 +74,7 @@ export function ArchivedGraphsDialog({
           <Button
             variant="ghost"
             size="sm"
-            className="h-8 px-2.5 text-[10px] text-red-600 hover:bg-red-50 hover:text-red-700"
+            className="h-8 px-2.5 text-[10px] text-[var(--danger)] hover:bg-[var(--danger-soft)] hover:text-[var(--danger)]"
             disabled={deletingAll || graphs.length === 0}
             onClick={async () => {
               if (
@@ -115,7 +115,7 @@ export function ArchivedGraphsDialog({
           {query && (
             <button
               type="button"
-              className="absolute right-2 top-1/2 grid size-6 -translate-y-1/2 place-items-center rounded-md text-[var(--muted-light)] hover:bg-black/5 hover:text-[var(--ink)]"
+              className="absolute right-2 top-1/2 grid size-6 -translate-y-1/2 place-items-center rounded-md text-[var(--muted-light)] hover:bg-[var(--hover)] hover:text-[var(--ink)]"
               onClick={() => setQuery("")}
               aria-label={t("archive.clearSearch")}
             >
@@ -135,7 +135,7 @@ export function ArchivedGraphsDialog({
           )}
         </div>
         {error && (
-          <p className="mt-2 rounded-lg bg-red-50 px-3 py-2 text-[10px] text-red-700">
+          <p className="mt-2 rounded-lg border border-[var(--danger-border)] bg-[var(--danger-soft)] px-3 py-2 text-[10px] text-[var(--danger)]">
             {error}
           </p>
         )}
@@ -144,9 +144,9 @@ export function ArchivedGraphsDialog({
             visibleGraphs.map((graph) => (
               <div
                 key={graph.id}
-                className="flex min-h-11 items-center gap-3 rounded-xl border border-transparent px-3 py-1.5 hover:border-[var(--border)] hover:bg-black/[0.025]"
+                className="flex min-h-11 items-center gap-3 rounded-xl border border-transparent px-3 py-1.5 hover:border-[var(--border)] hover:bg-[var(--hover)]"
               >
-                <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-black/[0.04] text-[var(--muted-light)]">
+                <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-[var(--hover)] text-[var(--muted-light)]">
                   <Archive className="size-3.5" />
                 </span>
                 <span className="min-w-0 flex-1">
@@ -193,7 +193,7 @@ export function ArchivedGraphsDialog({
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="size-7 shrink-0 text-[var(--muted-light)] hover:bg-red-50 hover:text-red-600"
+                  className="size-7 shrink-0 text-[var(--muted-light)] hover:bg-[var(--danger-soft)] hover:text-[var(--danger)]"
                   disabled={
                     deletingId === graph.id ||
                     restoringId === graph.id ||

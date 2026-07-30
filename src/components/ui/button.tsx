@@ -4,25 +4,26 @@ import type { ButtonHTMLAttributes } from "react";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-medium transition-all outline-none disabled:pointer-events-none disabled:opacity-45 focus-visible:ring-2 focus-visible:ring-[var(--accent)]/35 [&_svg]:shrink-0",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-medium transition-colors outline-none disabled:pointer-events-none disabled:opacity-45 focus-visible:ring-2 focus-visible:ring-[var(--accent-ring)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--paper)] [&_svg]:shrink-0",
   {
     variants: {
       variant: {
         default:
-          "bg-[var(--ink)] text-white shadow-sm hover:-translate-y-px hover:bg-[#1d2522]",
+          "bg-[var(--accent)] text-[var(--accent-contrast)] shadow-[var(--shadow-xs)] hover:bg-[var(--accent-strong)]",
         accent:
-          "bg-[var(--accent)] text-[#102019] shadow-sm shadow-emerald-900/10 hover:-translate-y-px hover:bg-[#71ba90]",
+          "bg-[var(--accent)] text-[var(--accent-contrast)] shadow-[var(--shadow-xs)] hover:bg-[var(--accent-strong)]",
         outline:
-          "border border-[var(--border)] bg-white/72 text-[var(--ink)] hover:border-[#b9b7ad] hover:bg-white",
-        ghost: "text-[var(--muted)] hover:bg-black/[0.045] hover:text-[var(--ink)]",
-        soft: "bg-[var(--accent-soft)] text-[#2d6547] hover:bg-[#d9ecdf]",
-        danger: "bg-red-50 text-red-700 hover:bg-red-100",
+          "border border-[var(--border-strong)] bg-[var(--surface)] text-[var(--ink)] shadow-[var(--shadow-xs)] hover:bg-[var(--hover)]",
+        ghost: "text-[var(--muted)] hover:bg-[var(--hover)] hover:text-[var(--ink)]",
+        soft: "bg-[var(--accent-soft)] text-[var(--accent-fg)] hover:bg-[var(--paper-deep)]",
+        danger:
+          "bg-[var(--danger-soft)] text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger-soft)_85%,var(--danger))]",
       },
       size: {
-        default: "h-10 px-4",
-        sm: "h-8 rounded-lg px-3 text-xs",
-        lg: "h-12 px-5",
-        icon: "size-9 p-0",
+        default: "h-9 px-4",
+        sm: "h-7 rounded-md px-2.5 text-xs",
+        lg: "h-11 px-5",
+        icon: "size-8 p-0",
       },
     },
     defaultVariants: { variant: "default", size: "default" },

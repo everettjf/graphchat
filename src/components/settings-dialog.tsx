@@ -201,10 +201,10 @@ export function SettingsDialog({
               <button
                 key={provider.id}
                 className={cn(
-                  "relative rounded-2xl border p-3 text-left transition",
+                  "relative rounded-xl border p-3 text-left transition",
                   active
-                    ? "border-[#7db28d] bg-[#edf5ef] ring-2 ring-[#7db28d]/10"
-                    : "border-[var(--border)] bg-white/55 hover:border-[#bfc1b9] hover:bg-white",
+                    ? "border-[var(--accent)] bg-[var(--accent-soft)] ring-2 ring-[var(--accent-ring)]"
+                    : "border-[var(--border)] bg-[var(--surface)] hover:border-[var(--border-strong)]",
                 )}
                 onClick={() =>
                   setDraft({
@@ -220,7 +220,7 @@ export function SettingsDialog({
                   })
                 }
               >
-                <Icon className={cn("mb-2 size-4", active ? "text-[#4b7c59]" : "text-[var(--muted-light)]")} />
+                <Icon className={cn("mb-2 size-4", active ? "text-[var(--accent)]" : "text-[var(--muted-light)]")} />
                 <span className="block text-[11px] font-semibold text-[var(--ink)]">
                   {provider.label
                     ? t(provider.label as TranslationKey)
@@ -235,7 +235,7 @@ export function SettingsDialog({
                 <span className="mt-1 hidden text-[9px] leading-4 text-[var(--muted-light)] sm:block">
                   {t(provider.description as TranslationKey)}
                 </span>
-                {active && <Check className="absolute right-2.5 top-2.5 size-3.5 text-[#4b7c59]" />}
+                {active && <Check className="absolute right-2.5 top-2.5 size-3.5 text-[var(--accent)]" />}
               </button>
             );
           })}
@@ -310,14 +310,14 @@ export function SettingsDialog({
           )}
         </div>
 
-        <div className="mt-5 rounded-2xl border border-[#d8e6db] bg-[#eff5f0] p-4 text-xs leading-5 text-[#496652]">
-          <strong className="mb-1 flex items-center gap-1.5 text-[11px] text-[#36513e]">
+        <div className="mt-5 rounded-xl border border-[var(--border)] bg-[var(--accent-soft)] p-4 text-xs leading-5 text-[var(--accent-fg)]">
+          <strong className="mb-1 flex items-center gap-1.5 text-[11px] text-[var(--accent-fg)]">
             <ShieldCheck className="size-3.5" /> {t("settings.localFirst")}
           </strong>
           {t("settings.localFirstBody")}
         </div>
 
-        {error && <p className="mt-3 text-xs text-red-600">{error}</p>}
+        {error && <p className="mt-3 text-xs text-[var(--danger)]">{error}</p>}
         <div className="mt-5 flex justify-end gap-2">
           <Button variant="ghost" onClick={() => setSettingsOpen(false)}>
             {t("settings.cancel")}
@@ -351,14 +351,14 @@ function CodexLoginPanel({
 }) {
   const { t } = useI18n();
   return (
-    <div className="mt-5 rounded-2xl border border-[#d9d7e7] bg-[#f4f2fa] p-4">
+    <div className="mt-5 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-[var(--shadow-xs)]">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2 text-xs font-semibold text-[#39344f]">
-            <BadgeCheck className="size-4 text-[#6f63a6]" />
+          <div className="flex items-center gap-2 text-xs font-semibold text-[var(--ink)]">
+            <BadgeCheck className="size-4 text-[var(--accent)]" />
             {t("settings.subscription")}
           </div>
-          <p className="mt-1 text-[10px] leading-4 text-[#716b85]">
+          <p className="mt-1 text-[10px] leading-4 text-[var(--muted)]">
             {t("settings.subscriptionBody")}
           </p>
         </div>
@@ -381,17 +381,17 @@ function CodexLoginPanel({
       </div>
 
       {status.state === "authenticated" && (
-        <div className="mt-3 flex items-center gap-2 rounded-xl border border-[#cde2d3] bg-[#edf7ef] px-3 py-2.5 text-[11px] font-medium text-[#3f6c4c]">
+        <div className="mt-3 flex items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--accent-soft)] px-3 py-2.5 text-[11px] font-medium text-[var(--accent-fg)]">
           <Check className="size-3.5" />{" "}
           {t("settings.connected", { source: status.source })}
         </div>
       )}
 
       {status.state === "pending" && (
-        <div className="mt-3 rounded-xl border border-[#d8d3eb] bg-white/70 p-3">
-          <p className="text-[10px] leading-4 text-[#716b85]">{status.message}</p>
+        <div className="mt-3 rounded-lg border border-[var(--border)] bg-[var(--paper-deep)] p-3">
+          <p className="text-[10px] leading-4 text-[var(--muted)]">{status.message}</p>
           <div className="mt-3 flex flex-wrap items-center gap-2">
-            <code className="rounded-lg bg-[#292538] px-3 py-2 font-mono text-sm font-bold tracking-[0.18em] text-white">
+            <code className="rounded-lg bg-[var(--ink)] px-3 py-2 font-mono text-sm font-bold tracking-[0.18em] text-[var(--accent-contrast)]">
               {status.userCode}
             </code>
             <Button
@@ -405,7 +405,7 @@ function CodexLoginPanel({
               href={status.verificationUri}
               target="_blank"
               rel="noreferrer"
-              className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-[#6c60a0] px-3 text-[11px] font-semibold text-white hover:bg-[#5d528f]"
+              className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-[var(--accent)] px-3 text-[11px] font-semibold text-[var(--accent-contrast)] hover:bg-[var(--accent-strong)]"
             >
               {t("settings.openLogin")} <ExternalLink className="size-3" />
             </a>
@@ -414,7 +414,7 @@ function CodexLoginPanel({
       )}
 
       {status.state === "error" && (
-        <div className="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-[11px] leading-4 text-red-700">
+        <div className="mt-3 rounded-lg border border-[var(--danger-border)] bg-[var(--danger-soft)] px-3 py-2.5 text-[11px] leading-4 text-[var(--danger)]">
           {status.message}
         </div>
       )}

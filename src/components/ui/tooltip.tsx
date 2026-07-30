@@ -9,13 +9,13 @@ export function Tooltip({
   content: ReactNode;
 }) {
   return (
-    <TooltipPrimitive.Provider delayDuration={350}>
+    <TooltipPrimitive.Provider delayDuration={300}>
       <TooltipPrimitive.Root>
         <TooltipPrimitive.Trigger asChild>{children}</TooltipPrimitive.Trigger>
         <TooltipPrimitive.Portal>
           <TooltipPrimitive.Content
-            sideOffset={7}
-            className="z-[80] rounded-lg bg-[var(--ink)] px-2.5 py-1.5 text-xs text-white shadow-lg"
+            sideOffset={6}
+            className="z-[80] rounded-md bg-[var(--ink)] px-2.5 py-1.5 text-xs font-medium text-[var(--paper)] shadow-[var(--shadow-md)]"
           >
             {content}
             <TooltipPrimitive.Arrow className="fill-[var(--ink)]" />

@@ -49,7 +49,7 @@ export function GraphNodeCard({ data, selected }: NodeProps) {
     <article
       data-testid={`graph-node-${node.id}`}
       className={cn(
-        "graph-node group relative w-[304px] overflow-hidden rounded-[18px] border bg-white/94 p-3.5 shadow-[0_10px_28px_rgba(44,48,42,0.075)] backdrop-blur transition duration-200",
+        "graph-node group relative w-[304px] overflow-hidden rounded-xl border bg-[var(--surface)]/95 p-3.5 shadow-[var(--shadow-sm)] backdrop-blur transition duration-200",
         `node-${meta.color}`,
         selected && "is-selected",
         referenced && "is-referenced",
@@ -67,11 +67,11 @@ export function GraphNodeCard({ data, selected }: NodeProps) {
           </span>
         </div>
         {isStreaming ? (
-          <span className="flex items-center gap-1.5 text-[10px] font-medium text-[#397b55]">
+          <span className="flex items-center gap-1.5 text-[10px] font-medium text-[var(--accent)]">
             <LoaderCircle className="size-3 animate-spin" /> {t("node.thinking")}
           </span>
         ) : isCancelled || isError ? (
-          <span className="text-[10px] font-medium text-[#9a5a4d]">
+          <span className="text-[10px] font-medium text-[var(--danger)]">
             {isCancelled ? t("node.cancelled") : t("node.failed")}
           </span>
         ) : (
@@ -79,10 +79,10 @@ export function GraphNodeCard({ data, selected }: NodeProps) {
             className={cn(
               "flex h-5 items-center gap-1 rounded-md px-1.5 text-[8px] font-semibold",
               relationKind === "branch"
-                ? "bg-[#e5f0e8] text-[#4c795a]"
+                ? "bg-[var(--accent-soft)] text-[var(--accent-fg)]"
                 : relationKind === "continuation"
-                  ? "bg-[#edf0ed] text-[#68736c]"
-                  : "bg-[#f0ede6] text-[#777168]",
+                  ? "bg-[var(--paper-deep)] text-[var(--muted)]"
+                  : "bg-[var(--paper-deep)] text-[var(--muted-light)]",
             )}
           >
             <RelationIcon className="size-2.5" />
@@ -102,13 +102,13 @@ export function GraphNodeCard({ data, selected }: NodeProps) {
           node.content ||
           (isCancelled ? t("node.cancelledBody") : t("node.waiting"))}
       </p>
-      <div className="mt-2.5 flex items-center justify-between border-t border-black/[0.055] pt-2.5">
+      <div className="mt-2.5 flex items-center justify-between border-t border-[var(--border)] pt-2.5">
         <span className="flex items-center gap-1 text-[10px] text-[var(--muted-light)]">
           <Cpu className="size-3" />
           {node.model || t("node.manualNote")}
         </span>
         {referenced && (
-          <span className="rounded-full bg-[#e3f1e7] px-2 py-0.5 text-[9px] font-bold text-[#397b55]">
+          <span className="rounded-md bg-[var(--accent-soft)] px-2 py-0.5 text-[9px] font-semibold text-[var(--accent-fg)]">
             {t("node.referenced")}
           </span>
         )}

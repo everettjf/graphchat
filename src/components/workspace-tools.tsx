@@ -185,8 +185,8 @@ export function WorkspaceTools({
                 [locale.startsWith("zh") ? "可复用结论" : "Reusable", metrics.reusableConclusions],
                 [locale.startsWith("zh") ? "近 7 日活动" : "7-day activity", metrics.activityLast7Days],
               ].map(([label, value]) => (
-                <div key={String(label)} className="rounded-xl border border-[var(--border)] bg-white/60 p-3">
-                  <div className="font-display text-xl font-semibold">{value}</div>
+                <div key={String(label)} className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3 shadow-[var(--shadow-xs)]">
+                  <div className="font-display text-xl font-semibold tabular-nums">{value}</div>
                   <div className="text-[10px] text-[var(--muted-light)]">{label}</div>
                 </div>
               ))}
@@ -221,9 +221,9 @@ export function WorkspaceTools({
               ].map(([label, value]) => (
                 <div
                   key={String(label)}
-                  className="rounded-xl border border-[var(--border)] bg-white/60 p-3"
+                  className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3 shadow-[var(--shadow-xs)]"
                 >
-                  <div className="font-display text-xl font-semibold">{value}</div>
+                  <div className="font-display text-xl font-semibold tabular-nums">{value}</div>
                   <div className="text-[10px] text-[var(--muted-light)]">{label}</div>
                 </div>
               ))}
@@ -236,7 +236,7 @@ export function WorkspaceTools({
             <a
               href="/api/validation/export.json"
               download
-              className="mt-2 inline-block text-xs font-medium text-[#4d775b] hover:underline"
+              className="mt-2 inline-block text-xs font-medium text-[var(--accent-fg)] hover:underline"
             >
               {locale.startsWith("zh") ? "下载产品验证报告" : "Download validation report"}
             </a>
@@ -249,7 +249,7 @@ export function WorkspaceTools({
             {locale.startsWith("zh") ? "分支比较" : "Branch comparison"}
           </div>
           {comparisonNodes.length < 2 ? (
-            <p className="rounded-xl bg-black/[0.035] px-4 py-3 text-xs leading-5 text-[var(--muted)]">
+            <p className="rounded-xl bg-[var(--hover)] px-4 py-3 text-xs leading-5 text-[var(--muted)]">
               {locale.startsWith("zh")
                 ? "在画布中打开节点详情，点击“加入汇聚”，至少选择两个节点后即可并排比较。"
                 : "Open node details and choose “Add to synthesis” on at least two nodes to compare them here."}
@@ -258,14 +258,14 @@ export function WorkspaceTools({
             <>
               <div className="grid gap-3 sm:grid-cols-2">
                 {comparisonNodes.map((node) => (
-                  <article key={node.id} className="rounded-xl border border-[var(--border)] bg-white/60 p-4">
+                  <article key={node.id} className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-[var(--shadow-xs)]">
                     <h3 className="text-xs font-semibold">{node.title}</h3>
                     <p className="mt-2 line-clamp-6 text-[11px] leading-5 text-[var(--muted)]">
                       {node.summary || node.content}
                     </p>
                     <div className="mt-3 flex flex-wrap gap-1">
                       {node.tags.map((tag) => (
-                        <span key={tag} className="rounded-full bg-black/[0.045] px-2 py-0.5 text-[9px]">
+                        <span key={tag} className="rounded-md border border-[var(--border)] bg-[var(--surface)] px-2 py-0.5 text-[9px] text-[var(--muted)]">
                           {tag}
                         </span>
                       ))}
@@ -304,7 +304,7 @@ export function WorkspaceTools({
               <Input id="import-source" value={sourceUrl} onChange={(event) => setSourceUrl(event.target.value)} />
             </div>
           </div>
-          <label className="mt-3 flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-[var(--border)] bg-black/[0.02] px-3 py-3 text-[10px] font-medium text-[var(--muted)] hover:bg-black/[0.035]">
+          <label className="mt-3 flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-[var(--border)] bg-[var(--hover)] px-3 py-3 text-[10px] font-medium text-[var(--muted)] hover:bg-[var(--hover-strong)]">
             <FileInput className="size-3.5" />
             {locale.startsWith("zh") ? "选择 .md / .txt / .pdf 文件" : "Choose a .md / .txt / .pdf file"}
             <input
@@ -325,7 +325,7 @@ export function WorkspaceTools({
             onChange={(event) => setContent(event.target.value)}
             placeholder="# Heading\n\nPaste notes or source excerpts…"
           />
-          {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
+          {error && <p className="mt-2 text-xs text-[var(--danger)]">{error}</p>}
           <div className="mt-3 flex justify-end">
             <Button disabled={!title.trim() || !content.trim() || busy} onClick={() => void importContent()}>
               <FileInput className="size-3.5" />
@@ -346,9 +346,9 @@ export function WorkspaceTools({
           </div>
           <div className="space-y-2">
             {cards.slice(0, 8).map((card) => (
-              <details key={`${card.nodeId}-${card.kind}`} className="rounded-xl border border-[var(--border)] bg-white/60 px-4 py-3">
+              <details key={`${card.nodeId}-${card.kind}`} className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3 shadow-[var(--shadow-xs)]">
                 <summary className="cursor-pointer text-xs font-medium">
-                  <span className="mr-2 rounded-full bg-black/[0.045] px-2 py-0.5 text-[8px] uppercase text-[var(--muted-light)]">
+                  <span className="mr-2 rounded-md border border-[var(--border)] bg-[var(--surface)] px-2 py-0.5 text-[8px] uppercase text-[var(--muted-light)]">
                     {card.kind}
                   </span>
                   {card.question}
@@ -364,14 +364,14 @@ export function WorkspaceTools({
             <a
               href={`/api/graphs/${document.graph.id}/export.md`}
               download
-              className="text-xs font-medium text-[#4d775b] hover:underline"
+              className="text-xs font-medium text-[var(--accent-fg)] hover:underline"
             >
               {locale.startsWith("zh") ? "导出当前图为 Markdown" : "Export graph as Markdown"}
             </a>
-            <a href="/api/export" download className="text-xs font-medium text-[#4d775b] hover:underline">
+            <a href="/api/export" download className="text-xs font-medium text-[var(--accent-fg)] hover:underline">
               {locale.startsWith("zh") ? "下载完整备份" : "Download full backup"}
             </a>
-            <label className="inline-flex cursor-pointer items-center gap-1.5 text-xs font-medium text-[#6d6282] hover:underline">
+            <label className="inline-flex cursor-pointer items-center gap-1.5 text-xs font-medium text-[var(--muted)] hover:text-[var(--ink)] hover:underline">
               <RotateCcw className="size-3.5" />
               {locale.startsWith("zh") ? "恢复备份" : "Restore backup"}
               <input

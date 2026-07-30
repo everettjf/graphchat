@@ -36,7 +36,7 @@ export function SplitHandle({
       aria-valuemax={75}
       aria-valuenow={Math.round(value)}
       tabIndex={0}
-      className="group relative z-30 hidden w-2 shrink-0 cursor-col-resize bg-[var(--border)]/55 outline-none transition hover:bg-[#91aa98] focus-visible:bg-[#789883] md:block"
+      className="group relative z-30 hidden w-2 shrink-0 cursor-col-resize bg-[var(--border)]/55 outline-none transition hover:bg-[var(--border-strong)] focus-visible:bg-[var(--accent)] md:block"
       onPointerDown={startDrag}
       onDoubleClick={() => onChange(50)}
       onKeyDown={(event) => {
@@ -51,7 +51,7 @@ export function SplitHandle({
         }
       }}
     >
-      <div className="absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 flex-col gap-1 rounded-xl border border-black/10 bg-[#fffefb] p-1 opacity-0 shadow-lg transition group-hover:opacity-100 group-focus-within:opacity-100">
+      <div className="absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 flex-col gap-1 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-1 opacity-0 shadow-[var(--shadow-lg)] transition group-hover:opacity-100 group-focus-within:opacity-100">
         <PresetButton
           label={locale.startsWith("zh") ? "内容优先 70:30" : "Conversation focus 70:30"}
           active={value === 70}
@@ -95,8 +95,8 @@ function PresetButton({
       title={label}
       aria-label={label}
       className={cn(
-        "grid size-7 cursor-pointer place-items-center rounded-lg text-[var(--muted)] hover:bg-black/[0.05]",
-        active && "bg-[#e5eee7] text-[#4f7259]",
+        "grid size-7 cursor-pointer place-items-center rounded-lg text-[var(--muted)] hover:bg-[var(--hover)]",
+        active && "bg-[var(--accent-soft)] text-[var(--accent-fg)]",
       )}
       onClick={(event) => {
         event.stopPropagation();

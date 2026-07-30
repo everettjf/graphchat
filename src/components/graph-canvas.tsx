@@ -19,6 +19,7 @@ import { GraphNodeCard, type GraphNodeData } from "./graph-node-card";
 import { useWorkspace } from "@/store/workspace";
 import { api } from "@/lib/api";
 import { useI18n } from "@/i18n";
+import { useTheme } from "@/lib/theme";
 import {
   GRAPH_NODE_WIDTH,
   GRAPH_ROW_GAP,
@@ -27,6 +28,30 @@ import {
 } from "@/lib/graph-layout";
 
 const nodeTypes = { graphNode: GraphNodeCard };
+
+// SVG attribute colors cannot resolve CSS var(), so these mirror the
+// --edge-*/node tokens from styles.css and are picked per resolved theme.
+const EDGE_MARKER_COLORS = {
+  light: { branch: "#454b52", continuation: "#b6bcc4", reference: "#9d8fbe" },
+  dark: { branch: "#c9cdd3", continuation: "#55565c", reference: "#7a6a9e" },
+} as const;
+
+const BACKGROUND_DOT_COLORS = { light: "#d4d8dd", dark: "#3a3a40" } as const;
+
+const MINIMAP_COLORS = {
+  light: {
+    summary: "#9d8fbe",
+    concept: "#cfa54a",
+    answer: "#9aa1ab",
+    mask: "rgba(238,240,242,.72)",
+  },
+  dark: {
+    summary: "#7a6a9e",
+    concept: "#8a6f35",
+    answer: "#6e6e76",
+    mask: "rgba(36,36,39,.72)",
+  },
+} as const;
 
 type GraphCanvasProps = {
   document: GraphDocument;
@@ -46,6 +71,7 @@ export function GraphCanvas({
   onError,
 }: GraphCanvasProps) {
   const { t } = useI18n();
+  const theme = useTheme();
   const selectedNodeId = useWorkspace((state) => state.selectedNodeId);
   const referenceNodeIds = useWorkspace((state) => state.referenceNodeIds);
   const search = useWorkspace((state) => state.search.trim().toLocaleLowerCase());
@@ -144,18 +170,18 @@ export function GraphCanvas({
           height: 12,
           color:
             edge.kind === "reference"
-              ? "#a69ac2"
+              ? EDGE_MARKER_COLORS[theme].reference
               : edge.kind === "continuation"
-                ? "#aab5ae"
-                : "#89a993",
+                ? EDGE_MARKER_COLORS[theme].continuation
+                : EDGE_MARKER_COLORS[theme].branch,
         },
         style: {
           stroke:
             edge.kind === "reference"
-              ? "#a69ac2"
+              ? "var(--edge-reference)"
               : edge.kind === "continuation"
-                ? "#aab5ae"
-                : "#91aa99",
+                ? "var(--edge-continuation)"
+                : "var(--edge-branch)",
           strokeWidth: edge.kind === "reference" ? 1.35 : 1.55,
           strokeDasharray:
             edge.kind === "reference"
@@ -165,15 +191,15 @@ export function GraphCanvas({
                 : undefined,
         },
         labelStyle: {
-          fill: edge.kind === "reference" ? "#786d8f" : "#737c74",
+          fill: edge.kind === "reference" ? "var(--ref)" : "var(--edge-label)",
           fontSize: 9,
           fontWeight: 600,
         },
-        labelBgStyle: { fill: "#f7f5ef", fillOpacity: 0.92 },
+        labelBgStyle: { fill: "var(--surface)", fillOpacity: 0.92 },
         labelBgPadding: [5, 3],
         labelBgBorderRadius: 6,
       })),
-    [document.edges, document.nodes, hiddenNodeIds],
+    [document.edges, document.nodes, hiddenNodeIds, theme],
   );
 
   const onNodesChange = useCallback(
@@ -238,10 +264,10 @@ export function GraphCanvas({
 
   return (
     <div className="relative h-full w-full" data-testid="graph-canvas">
-      <div className="absolute left-4 top-4 z-10 flex gap-0 overflow-hidden rounded-xl border border-[var(--border)] bg-white/88 shadow-sm backdrop-blur">
+      <div className="absolute left-4 top-4 z-10 flex gap-0 overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)]/90 shadow-[var(--shadow-xs)] backdrop-blur">
         <button
           type="button"
-          className="flex h-8 items-center gap-1.5 border-r border-[var(--border)] px-2.5 text-[10px] font-medium text-[var(--muted)] hover:bg-black/[0.035]"
+          className="flex h-8 items-center gap-1.5 border-r border-[var(--border)] px-2.5 text-[10px] font-medium text-[var(--muted)] hover:bg-[var(--hover)]"
           onClick={() => {
             if (!selectedNodeId) return;
             setCollapsedRoots((current) => {
@@ -261,7 +287,7 @@ export function GraphCanvas({
         </button>
         <button
           type="button"
-          className="flex h-8 items-center gap-1.5 border-r border-[var(--border)] px-2.5 text-[10px] font-medium text-[var(--muted)] hover:bg-black/[0.035]"
+          className="flex h-8 items-center gap-1.5 border-r border-[var(--border)] px-2.5 text-[10px] font-medium text-[var(--muted)] hover:bg-[var(--hover)]"
           onClick={() => {
             if (!selectedNodeId) return;
             void flowRef.current?.fitView({
@@ -277,7 +303,7 @@ export function GraphCanvas({
         </button>
         <button
           type="button"
-          className="flex h-8 items-center gap-1.5 px-2.5 text-[10px] font-medium text-[var(--muted)] hover:bg-black/[0.035]"
+          className="flex h-8 items-center gap-1.5 px-2.5 text-[10px] font-medium text-[var(--muted)] hover:bg-[var(--hover)]"
           onClick={() => void applyAutomaticLayout()}
         >
           <LayoutGrid className="size-3" /> {t("graph.layout")}
@@ -357,7 +383,7 @@ export function GraphCanvas({
           variant={BackgroundVariant.Dots}
           gap={22}
           size={1}
-          color="#d5d4cc"
+          color={BACKGROUND_DOT_COLORS[theme]}
         />
         <Controls
           position="bottom-left"
@@ -371,11 +397,11 @@ export function GraphCanvas({
           nodeStrokeWidth={2}
           nodeColor={(node) => {
             const graphNode = (node.data as GraphNodeData).node;
-            if (graphNode.kind === "summary") return "#b4a8cf";
-            if (graphNode.kind === "concept") return "#e5c883";
-            return "#98c4a6";
+            if (graphNode.kind === "summary") return MINIMAP_COLORS[theme].summary;
+            if (graphNode.kind === "concept") return MINIMAP_COLORS[theme].concept;
+            return MINIMAP_COLORS[theme].answer;
           }}
-          maskColor="rgba(245,243,237,.72)"
+          maskColor={MINIMAP_COLORS[theme].mask}
           className="graph-minimap"
         />
       </ReactFlow>

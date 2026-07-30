@@ -355,7 +355,7 @@ export default function App() {
       <main className="grid h-screen place-items-center bg-[var(--paper)]">
         <div className="flex flex-col items-center gap-5">
           <BrandMark />
-          <LoaderCircle className="size-5 animate-spin text-[#719a7e]" />
+          <LoaderCircle className="size-5 animate-spin text-[var(--accent)]" />
           <p className="text-xs text-[var(--muted-light)]">{t("app.loading")}</p>
         </div>
       </main>
@@ -365,8 +365,8 @@ export default function App() {
   if (bootstrap.isError || !document) {
     return (
       <main className="grid h-screen place-items-center bg-[var(--paper)] p-6">
-        <div className="max-w-sm rounded-3xl border border-red-100 bg-white p-8 text-center shadow-xl">
-          <AlertCircle className="mx-auto mb-4 size-8 text-red-500" />
+        <div className="max-w-sm rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-8 text-center shadow-[var(--shadow-md)]">
+          <AlertCircle className="mx-auto mb-4 size-8 text-[var(--danger)]" />
           <h1 className="font-display text-xl font-semibold">{t("app.openFailed")}</h1>
           <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
             {bootstrap.error instanceof Error
@@ -444,7 +444,7 @@ export default function App() {
           ) : (
             <div className="grid h-full place-items-center px-6 pb-24" data-testid="empty-content">
               <div className="max-w-sm text-center">
-                <div className="mx-auto mb-4 grid size-12 place-items-center rounded-2xl bg-[#e7efe8] text-[#54725c]">
+                <div className="mx-auto mb-4 grid size-12 place-items-center rounded-xl border border-[var(--border)] bg-[var(--accent-soft)] text-[var(--accent-fg)] shadow-[var(--shadow-xs)]">
                   <BookOpen className="size-5" />
                 </div>
                 <h2 className="font-display text-xl font-semibold">
@@ -482,7 +482,7 @@ export default function App() {
         onImported={refreshGraph}
       />
       {toast && (
-        <div className="fixed bottom-5 right-5 z-[90] rounded-xl bg-[var(--ink)] px-4 py-3 text-xs font-medium text-white shadow-2xl">
+        <div className="fixed bottom-5 right-5 z-[90] rounded-lg border border-[var(--border)] bg-[var(--ink)] px-3.5 py-2.5 text-xs font-medium text-[var(--paper)] shadow-[var(--shadow-lg)]">
           {toast}
         </div>
       )}
