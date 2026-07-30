@@ -2,6 +2,23 @@
 
 All notable Graph Chat changes are documented here.
 
+## Unreleased
+
+### Added
+
+- Added light and dark themes with a system-preference default, a persistent
+  top-right toggle, and a no-flash bootstrap script.
+
+### Changed
+
+- Redesigned the workspace with a neutral, token-driven design system:
+  Inter Variable typography, refined radii and shadows, and restyled graph
+  canvas, nodes, minimap, and Markdown in both themes.
+
+### Fixed
+
+- Fixed the composer overlapping the inspector footer action bar.
+
 ## 0.2.2 - 2026-07-28
 
 ### Added

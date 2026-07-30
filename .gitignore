@@ -21,6 +21,8 @@ playwright-report/
 test-results/
 release/
 *.tgz
+scripts/screenshots/
+.qa-data/
 
 # Local configuration and logs
 *.log

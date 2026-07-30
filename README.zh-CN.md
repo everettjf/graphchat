@@ -35,6 +35,11 @@
 
 Graph Chat 是一个本地优先、图谱原生的 AI 学习工作区。面对回答里的陌生概念，你不需要把所有追问塞进一条越来越混乱的聊天记录：从任意节点创建分支，在分支中深入理解，再引用多个分支汇聚成新的问题。每次回答都会保留它实际使用的上下文与来源。
 
+<div align="center">
+  <img src="./docs/assets/ui-light.png" width="49%" alt="浅色模式下的 Graph Chat 工作区" />
+  <img src="./docs/assets/ui-dark.png" width="49%" alt="深色模式下的 Graph Chat 工作区" />
+</div>
+
 ## 为什么是图，而不是聊天列表
 
 普通聊天只记录“接下来问了什么”，Graph Chat 还记录“这个问题从哪里来、引用了哪些理解、最后回到了哪条主线”。
@@ -66,6 +71,7 @@ Graph Chat 是一个本地优先、图谱原生的 AI 学习工作区。面对�
 | 本地数据 | Bun/Node SQLite、WAL、JSON 导出、无需外部数据库 |
 | 本地检索 | SQLite FTS5 对标题、问题、摘要、正文、标签和来源地址进行排序检索 |
 | 八种界面语言 | 应用与文档默认英文，可持久化切换简体中文、西班牙语、法语、德语、日语、韩语与繁体中文 |
+| 深浅双色主题 | 基于设计令牌的中性视觉体系，默认跟随系统外观，右上角可手动切换并持久保存 |
 | 可靠运行 | 流式事件绑定运行节点，支持显式取消与中断恢复 |
 | 隐私边界 | API Key 仅在进程内；OAuth 凭据只保存在本机私有文件 |
 | 工程质量 | TypeScript strict、Vitest、数据库测试、Pi runtime 测试、Playwright E2E |
@@ -95,7 +101,7 @@ bun run graphchat
 
 `graphchat` 启动器会构建应用、启动本地服务并自动打开浏览器。需要热更新开发时，运行 `bun run dev`，再打开 [http://localhost:5173](http://localhost:5173)。
 
-首次运行会生成一张英文的 RAG 示例学习图。应用默认英文，可以从侧边栏切换为简体中文、西班牙语、法语、德语、日语、韩语或繁体中文；模型运行会跟随所选语言，语言偏好保存在本机。本地演示无需密钥，也不会访问外部模型。
+首次运行会生成一张英文的 RAG 示例学习图。应用默认英文，可以从侧边栏切换为简体中文、西班牙语、法语、德语、日语、韩语或繁体中文；模型运行会跟随所选语言，语言偏好保存在本机。本地演示无需密钥，也不会访问外部模型。界面默认跟随系统的浅色/深色外观，也可以从右上角手动切换，选择会保存在本机。
 
 手动生产模式：
 
@@ -137,7 +143,7 @@ Graph Chat 通过 Pi 内置的 `openai-codex` Provider 使用 ChatGPT 订阅，�
 
 ```mermaid
 flowchart LR
-    UI["React 19 + shadcn-style UI<br/>React Flow"] --> API["Fastify API<br/>NDJSON streaming"]
+    UI["React 19 + tokenized light/dark UI<br/>React Flow"] --> API["Fastify API<br/>NDJSON streaming"]
     API --> CTX["Context compiler<br/>主线 · 引用 · 选中文字"]
     CTX --> AGENT["Pi Agent Core<br/>model · tools · retry loop"]
     AGENT --> MODELS["ChatGPT OAuth · OpenAI<br/>OpenRouter · Ollama"]

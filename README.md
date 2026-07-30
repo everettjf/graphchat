@@ -35,6 +35,11 @@
 
 Graph Chat is a local-first, graph-native AI learning workspace. When an answer introduces an unfamiliar concept, you no longer have to bury every follow-up inside one increasingly tangled chat. Branch from any node, explore the idea in its own context, then reference multiple branches to form a new question. Every answer preserves the context and sources it actually used.
 
+<div align="center">
+  <img src="./docs/assets/ui-light.png" width="49%" alt="Graph Chat workspace in light mode" />
+  <img src="./docs/assets/ui-dark.png" width="49%" alt="Graph Chat workspace in dark mode" />
+</div>
+
 ## Why a graph instead of a chat list?
 
 A regular chat remembers only what you asked next. Graph Chat also remembers where a question came from, which explanations it referenced, and how the resulting understanding reconnects to the main thread.
@@ -66,6 +71,7 @@ Starting question ──→ AI answer ──→ New concept A ──→ Deeper e
 | Local data | Bun/Node SQLite, WAL, JSON export, and no external database |
 | Local retrieval | SQLite FTS5 ranking across titles, prompts, summaries, content, tags, and source URLs |
 | Eight interface languages | English-first application and documentation with persistent Simplified Chinese, Spanish, French, German, Japanese, Korean, and Traditional Chinese switching |
+| Light and dark themes | Neutral, token-driven design system; follows the system appearance by default with a persistent top-right toggle |
 | Resilient runs | Run-scoped streaming, explicit cancellation, and interrupted-run recovery |
 | Privacy boundary | API keys stay in process; OAuth credentials stay in a private local file |
 | Engineering quality | Strict TypeScript, Vitest, database and Pi runtime tests, and Playwright E2E |
@@ -107,7 +113,7 @@ bun run graphchat
 
 The `graphchat` launcher builds the application, starts the local service, and opens it in your browser. For hot-reload development, use `bun run dev` and open [http://localhost:5173](http://localhost:5173).
 
-On first launch, Graph Chat creates an English example graph about RAG. The interface defaults to English and can be switched from the sidebar to Simplified Chinese, Spanish, French, German, Japanese, Korean, or Traditional Chinese. The selected language is shared with model runs, needs no credentials for the local demo, and is remembered on the device.
+On first launch, Graph Chat creates an English example graph about RAG. The interface defaults to English and can be switched from the sidebar to Simplified Chinese, Spanish, French, German, Japanese, Korean, or Traditional Chinese. The selected language is shared with model runs, needs no credentials for the local demo, and is remembered on the device. The interface follows the system's light or dark appearance; use the top-right toggle to override it, and the choice is remembered too.
 
 Production mode:
 
@@ -149,7 +155,7 @@ Copy `.env.example` to `.env`, or configure a provider directly in settings:
 
 ```mermaid
 flowchart LR
-    UI["React 19 + shadcn-style UI<br/>React Flow"] --> API["Fastify API<br/>NDJSON streaming"]
+    UI["React 19 + tokenized light/dark UI<br/>React Flow"] --> API["Fastify API<br/>NDJSON streaming"]
     API --> CTX["Context compiler<br/>parent path · references · selected text"]
     CTX --> AGENT["Pi Agent Core<br/>model · tools · retry loop"]
     AGENT --> MODELS["ChatGPT OAuth · OpenAI<br/>OpenRouter · Ollama"]
