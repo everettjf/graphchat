@@ -156,7 +156,7 @@ const english = {
   "inspector.outgoing": "Downstream links",
   "inspector.continue": "Continue from here",
   "inspector.removeReference": "Remove reference",
-  "inspector.addReference": "Add to synthesis",
+  "inspector.addReference": "Add as reference",
   "inspector.delete": "Delete this node",
   "settings.title": "Models & runtime",
   "settings.description":
@@ -324,7 +324,7 @@ const chinese: Record<keyof typeof english, string> = {
   "inspector.outgoing": "下游连接",
   "inspector.continue": "从这里继续追问",
   "inspector.removeReference": "取消引用",
-  "inspector.addReference": "加入联合提问",
+  "inspector.addReference": "添加为引用",
   "inspector.delete": "删除这个节点",
   "settings.title": "模型与运行方式",
   "settings.description":

@@ -251,8 +251,8 @@ export function WorkspaceTools({
           {comparisonNodes.length < 2 ? (
             <p className="rounded-xl bg-[var(--hover)] px-4 py-3 text-xs leading-5 text-[var(--muted)]">
               {locale.startsWith("zh")
-                ? "在画布中打开节点详情，点击“加入汇聚”，至少选择两个节点后即可并排比较。"
-                : "Open node details and choose “Add to synthesis” on at least two nodes to compare them here."}
+                ? "在画布中打开节点详情，点击“添加为引用”，至少选择两个节点后即可并排比较。"
+                : "Open node details and choose “Add as reference” on at least two nodes to compare them here."}
             </p>
           ) : (
             <>

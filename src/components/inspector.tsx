@@ -423,7 +423,6 @@ export function Inspector({
           </Button>
           <Button
             variant={isReferenced ? "soft" : "outline"}
-            size="sm"
             className="shrink-0 px-3"
             onClick={() => toggleReference(node.id)}
             aria-pressed={isReferenced}

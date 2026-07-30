@@ -1,5 +1,7 @@
 import {
+  Check,
   FileText,
+  Globe2,
   Maximize2,
   Moon,
   Network,
@@ -16,9 +18,15 @@ import type { GraphDocument, ProviderSettings } from "@shared/types";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { Tooltip } from "./ui/tooltip";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "./ui/dropdown-menu";
 import { useWorkspace } from "@/store/workspace";
 import { toggleTheme, useTheme } from "@/lib/theme";
-import { useI18n } from "@/i18n";
+import { localeMeta, locales, useI18n } from "@/i18n";
 
 export function Topbar({
   document,
@@ -40,7 +48,7 @@ export function Topbar({
   const { sidebarOpen, setSidebarOpen, inspectorOpen, setInspectorOpen } = useWorkspace();
   const setSettingsOpen = useWorkspace((state) => state.setSettingsOpen);
   const theme = useTheme();
-  const { locale, t } = useI18n();
+  const { locale, setLocale, t } = useI18n();
 
   return (
     <header className="topbar-shell z-10 flex h-14 shrink-0 items-center justify-between border-b border-[var(--border)] bg-[var(--surface)]/85 px-4 backdrop-blur-xl sm:px-5">
@@ -179,6 +187,33 @@ export function Topbar({
           </Button>
         </Tooltip>}
         </div>
+        <DropdownMenu>
+          <Tooltip content={t("language.label")}>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-8"
+                aria-label={t("language.label")}
+                data-testid="language-menu"
+              >
+                <Globe2 className="size-3.5" />
+              </Button>
+            </DropdownMenuTrigger>
+          </Tooltip>
+          <DropdownMenuContent align="end">
+            {locales.map((language) => (
+              <DropdownMenuItem
+                key={language}
+                onSelect={() => setLocale(language)}
+                aria-current={language === locale}
+              >
+                <span className="flex-1">{localeMeta[language].label}</span>
+                {language === locale && <Check className="size-3.5 text-[var(--muted)]" />}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
         <Tooltip
           content={
             theme === "dark"
