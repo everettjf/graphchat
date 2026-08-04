@@ -25,6 +25,10 @@ function createDatabase() {
   return new GraphDatabase(directory);
 }
 
+function rawDatabase(database: GraphDatabase): SQLiteDatabase {
+  return (database as unknown as { db: SQLiteDatabase }).db;
+}
+
 afterEach(() => {
   for (const directory of directories.splice(0)) {
     fs.rmSync(directory, { recursive: true, force: true });
@@ -157,12 +161,28 @@ describe("GraphDatabase", () => {
     expect(database.undoGraph("learning-rag")?.nodes.find((node) => node.id === "embedding")?.title)
       .toBe(before.nodes.find((node) => node.id === "embedding")?.title);
 
+    const edge = before.edges[0]!;
+    rawDatabase(database)
+      .prepare("UPDATE edges SET include_in_context = 0 WHERE id = ?")
+      .run(edge.id);
     const backup = database.exportAll();
+    expect(backup.version).toBe(2);
     const restored = database.restoreBackup(backup);
     expect(restored).toHaveLength(1);
     expect(restored[0]?.graph.title).toContain("(restored)");
     expect(restored[0]?.nodes).toHaveLength(before.nodes.length);
     expect(restored[0]?.edges).toHaveLength(before.edges.length);
+    const restoredSource = restored[0]!.nodes.find(
+      (node) => node.title === before.nodes.find((item) => item.id === edge.source)!.title,
+    )!;
+    const restoredTarget = restored[0]!.nodes.find(
+      (node) => node.title === before.nodes.find((item) => item.id === edge.target)!.title,
+    )!;
+    expect(
+      restored[0]!.edges.find(
+        (item) => item.source === restoredSource.id && item.target === restoredTarget.id,
+      )?.includeInContext,
+    ).toBe(false);
     database.close();
   });
 
@@ -419,15 +439,52 @@ describe("GraphDatabase", () => {
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL
       );
+      CREATE TABLE edges (
+        id TEXT PRIMARY KEY,
+        graph_id TEXT NOT NULL,
+        source TEXT NOT NULL,
+        target TEXT NOT NULL,
+        kind TEXT NOT NULL,
+        label TEXT NOT NULL DEFAULT '',
+        include_in_context INTEGER NOT NULL DEFAULT 1,
+        created_at TEXT NOT NULL
+      );
+      INSERT INTO graphs VALUES (
+        'legacy-graph', 'Legacy knowledge', 'Preserve me',
+        '2025-01-01T00:00:00.000Z', '2025-01-01T00:00:00.000Z', NULL
+      );
+      INSERT INTO nodes (
+        id, graph_id, kind, title, prompt, content, summary, selected_text,
+        x, y, status, provider, model, created_at, updated_at
+      ) VALUES
+        ('legacy-root', 'legacy-graph', 'question', 'Legacy root', '', 'root content', '', NULL,
+         0, 0, 'complete', NULL, NULL, '2025-01-01T00:00:00.000Z', '2025-01-01T00:00:00.000Z'),
+        ('legacy-child', 'legacy-graph', 'answer', 'Legacy child', '', 'child content', '', NULL,
+         100, 100, 'complete', NULL, NULL, '2025-01-01T00:00:00.000Z', '2025-01-01T00:00:00.000Z');
+      INSERT INTO edges VALUES (
+        'legacy-edge', 'legacy-graph', 'legacy-root', 'legacy-child', 'branch', '', 1,
+        '2025-01-01T00:00:00.000Z'
+      );
     `);
     legacy.close();
 
     const migrated = new GraphDatabase(directory);
-    expect(migrated.getGraph("learning-rag")?.nodes[0]).toMatchObject({
+    const migratedGraph = migrated.getGraph("legacy-graph")!;
+    expect(migratedGraph.graph).toMatchObject({ title: "Legacy knowledge", description: "Preserve me" });
+    expect(migratedGraph.nodes.find((node) => node.id === "legacy-root")).toMatchObject({
+      content: "root content",
       tags: expect.any(Array),
       knowledgeStatus: expect.any(String),
       mastery: expect.any(String),
     });
+    expect(migratedGraph.edges).toContainEqual(
+      expect.objectContaining({
+        id: "legacy-edge",
+        kind: "continuation",
+        label: "Continue",
+      }),
+    );
+    expect(migrated.searchNodes("legacy-graph", "child content")[0]?.id).toBe("legacy-child");
     migrated.close();
 
     const inspected = new TestDatabase(filename);
@@ -440,6 +497,55 @@ describe("GraphDatabase", () => {
     ).toBe(4);
     inspected.close();
   });
+
+  it("reads, searches, and exports a 5,000-node graph within the performance budget", () => {
+    const database = createDatabase();
+    const raw = rawDatabase(database);
+    const graph = database.createGraph({ title: "Large graph", description: "performance fixture" });
+    const timestamp = "2026-01-01T00:00:00.000Z";
+    const insertNode = raw.prepare(`
+      INSERT INTO nodes (
+        id, graph_id, kind, title, prompt, content, summary, tags,
+        knowledge_status, mastery, source_url, credibility, rating, context_snapshot,
+        selected_text, x, y, status, provider, model, created_at, updated_at
+      ) VALUES (?, ?, 'note', ?, '', ?, '', '[]', 'exploring', 'new', '', NULL, 0, NULL,
+        NULL, ?, ?, 'complete', NULL, NULL, ?, ?)
+    `);
+    const insertEdge = raw.prepare(
+      "INSERT INTO edges VALUES (?, ?, ?, ?, 'continuation', 'Continue', 1, ?)",
+    );
+    raw.exec("BEGIN IMMEDIATE");
+    for (let index = 0; index < 5_000; index += 1) {
+      const id = `large-${index}`;
+      insertNode.run(
+        id,
+        graph.graph.id,
+        `Large node ${index}`,
+        index === 4_999 ? "terminal-needle" : `content ${index}`,
+        index % 100 * 320,
+        Math.floor(index / 100) * 180,
+        timestamp,
+        timestamp,
+      );
+      if (index > 0) {
+        insertEdge.run(`large-edge-${index}`, graph.graph.id, `large-${index - 1}`, id, timestamp);
+      }
+    }
+    raw.exec("COMMIT");
+
+    const startedAt = performance.now();
+    const loaded = database.getGraph(graph.graph.id)!;
+    const matches = database.searchNodes(graph.graph.id, "terminal-needle");
+    const backup = database.exportAll();
+    const elapsed = performance.now() - startedAt;
+
+    expect(loaded.nodes).toHaveLength(5_000);
+    expect(loaded.edges).toHaveLength(4_999);
+    expect(matches[0]?.id).toBe("large-4999");
+    expect(backup.graphs.find((item) => item.graph.id === graph.graph.id)?.nodes).toHaveLength(5_000);
+    expect(elapsed).toBeLessThan(2_500);
+    database.close();
+  }, 15_000);
 
   it("exports privacy-safe activation, evidence, session, and reliability metrics", () => {
     const database = createDatabase();

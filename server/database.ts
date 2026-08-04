@@ -705,6 +705,7 @@ export class GraphDatabase {
     target: string,
     kind: GraphEdge["kind"],
     label = "",
+    includeInContext = true,
   ): GraphEdge {
     const edge: GraphEdge = {
       id: nanoid(),
@@ -713,12 +714,12 @@ export class GraphDatabase {
       target,
       kind,
       label,
-      includeInContext: true,
+      includeInContext,
       createdAt: now(),
     };
     this.db
       .prepare("INSERT INTO edges VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
-      .run(edge.id, graphId, source, target, kind, label, 1, edge.createdAt);
+      .run(edge.id, graphId, source, target, kind, label, includeInContext ? 1 : 0, edge.createdAt);
     this.touchGraph(graphId);
     return edge;
   }
@@ -863,7 +864,14 @@ export class GraphDatabase {
         const sourceId = nodeIds.get(edge.source);
         const targetId = nodeIds.get(edge.target);
         if (sourceId && targetId) {
-          this.createEdge(created.graph.id, sourceId, targetId, edge.kind, edge.label);
+          this.createEdge(
+            created.graph.id,
+            sourceId,
+            targetId,
+            edge.kind,
+            edge.label,
+            edge.includeInContext,
+          );
         }
       }
       restored.push(this.getGraph(created.graph.id)!);
