@@ -220,3 +220,7 @@ Issues, discussions, and pull requests are welcome. Read [CONTRIBUTING.md](./CON
 ## License
 
 [MIT](./LICENSE) © Everett
+
+## Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=everettjf/graphchat&type=Date)](https://star-history.com/#everettjf/graphchat&Date)
