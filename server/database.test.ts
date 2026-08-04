@@ -2,9 +2,20 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { DatabaseSync } from "node:sqlite";
 import { afterEach, describe, expect, it } from "vitest";
-import { GraphDatabase } from "./database.js";
+import { GraphDatabase, type SQLiteDatabase } from "./database.js";
+
+type SQLiteConstructor = new (filename: string) => SQLiteDatabase;
+
+const TestDatabase: SQLiteConstructor = await (async () => {
+  if (process.versions.bun) {
+    const { Database } = await import("bun:sqlite");
+    return Database as unknown as SQLiteConstructor;
+  }
+
+  const { DatabaseSync } = await import("node:sqlite");
+  return DatabaseSync as unknown as SQLiteConstructor;
+})();
 
 const directories: string[] = [];
 
@@ -381,7 +392,7 @@ describe("GraphDatabase", () => {
     const directory = fs.mkdtempSync(path.join(os.tmpdir(), "graphchat-migration-"));
     directories.push(directory);
     const filename = path.join(directory, "graphchat.sqlite");
-    const legacy = new DatabaseSync(filename);
+    const legacy = new TestDatabase(filename);
     legacy.exec(`
       CREATE TABLE graphs (
         id TEXT PRIMARY KEY,
@@ -419,7 +430,7 @@ describe("GraphDatabase", () => {
     });
     migrated.close();
 
-    const inspected = new DatabaseSync(filename);
+    const inspected = new TestDatabase(filename);
     expect(
       (
         inspected.prepare("PRAGMA user_version").get() as {

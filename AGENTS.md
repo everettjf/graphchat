@@ -23,6 +23,8 @@ bun run test:e2e
 
 Use `bun run test:all` before releases.
 
+Run Vitest through the package scripts. The scripts force Bun's runtime because Graph Chat relies on SQLite FTS5; invoking `vitest` or `npm test` under Node may use a SQLite build without FTS5 and produce misleading migration failures.
+
 ## Conventions
 
 - Keep OAuth credentials and API keys out of graph exports, SQLite content, logs, and browser storage.

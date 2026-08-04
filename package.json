@@ -59,13 +59,13 @@
     "release:current": "bun run release:validate && bun run build && bun build ./scripts/graphchat.mjs --compile --outfile ./release/graphchat",
     "release:validate": "node scripts/validate-release.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.server.json --noEmit",
-    "test": "vitest run",
-    "test:watch": "vitest",
+    "test": "bun x --bun vitest run",
+    "test:watch": "bun x --bun vitest",
     "test:e2e": "playwright test",
     "test:providers": "node scripts/provider-smoke.mjs",
     "test:seed-realistic": "node scripts/seed-realistic-learning-data.mjs",
     "test:site": "node scripts/validate-site.mjs",
-    "test:all": "npm run release:validate && tsc -p tsconfig.json --noEmit && tsc -p tsconfig.server.json --noEmit && vitest run && node scripts/validate-site.mjs && vite build && tsc -p tsconfig.server.json && playwright test",
+    "test:all": "npm run release:validate && tsc -p tsconfig.json --noEmit && tsc -p tsconfig.server.json --noEmit && bun x --bun vitest run && node scripts/validate-site.mjs && vite build && tsc -p tsconfig.server.json && playwright test",
     "verify": "npm run release:validate && npm audit --omit=dev --audit-level=moderate && npm run test:all"
   },
   "dependencies": {
