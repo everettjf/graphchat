@@ -195,11 +195,14 @@ test.describe("Graph Chat", () => {
   test("switches and persists supported interface languages", async ({ page }) => {
     await page.goto("/?lang=zh-TW");
     await expect(page.locator("html")).toHaveAttribute("lang", "zh-TW");
-    const language = page.getByRole("combobox", { name: "語言" });
-    await expect(language).toHaveValue("zh-TW");
-    await expect(language.locator('option[value="hi"]')).toHaveCount(0);
+    await page.getByTestId("language-menu").click();
+    await expect(page.getByRole("menuitem", { name: "繁體中文" })).toHaveAttribute(
+      "aria-current",
+      "true",
+    );
+    await expect(page.getByRole("menuitem", { name: "हिन्दी" })).toHaveCount(0);
 
-    await language.selectOption("de");
+    await page.getByRole("menuitem", { name: "Deutsch" }).click();
     await expect(page.locator("html")).toHaveAttribute("lang", "de");
     await expect(page).toHaveURL(/\?lang=de$/);
     expect(
@@ -207,7 +210,11 @@ test.describe("Graph Chat", () => {
     ).toBe("de");
 
     await page.reload();
-    await expect(page.getByRole("combobox", { name: "Sprache" })).toHaveValue("de");
+    await page.getByTestId("language-menu").click();
+    await expect(page.getByRole("menuitem", { name: "Deutsch" })).toHaveAttribute(
+      "aria-current",
+      "true",
+    );
   });
 
   test("changes provider settings and exposes a credential-free data export", async ({

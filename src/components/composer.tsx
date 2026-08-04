@@ -253,7 +253,11 @@ export function Composer({
               size="icon"
               variant="outline"
               className="mb-0.5 size-10 rounded-xl border-[var(--danger-border)] text-[var(--danger)] hover:border-[var(--danger-border)]"
-              onClick={() => controllerRef.current?.abort()}
+              onClick={() => {
+                const activeRun = activeRunRef.current;
+                if (activeRun) void api.cancelRun(activeRun.nodeId);
+                controllerRef.current?.abort();
+              }}
               aria-label={t("composer.stop")}
             >
               <CircleStop className="size-4" />

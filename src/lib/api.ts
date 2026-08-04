@@ -184,4 +184,12 @@ export const api = {
     }
     if (buffer.trim()) onEvent(JSON.parse(buffer) as RunStreamEvent);
   },
+  cancelRun: (nodeId: string) =>
+    fetch(`/api/runs/${encodeURIComponent(nodeId)}`, { method: "DELETE" }).then(
+      (response) => {
+        if (!response.ok && response.status !== 404) {
+          throw new Error(`Unable to cancel this answer (${response.status}).`);
+        }
+      },
+    ),
 };

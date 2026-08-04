@@ -21,7 +21,7 @@ export default defineConfig({
     screenshot: "only-on-failure",
   },
   webServer: {
-    command: "node dist-server/server/index.js",
+    command: "bun dist-server/server/index.js",
     url: "http://127.0.0.1:4173/health",
     reuseExistingServer: false,
     timeout: 30_000,

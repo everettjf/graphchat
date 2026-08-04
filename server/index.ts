@@ -46,6 +46,7 @@ const reusedCodexLogin =
     path.join(os.homedir(), ".codex", "auth.json"),
   ));
 const runtime = new GraphAgentRuntime(database.getSettings(), credentialStore);
+const activeRunControllers = new Map<string, AbortController>();
 const codexAuth = new OpenAICodexAuthManager(credentialStore);
 const rootDirectory = path.dirname(fileURLToPath(import.meta.url));
 const productionClientDirectory = process.env.GRAPHCHAT_CLIENT_DIR
@@ -342,16 +343,29 @@ app.post("/api/runs", async (request, reply) => {
     "X-Accel-Buffering": "no",
   });
   const controller = new AbortController();
+  let activeNodeId: string | null = null;
   reply.raw.once("close", () => {
     if (!reply.raw.writableEnded) controller.abort();
   });
   try {
     for await (const event of runtime.run(database, parsed.data, controller.signal)) {
+      if (event.type === "run_started") {
+        activeNodeId = event.nodeId;
+        activeRunControllers.set(event.nodeId, controller);
+      }
       reply.raw.write(`${JSON.stringify(event)}\n`);
     }
   } finally {
+    if (activeNodeId) activeRunControllers.delete(activeNodeId);
     reply.raw.end();
   }
+});
+
+app.delete<{ Params: { nodeId: string } }>("/api/runs/:nodeId", async (request, reply) => {
+  const controller = activeRunControllers.get(request.params.nodeId);
+  if (!controller) return reply.code(404).send({ message: "Run not found" });
+  controller.abort();
+  return reply.code(202).send({ cancelled: true });
 });
 
 if (
