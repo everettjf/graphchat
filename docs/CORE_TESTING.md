@@ -180,6 +180,24 @@ Verify:
 - the topbar terminal button copies a `pi --session` command, and running it
   resumes the conversation at the new answer.
 
+## Codebase-rooted graphs and references
+
+Create a graph with a project directory that contains code. Verify:
+
+- the topbar shows the project folder name and **Open in terminal** copies a
+  command that starts `pi` in that directory;
+- asking "what does this repository do" makes the model read files and cite
+  paths (with a real model), and the session file's system message names the
+  project directory;
+- marking a node as a reference, then starting a new thread, shows the node as
+  a chip in the composer and the answer's Context tab lists it;
+- in a terminal Pi session, **Use as reference** on a turn adds a chip, and the
+  next answer's Context tab lists `Pi · …` with the turn title.
+
+Install the Pi package with `pi install ./packages/graphchat-pi`, run `pi` in
+any project, and verify `/graph status`, `/ref <words>`, and `graph_search`
+work against the running server.
+
 ## Pi sessions
 
 Run `pi` in any project, ask two questions, then use `/tree` to branch from the

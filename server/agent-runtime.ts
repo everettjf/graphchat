@@ -8,7 +8,7 @@ import {
 } from "@earendil-works/pi-ai";
 import {
   createAgentSession,
-  createExtensionRuntime,
+  DefaultResourceLoader,
   getAgentDir,
   ModelRuntime,
   SettingsManager,
@@ -20,7 +20,9 @@ import {
 import { nanoid } from "nanoid";
 import path from "node:path";
 import type {
+  ContextItem,
   ContextSnapshot,
+  GraphDocument,
   ProviderSettings,
   RunRequest,
   RunStreamEvent,
@@ -29,7 +31,7 @@ import { stripTrailingMainThreadSection } from "../shared/answer-content.js";
 import { compileContext, contextToPrompt } from "./context-compiler.js";
 import type { GraphDatabase } from "./database.js";
 import { openGraphSession } from "./graph-session.js";
-import { resolvePiSessionDir } from "./pi-sessions.js";
+import { resolvePiSessionDir, type PiSessionIndex } from "./pi-sessions.js";
 
 type QueueResolver<T> = (value: IteratorResult<T>) => void;
 
@@ -216,22 +218,52 @@ export type GraphAgentRuntimeOptions = {
   agentDir?: string;
   /** Root of Pi's session tree. Defaults to Pi's own session directory. */
   sessionRoot?: string;
+  /** Read-only index used to resolve references to Pi session turns. */
+  sessionIndex?: PiSessionIndex;
 };
 
-function learningResourceLoader(systemPrompt: string): ResourceLoader {
-  return {
-    getExtensions: () => ({ extensions: [], errors: [], runtime: createExtensionRuntime() }),
-    getSkills: () => ({ skills: [], diagnostics: [] }),
-    getPrompts: () => ({ prompts: [], diagnostics: [] }),
-    getThemes: () => ({ themes: [], diagnostics: [] }),
-    getAgentsFiles: () => ({ agentsFiles: [] }),
-    getSystemPrompt: () => systemPrompt,
-    getSystemPromptSource: () => undefined,
-    getAppendSystemPrompt: () => [],
-    getAppendSystemPromptSources: () => [],
-    extendResources: () => {},
-    reload: async () => {},
-  };
+const PROJECT_TOOLS = ["read", "grep", "find", "ls"] as const;
+
+function estimateTokens(text: string) {
+  return Math.max(1, Math.ceil(text.length / 3));
+}
+
+function projectPromptSection(projectDir: string, locale: RunRequest["locale"]): string {
+  return locale.startsWith("zh")
+    ? `
+
+## 代码库
+
+这张知识图根植于 ${projectDir} 下的代码。你可以使用只读工具：read（读文件）、grep（搜索内容）、find（按名字找文件）、ls（列目录）。回答与实现相关的问题时，先查看真实代码，并引用文件路径；不要凭记忆描述这个项目。`
+    : `
+
+## Codebase
+
+This knowledge graph is rooted in the code at ${projectDir}. Read-only tools are available: read (open a file), grep (search contents), find (locate files by name), ls (list a directory). Ground answers about the implementation in the actual files and cite paths; never describe this project from memory.`;
+}
+
+/**
+ * Pi's normal resource discovery (the user's extensions, skills, prompt
+ * templates, packages, and APPEND_SYSTEM.md) with Pi Graph Chat's learning
+ * prompt in place of the coding-agent preamble. Set GRAPHCHAT_PI_EXTENSIONS=0
+ * to run without user extensions.
+ */
+async function createGraphResourceLoader(options: {
+  cwd: string;
+  agentDir: string;
+  settingsManager: SettingsManager;
+  systemPrompt: string;
+}): Promise<ResourceLoader> {
+  const loader = new DefaultResourceLoader({
+    cwd: options.cwd,
+    agentDir: options.agentDir,
+    settingsManager: options.settingsManager,
+    noExtensions: process.env.GRAPHCHAT_PI_EXTENSIONS === "0",
+    noThemes: true,
+    systemPromptOverride: () => options.systemPrompt,
+  });
+  await loader.reload();
+  return loader;
 }
 
 /**
@@ -246,7 +278,11 @@ export class GraphAgentRuntime {
   private readonly runtimeApiKeys = new Map<ProviderSettings["provider"], string>();
   private readonly graphLocks = new Map<string, Promise<void>>();
   private faux: FauxProviderHandle | null = null;
+  private readonly sessionIndex: PiSessionIndex | null;
+  /** Tool names active in the most recent run; diagnostics for tests and UI. */
+  lastRunToolNames: string[] = [];
   readonly dataDirectory: string;
+  readonly agentDir: string;
   readonly sessionRoot: string;
 
   private constructor(
@@ -256,20 +292,25 @@ export class GraphAgentRuntime {
   ) {
     this.settings = settings;
     this.dataDirectory = path.resolve(options.dataDirectory);
+    this.agentDir = path.resolve(options.agentDir ?? getAgentDir());
     this.sessionRoot = options.sessionRoot ?? resolvePiSessionDir();
+    this.sessionIndex = options.sessionIndex ?? null;
   }
 
   static async create(
     settings: ProviderSettings,
     options: GraphAgentRuntimeOptions,
   ): Promise<GraphAgentRuntime> {
-    const agentDir = options.agentDir ?? getAgentDir();
+    const agentDir = path.resolve(options.agentDir ?? getAgentDir());
+    // The graphchat-pi extension stays silent inside this process; the
+    // runtime registers the graph tools itself.
+    process.env.GRAPHCHAT_EMBEDDED = "1";
     const modelRuntime = await ModelRuntime.create({
       authPath: path.join(agentDir, "auth.json"),
       modelsPath: path.join(agentDir, "models.json"),
       refreshOnCreate: false,
     });
-    return new GraphAgentRuntime(settings, modelRuntime, options);
+    return new GraphAgentRuntime(settings, modelRuntime, { ...options, agentDir });
   }
 
   async configure(settings: ProviderSettings, apiKey?: string) {
@@ -288,9 +329,59 @@ export class GraphAgentRuntime {
     return false;
   }
 
-  /** Command that resumes a graph's Pi session in the terminal. */
-  sessionCwd() {
-    return this.dataDirectory;
+  /** Working directory of a graph's Pi session: its codebase, or the data directory. */
+  graphCwd(graph: GraphDocument): string {
+    return graph.graph.projectDir ?? this.dataDirectory;
+  }
+
+  /** Turn references from other graphs and Pi session turns into context items. */
+  resolveExternalReferences(
+    database: GraphDatabase,
+    references: RunRequest["externalReferences"],
+    locale: RunRequest["locale"],
+  ): ContextItem[] {
+    const zh = locale.startsWith("zh");
+    const items: ContextItem[] = [];
+    const graphTitles = new Map<string, string>();
+    for (const reference of references ?? []) {
+      if (reference.kind === "node") {
+        const node = database.getNode(reference.nodeId);
+        if (!node) continue;
+        if (!graphTitles.has(node.graphId)) {
+          graphTitles.set(node.graphId, database.getGraph(node.graphId)?.graph.title ?? node.graphId);
+        }
+        const content = node.summary || node.content;
+        items.push({
+          nodeId: node.id,
+          title: `${graphTitles.get(node.graphId)} · ${node.title}`,
+          reason: "reference",
+          detail: node.summary ? "summary" : "full",
+          content,
+          estimatedTokens: estimateTokens(content),
+        });
+      } else {
+        const tree = this.sessionIndex?.get(reference.sessionId) ?? null;
+        const turn = tree?.turns.find((candidate) => candidate.id === reference.turnId);
+        if (!tree || !turn) continue;
+        const tools = turn.toolCalls.map((call) => call.name).join(", ");
+        const content = [
+          turn.prompt && `${zh ? "提问" : "Prompt"}: ${turn.prompt}`,
+          tools && `${zh ? "使用的工具" : "Tools used"}: ${tools}`,
+          turn.response && `${zh ? "回答" : "Answer"}: ${turn.response}`,
+        ]
+          .filter(Boolean)
+          .join("\n\n");
+        items.push({
+          nodeId: `pi:${tree.session.id}/${turn.id}`,
+          title: `Pi · ${tree.session.name || tree.session.firstPrompt || tree.session.id} · ${turn.title}`,
+          reason: "reference",
+          detail: "full",
+          content,
+          estimatedTokens: estimateTokens(content),
+        });
+      }
+    }
+    return items;
   }
 
   async *run(
@@ -318,6 +409,7 @@ export class GraphAgentRuntime {
       parentNodeId: request.parentNodeId,
       referenceNodeIds: request.referenceNodeIds,
       selectedText: request.selectedText,
+      externalItems: this.resolveExternalReferences(database, request.externalReferences, request.locale),
       locale: request.locale,
     });
 
@@ -369,8 +461,10 @@ export class GraphAgentRuntime {
         // Re-read inside the lock: a queued run must see entries the previous
         // run just assigned, or it would replay those nodes a second time.
         const current = database.getGraph(request.graphId) ?? graph;
+        const cwd = this.graphCwd(current);
+        const projectDir = current.graph.projectDir;
         const { manager } = openGraphSession(database, current, {
-          cwd: this.dataDirectory,
+          cwd,
           sessionRoot: this.sessionRoot,
         });
 
@@ -392,25 +486,49 @@ export class GraphAgentRuntime {
           );
         }
 
-        const systemPrompt = `${request.locale.startsWith("zh") ? SYSTEM_PROMPTS.zh : SYSTEM_PROMPTS.en}
+        const systemPrompt = `${request.locale.startsWith("zh") ? SYSTEM_PROMPTS.zh : SYSTEM_PROMPTS.en}${
+          projectDir ? projectPromptSection(projectDir, request.locale) : ""
+        }
 
 Always respond in ${RESPONSE_LANGUAGES[request.locale]}.`;
+        const settingsManager = SettingsManager.create(cwd, this.agentDir);
+        const resourceLoader = await createGraphResourceLoader({
+          cwd,
+          agentDir: this.agentDir,
+          settingsManager,
+          systemPrompt,
+        });
         const created = await createAgentSession({
-          cwd: this.dataDirectory,
+          cwd,
+          agentDir: this.agentDir,
           model,
           thinkingLevel: "off",
           modelRuntime: this.modelRuntime,
           sessionManager: manager,
-          resourceLoader: learningResourceLoader(systemPrompt),
-          tools: [],
+          resourceLoader,
+          // `read` lets the model open skill files, which is how Pi skills work.
+          // A graph rooted in a codebase also gets Pi's other read-only tools.
+          tools: projectDir ? [...PROJECT_TOOLS] : ["read"],
           customTools: this.createGraphTools(database, request.graphId, request.locale),
-          settingsManager: SettingsManager.inMemory({
-            compaction: { enabled: true },
-            retry: { enabled: true, maxRetries: 2 },
-          }),
+          settingsManager,
         });
         session = created.session;
         const activeSession = session;
+        this.lastRunToolNames = activeSession.getActiveToolNames();
+        // Headless binding, like Pi's print mode: fires session_start for the
+        // user's extensions and exposes the tools they register.
+        await activeSession.bindExtensions({
+          mode: "print",
+          onError: (error) => {
+            events.push({
+              type: "tool_finished",
+              runId,
+              nodeId: node.id,
+              tool: "extension",
+              summary: error instanceof Error ? error.message : String(error),
+            });
+          },
+        });
         if (signal) {
           if (signal.aborted) void activeSession.abort();
           signal.addEventListener("abort", () => void activeSession.abort(), { once: true });

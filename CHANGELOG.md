@@ -10,6 +10,18 @@ overhead, and adds a read-only bridge to Pi coding-agent sessions.
 
 ### Added
 
+- Added the `graphchat-pi` Pi package (`packages/graphchat-pi`): graph tools,
+  `/graph` and `/ref` commands, four learning skills, and two prompt templates
+  for the terminal `pi`. Graph runs in the web app now load the user's own Pi
+  extensions, skills, prompt templates, and packages.
+- Graphs can be rooted in a project directory. Their Pi session lives in that
+  project, and answers get Pi's read-only `read`, `grep`, `find`, and `ls`
+  tools plus the project's `AGENTS.md`.
+- Added cross-session references: nodes marked as references follow the user
+  into another graph or a new thread, and a turn from any terminal Pi session
+  can be added as a reference from the Pi session view.
+- Added `/api/search`, `/api/graphs/:id/search`, `GET /api/nodes/:id`, and
+  `/api/graphs/by-session/:sessionId`, plus `?graph=` and `?pi=` deep links.
 - Every knowledge graph is now backed by a Pi session file. Answers run
   through `pi-coding-agent`'s `createAgentSession()`; a new answer branches
   the session at the parent node's entry, existing nodes are replayed into
@@ -32,8 +44,8 @@ overhead, and adds a read-only bridge to Pi coding-agent sessions.
   ChatGPT sign-in from the settings dialog and `pi /login` now share one
   `auth.json`. The app-owned `.graphchat/auth.json` and the Codex CLI
   credential import were removed.
-- Database schema version 5 adds `graphs.pi_session_path` and
-  `nodes.pi_entry_id`.
+- Database schema version 6 adds `graphs.pi_session_path`,
+  `nodes.pi_entry_id`, and `graphs.project_dir`.
 - Renamed the project and package to `pi-graph-chat`; the launcher is now
   `bun run launch` / `pi-graph-chat`.
 - Upgraded `@earendil-works/pi-ai` and `pi-agent-core` to 0.87.1 and added

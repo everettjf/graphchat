@@ -38,6 +38,10 @@ Pi Graph Chat 是我给自己做的学习工具，不是产品，也不打算做
 | 精确追问 | 从任意节点继续，或选中回答里的一段文字从那句话分支 |
 | 上下文 | 父路径就是会话的当前分支；引用和选中文字以 Pi 的 `custom_message` 条目注入 |
 | Pi 会话 | 只读显示本机所有 Pi coding agent 会话的树，Pi 运行时自动刷新 |
+| 根植于代码库的图 | 给图指定项目目录：Pi 会话放在该项目下，回答可用 Pi 的只读工具 `read`、`grep`、`find`、`ls`，并加载项目的 `AGENTS.md` |
+| 跨会话引用 | 下一个问题可以引用其他图的节点，或任意终端 Pi 会话的某个回合；它们以芯片的形式出现在输入框里 |
+| Pi package | `packages/graphchat-pi` 给终端 `pi` 提供图谱工具、`/graph`、`/ref`、四个学习 skills 和两个 prompt 模板 |
+| 你的 Pi 配置 | 图谱运行通过 Pi 的正常发现机制加载你自己的扩展、skills、prompt 模板和已安装的 package |
 | 通过 Pi 使用模型 | ChatGPT 订阅（Codex OAuth）、OpenAI、Anthropic、Google Gemini、OpenRouter、Ollama、任意 OpenAI-compatible endpoint |
 | 本地数据 | Bun/Node SQLite + FTS5、版本化 JSON 备份、Obsidian 友好的 Markdown 导出 |
 | 导入 | Markdown、纯文本、文本型 PDF |
@@ -53,6 +57,35 @@ Pi Graph Chat 是我给自己做的学习工具，不是产品，也不打算做
 - 视图是只读的，会话文件由 Pi 负责写入。
 
 如果会话不在默认位置，设置 `PI_CODING_AGENT_SESSION_DIR`（或 `PI_CODING_AGENT_DIR`），优先级与 Pi 本身一致。
+
+### 根植于代码库的图
+
+创建或编辑图时填写项目目录。之后：
+
+- 这张图的 Pi 会话会保存在该项目下，在项目里 `pi --resume` 能找到它，**在终端打开** 也会在项目目录启动 Pi；
+- 回答可以 `read`、`grep`、`find`、`ls` 项目文件，系统提示会要求模型基于真实代码回答实现问题并引用路径；
+- 项目的 `AGENTS.md` 上下文文件会像 `pi` 一样被加载。
+
+工具全部只读。没有项目目录的图只有 `read`，这是 Pi skills 所需要的。
+
+### 跨图和跨会话引用
+
+把外部上下文带进下一个问题有两种方式：
+
+- 先把节点标记为引用，再切换图或新建线程。引用会以芯片的形式跟着你进入输入框，并注明来自哪张图。
+- 在侧边栏打开一个终端 Pi 会话，选中一个回合，点击 **作为引用**。该回合的提问、工具和回答会成为下一个图谱问题的上下文。
+
+两种引用都会记录在节点的上下文快照里，并以 `graphchat.references` 条目注入 Pi 会话，与同图引用完全一样。
+
+### Pi package
+
+```bash
+pi install ./packages/graphchat-pi
+```
+
+这会给终端 `pi` 提供 `graph_search` 和 `graph_get_node` 工具、`/graph`（在网页里打开当前会话，或把普通会话绑定到某张图）、`/ref`（把图谱节点注入上下文）、`graph-synthesize`、`graph-compare`、`explain-back`、`study-cards` 四个 skills，以及 `/branch` 和 `/synthesize` 两个 prompt。详见 [`packages/graphchat-pi/README.md`](./packages/graphchat-pi/README.md)。
+
+网页里的图谱运行走 Pi 的正常资源发现，所以 `~/.pi/agent` 下的扩展、skills、prompt 模板和已安装的 package 在这里同样生效。设置 `GRAPHCHAT_PI_EXTENSIONS=0` 可以在不加载扩展的情况下运行图谱。
 
 ## 快速开始
 
@@ -107,6 +140,7 @@ Pi 会话文件是对话的正本。SQLite 只保存 Pi 不知道的东西：节
 - [`server/graph-session.ts`](./server/graph-session.ts) — 打开或创建图对应的 Pi 会话，并把节点回放进去
 - [`server/context-compiler.ts`](./server/context-compiler.ts) — 引用与选中文字的上下文
 - [`server/pi-sessions.ts`](./server/pi-sessions.ts) — Pi 会话索引与回合折叠
+- [`packages/graphchat-pi/extensions/graphchat.ts`](./packages/graphchat-pi/extensions/graphchat.ts) — 终端侧扩展
 - [`server/openai-codex-auth.ts`](./server/openai-codex-auth.ts) — ChatGPT 设备码 OAuth 生命周期
 - [`src/components/graph-canvas.tsx`](./src/components/graph-canvas.tsx) — 知识图交互
 - [`src/components/pi-session-view.tsx`](./src/components/pi-session-view.tsx) — Pi 会话树视图
@@ -114,8 +148,8 @@ Pi 会话文件是对话的正本。SQLite 只保存 Pi 不知道的东西：节
 ## 开发
 
 ```bash
-bun run typecheck  # TypeScript 客户端与服务端
-bun run test       # Vitest：数据库、Pi runtime、Pi 登录、Pi 会话、UI
+bun run typecheck  # TypeScript 客户端、服务端和 Pi package
+bun run test       # Vitest：数据库、Pi runtime、Pi 登录、Pi 会话、Pi package、UI
 bun run build      # 生产构建
 bun run test:e2e   # Playwright
 bun run test:all   # 以上全部
@@ -129,8 +163,9 @@ bun run test:all   # 以上全部
 
 1. 只读的 Pi 会话桥 —— 已完成。
 2. 回答通过 `createAgentSession()` 运行，图谱分支就是 Pi 会话分支，同一个会话可以在终端打开 —— 已完成。
-3. 把图谱工具、`/graph` 命令和学习 skills 打包成 Pi package，并在图谱运行中加载用户自己的 Pi 扩展和 skills。
-4. 让学习会话根植于代码库，使用 Pi 的只读编码工具，并支持跨会话引用节点。
+3. 把图谱工具、`/graph` 命令和学习 skills 打包成 Pi package，并在图谱运行中加载用户自己的 Pi 扩展和 skills —— 已完成。
+4. 让学习会话根植于代码库，使用 Pi 的只读编码工具，并支持跨图、跨会话引用 —— 已完成。
+5. 下一步：在图节点上显示工具调用、基于学习卡片的间隔重复复习、用本地 embedding 做跨图相关节点推荐。
 
 手动验收见 [`docs/CORE_TESTING.md`](./docs/CORE_TESTING.md)，备份格式见 [`docs/GRAPHCHAT_FORMAT.md`](./docs/GRAPHCHAT_FORMAT.md)。
 

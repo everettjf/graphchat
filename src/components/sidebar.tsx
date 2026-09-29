@@ -42,11 +42,12 @@ type SidebarProps = {
   onCreateGraph: (input: {
     title: string;
     description: string;
+    projectDir?: string | null;
   }) => Promise<void>;
   onNewThread: () => Promise<void>;
   onUpdateGraph: (
     id: string,
-    input: { title: string; description: string },
+    input: { title: string; description: string; projectDir?: string | null },
   ) => Promise<void>;
   onArchiveGraph: (id: string) => Promise<void>;
   onRestoreGraph: (id: string) => Promise<void>;
@@ -453,6 +454,7 @@ function GraphDialog({
   const { t } = useI18n();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [projectDir, setProjectDir] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
@@ -460,6 +462,7 @@ function GraphDialog({
     if (!open) return;
     setTitle(graph?.title ?? "");
     setDescription(graph?.description ?? "");
+    setProjectDir(graph?.projectDir ?? "");
     setError("");
   }, [graph, open]);
 
@@ -468,7 +471,11 @@ function GraphDialog({
     setBusy(true);
     setError("");
     try {
-      const input = { title: title.trim(), description: description.trim() };
+      const input = {
+        title: title.trim(),
+        description: description.trim(),
+        projectDir: projectDir.trim() || null,
+      };
       if (graph) await onUpdate(graph.id, input);
       else await onCreate(input);
       onOpenChange(false);
@@ -539,6 +546,19 @@ function GraphDialog({
               onChange={(event) => setDescription(event.target.value)}
               placeholder={t("graph.descriptionPlaceholder")}
             />
+          </div>
+          <div>
+            <Label htmlFor="graph-project-dir">{t("graph.projectDir")}</Label>
+            <Input
+              id="graph-project-dir"
+              value={projectDir}
+              onChange={(event) => setProjectDir(event.target.value)}
+              placeholder={t("graph.projectDirPlaceholder")}
+              spellCheck={false}
+            />
+            <p className="mt-1.5 text-[10px] leading-4 text-[var(--muted-light)]">
+              {t("graph.projectDirHint")}
+            </p>
           </div>
         </div>
         {error && <p className="mt-3 text-xs text-[var(--danger)]">{error}</p>}

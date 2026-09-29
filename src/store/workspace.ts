@@ -1,12 +1,25 @@
 import { create } from "zustand";
 
 type ComposerMode = "answer" | "explore" | "synthesize";
+
+/** Context carried into the next question from outside the current graph. */
+export type ExternalReferenceChip =
+  | { kind: "node"; nodeId: string; title: string; graphTitle: string }
+  | { kind: "pi-turn"; sessionId: string; turnId: string; title: string; sessionName: string };
+
+const sameReference = (a: ExternalReferenceChip, b: ExternalReferenceChip) =>
+  a.kind === "node" && b.kind === "node"
+    ? a.nodeId === b.nodeId
+    : a.kind === "pi-turn" && b.kind === "pi-turn"
+      ? a.sessionId === b.sessionId && a.turnId === b.turnId
+      : false;
 const sidebarStartsOpen =
   typeof window === "undefined" || window.innerWidth >= 1024;
 
 type WorkspaceState = {
   selectedNodeId: string | null;
   referenceNodeIds: string[];
+  externalReferences: ExternalReferenceChip[];
   search: string;
   selectedText: string | null;
   composerOpen: boolean;
@@ -17,6 +30,9 @@ type WorkspaceState = {
   selectNode: (id: string | null) => void;
   toggleReference: (id: string) => void;
   clearReferences: () => void;
+  addExternalReference: (reference: ExternalReferenceChip) => void;
+  removeExternalReference: (reference: ExternalReferenceChip) => void;
+  clearExternalReferences: () => void;
   setSearch: (value: string) => void;
   openComposer: (selectedText?: string | null) => void;
   closeComposer: () => void;
@@ -29,6 +45,7 @@ type WorkspaceState = {
 export const useWorkspace = create<WorkspaceState>((set) => ({
   selectedNodeId: "root-rag",
   referenceNodeIds: [],
+  externalReferences: [],
   search: "",
   selectedText: null,
   composerOpen: false,
@@ -44,6 +61,17 @@ export const useWorkspace = create<WorkspaceState>((set) => ({
         : [...state.referenceNodeIds, id],
     })),
   clearReferences: () => set({ referenceNodeIds: [] }),
+  addExternalReference: (reference) =>
+    set((state) => ({
+      externalReferences: state.externalReferences.some((existing) => sameReference(existing, reference))
+        ? state.externalReferences
+        : [...state.externalReferences, reference],
+    })),
+  removeExternalReference: (reference) =>
+    set((state) => ({
+      externalReferences: state.externalReferences.filter((existing) => !sameReference(existing, reference)),
+    })),
+  clearExternalReferences: () => set({ externalReferences: [] }),
   setSearch: (search) => set({ search }),
   openComposer: (selectedText = null) => set({ composerOpen: true, selectedText }),
   closeComposer: () => set({ composerOpen: false, selectedText: null }),

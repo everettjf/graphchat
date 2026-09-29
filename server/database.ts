@@ -89,6 +89,7 @@ export class GraphDatabase {
       updatedAt: timestamp,
       archivedAt: null,
       piSessionPath: null,
+      projectDir: null,
     };
     this.db
       .prepare(
@@ -338,10 +339,11 @@ export class GraphDatabase {
       updatedAt: timestamp,
       archivedAt: null,
       piSessionPath: null,
+      projectDir: input.projectDir ?? null,
     };
     this.db
       .prepare(
-        "INSERT INTO graphs (id, title, description, created_at, updated_at, archived_at) VALUES (?, ?, ?, ?, ?, NULL)",
+        "INSERT INTO graphs (id, title, description, created_at, updated_at, archived_at, project_dir) VALUES (?, ?, ?, ?, ?, NULL, ?)",
       )
       .run(
         graph.id,
@@ -349,6 +351,7 @@ export class GraphDatabase {
         graph.description,
         graph.createdAt,
         graph.updatedAt,
+        graph.projectDir,
       );
     return { graph, nodes: [], edges: [] };
   }
@@ -362,11 +365,12 @@ export class GraphDatabase {
     const updatedAt = now();
     this.db
       .prepare(
-        "UPDATE graphs SET title = ?, description = ?, updated_at = ? WHERE id = ?",
+        "UPDATE graphs SET title = ?, description = ?, project_dir = ?, updated_at = ? WHERE id = ?",
       )
       .run(
         input.title ?? graph.title,
         input.description ?? graph.description,
+        input.projectDir === undefined ? graph.projectDir : input.projectDir,
         updatedAt,
         id,
       );
@@ -621,7 +625,19 @@ export class GraphDatabase {
     return true;
   }
 
-  searchNodes(graphId: string, query: string, limit = 6): GraphNode[] {
+  /** Find the graph whose backing Pi session has the given session id. */
+  findGraphBySession(sessionId: string): GraphMeta | null {
+    const safe = sessionId.replace(/[%_\\]/g, (char) => `\\${char}`);
+    const row = this.db
+      .prepare(
+        "SELECT * FROM graphs WHERE pi_session_path LIKE ? ESCAPE '\\' ORDER BY updated_at DESC LIMIT 1",
+      )
+      .get(`%\\_${safe}.jsonl`) as Record<string, unknown> | undefined;
+    return row ? this.mapGraph(row) : null;
+  }
+
+  /** Search nodes in one graph, or across every graph when graphId is null. */
+  searchNodes(graphId: string | null, query: string, limit = 6): GraphNode[] {
     const normalized = query.trim().toLocaleLowerCase();
     if (!normalized) return [];
     const queryTokens = new Set(
@@ -638,22 +654,22 @@ export class GraphDatabase {
         ? this.db
             .prepare(
               `SELECT * FROM nodes
-               WHERE graph_id = ?
+               WHERE (? IS NULL OR graph_id = ?)
                  AND lower(title || ' ' || prompt || ' ' || summary || ' ' ||
                    content || ' ' || tags || ' ' || source_url) LIKE ?
                LIMIT ?`,
             )
-            .all(graphId, `%${normalized}%`, Math.max(limit * 8, 48))
+            .all(graphId, graphId, `%${normalized}%`, Math.max(limit * 8, 48))
         : this.db
             .prepare(
               `SELECT nodes.*
                FROM nodes_fts
                JOIN nodes ON nodes.rowid = nodes_fts.rowid
-               WHERE nodes_fts MATCH ? AND nodes.graph_id = ?
+               WHERE nodes_fts MATCH ? AND (? IS NULL OR nodes.graph_id = ?)
                ORDER BY bm25(nodes_fts, 0, 0, 8, 3, 5, 1, 4, 1)
                LIMIT ?`,
             )
-            .all(ftsQuery, graphId, Math.max(limit * 8, 48))
+            .all(ftsQuery, graphId, graphId, Math.max(limit * 8, 48))
     ) as Record<string, unknown>[];
     return rows
       .map(this.mapNode)
@@ -1136,6 +1152,7 @@ export class GraphDatabase {
     updatedAt: String(row.updated_at),
     archivedAt: row.archived_at == null ? null : String(row.archived_at),
     piSessionPath: row.pi_session_path == null ? null : String(row.pi_session_path),
+    projectDir: row.project_dir == null ? null : String(row.project_dir),
   });
 
   private mapEdge = (row: Record<string, unknown>): GraphEdge => ({

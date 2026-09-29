@@ -13,12 +13,16 @@ const localChrome = [
 // pid-based name would differ between the seeded server and the test workers.
 const piSessionDir = path.join(os.tmpdir(), "pi-graph-chat-e2e-sessions");
 const piAgentDir = path.join(os.tmpdir(), "pi-graph-chat-e2e-agent");
+const projectDir = path.join(os.tmpdir(), "pi-graph-chat-e2e-project");
 process.env.PI_CODING_AGENT_SESSION_DIR = piSessionDir;
+process.env.PI_GRAPH_CHAT_E2E_PROJECT_DIR = projectDir;
 
 export default defineConfig({
   testDir: "./tests/e2e",
   globalSetup: "./tests/e2e/seed-pi-sessions.ts",
   fullyParallel: false,
+  // Every spec shares one server and one SQLite database; files must not interleave.
+  workers: 1,
   timeout: 30_000,
   expect: { timeout: 5_000 },
   use: {

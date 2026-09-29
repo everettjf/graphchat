@@ -4,8 +4,9 @@ test.describe("Pi sessions", () => {
   test("exposes seeded Pi sessions as collapsed turn trees over the API", async ({ request }) => {
     const list = await (await request.get("/api/pi/sessions")).json();
     expect(list.sessionDir).toBe(process.env.PI_CODING_AGENT_SESSION_DIR);
-    expect(list.sessions).toHaveLength(1);
-    expect(list.sessions[0]).toMatchObject({
+    // Graph-backed sessions from other tests may be listed too; find the seeded one.
+    const seeded = list.sessions.find((session: { id: string }) => session.id === "e2e-pi-session-0001");
+    expect(seeded).toMatchObject({
       id: "e2e-pi-session-0001",
       cwd: "/home/user/graphchat-demo",
       name: "Context compiler walkthrough",
@@ -73,6 +74,6 @@ test.describe("Pi sessions", () => {
 
     await page.getByRole("button", { name: "Back to knowledge graphs" }).click();
     await expect(view).toHaveCount(0);
-    await expect(page.getByTestId("node-inspector")).toBeVisible();
+    await expect(page.getByTestId("knowledge-tree")).toBeVisible();
   });
 });

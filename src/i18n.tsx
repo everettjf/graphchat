@@ -80,6 +80,10 @@ const english = {
   "graph.titlePlaceholder": "What do you want to learn?",
   "graph.descriptionPlaceholder": "Optional context for this learning space",
   "graph.create": "Create graph",
+  "graph.projectDir": "Project directory (optional)",
+  "graph.projectDirPlaceholder": "/path/to/a/codebase",
+  "graph.projectDirHint": "Root this graph in a codebase. Answers can then read, grep, find, and ls those files, and the Pi session lives in that project.",
+  "composer.removeReference": "Remove reference",
   "graph.save": "Save changes",
   "graph.archive": "Archive graph",
   "graph.archiveConfirm":
@@ -217,6 +221,8 @@ const english = {
   "pi.loadFailed": "Unable to load this Pi session.",
   "pi.untitled": "Untitled session",
   "pi.details": "Details",
+  "pi.useAsReference": "Use as reference",
+  "pi.referenceAdded": "Added as a reference for the next graph question",
   "pi.tools": "{count} tools",
 } as const;
 
@@ -279,6 +285,10 @@ const chinese: Record<keyof typeof english, string> = {
   "graph.titlePlaceholder": "你想学习什么？",
   "graph.descriptionPlaceholder": "可选：描述这个学习空间",
   "graph.create": "创建知识图",
+  "graph.projectDir": "项目目录（可选）",
+  "graph.projectDirPlaceholder": "/path/to/a/codebase",
+  "graph.projectDirHint": "把这张图根植于一个代码库。回答时可以 read、grep、find、ls 这些文件，Pi 会话也会放在该项目下。",
+  "composer.removeReference": "移除引用",
   "graph.save": "保存修改",
   "graph.archive": "归档知识图",
   "graph.archiveConfirm":
@@ -415,6 +425,8 @@ const chinese: Record<keyof typeof english, string> = {
   "pi.loadFailed": "无法加载这个 Pi 会话。",
   "pi.untitled": "未命名会话",
   "pi.details": "详情",
+  "pi.useAsReference": "作为引用",
+  "pi.referenceAdded": "已加入下一个图谱问题的引用",
   "pi.tools": "{count} 次工具调用",
 };
 

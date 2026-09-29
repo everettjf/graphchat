@@ -265,6 +265,16 @@ describe("GraphDatabase", () => {
     database.close();
   });
 
+  it("stores and clears a graph's project directory", () => {
+    const database = createDatabase();
+    const created = database.createGraph({ title: "Code", description: "", projectDir: "/tmp/demo-project" });
+    expect(created.graph.projectDir).toBe("/tmp/demo-project");
+    expect(database.updateGraph(created.graph.id, { title: "Code 2" })?.projectDir).toBe("/tmp/demo-project");
+    expect(database.updateGraph(created.graph.id, { projectDir: null })?.projectDir).toBeNull();
+    expect(database.getGraph(created.graph.id)?.graph.projectDir).toBeNull();
+    database.close();
+  });
+
   it("does not archive the last active graph", () => {
     const database = createDatabase();
     expect(() => database.archiveGraph("learning-rag")).toThrow(
@@ -407,7 +417,7 @@ describe("GraphDatabase", () => {
     database.close();
   });
 
-  it("migrates a v0.1.1 database in place and marks schema version 5", () => {
+  it("migrates a v0.1.1 database in place and marks schema version 6", () => {
     const directory = fs.mkdtempSync(path.join(os.tmpdir(), "graphchat-migration-"));
     directories.push(directory);
     const filename = path.join(directory, "graphchat.sqlite");
@@ -493,7 +503,7 @@ describe("GraphDatabase", () => {
           user_version: number;
         }
       ).user_version,
-    ).toBe(5);
+    ).toBe(6);
     inspected.close();
   });
 

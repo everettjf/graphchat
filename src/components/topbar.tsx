@@ -1,6 +1,7 @@
 import {
   Check,
   FileText,
+  FolderGit2,
   Globe2,
   Maximize2,
   Moon,
@@ -56,9 +57,10 @@ export function Topbar({
   const theme = useTheme();
   const { locale, setLocale, t } = useI18n();
   const sessionPath = document.graph.piSessionPath;
+  const projectDir = document.graph.projectDir;
   const copyTerminalCommand = async () => {
     if (!sessionPath) return;
-    const command = buildOpenInTerminalCommand(piCwd, sessionPath);
+    const command = buildOpenInTerminalCommand(projectDir ?? piCwd, sessionPath);
     try {
       await navigator.clipboard.writeText(command);
       onToast(t("pi.copied"));
@@ -101,8 +103,18 @@ export function Topbar({
               </Badge>
             </button>
           </div>
-          <p className="mt-0.5 hidden truncate text-[10px] text-[var(--muted-light)] sm:block">
-            {document.graph.description}
+          <p className="mt-0.5 hidden items-center gap-1.5 truncate text-[10px] text-[var(--muted-light)] sm:flex">
+            {projectDir && (
+              <span
+                className="flex shrink-0 items-center gap-1 rounded-md bg-[var(--accent-soft)] px-1.5 py-0.5 font-mono text-[9px] text-[var(--accent-fg)]"
+                title={projectDir}
+                data-testid="graph-project-dir"
+              >
+                <FolderGit2 className="size-3" />
+                {projectDir.split(/[\\/]/).filter(Boolean).at(-1) || projectDir}
+              </span>
+            )}
+            <span className="truncate">{document.graph.description}</span>
           </p>
         </div>
       </div>

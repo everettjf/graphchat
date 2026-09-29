@@ -20,7 +20,7 @@ async function setup() {
   const database = new GraphDatabase(dataDirectory);
   const runtime = await GraphAgentRuntime.create(
     { provider: "demo", model: "graphchat-guide", baseUrl: "", hasApiKey: false },
-    { dataDirectory, agentDir, sessionRoot },
+    { dataDirectory, agentDir, sessionRoot, sessionIndex: new PiSessionIndex(sessionRoot) },
   );
   return { database, runtime, sessionRoot, agentDir };
 }
@@ -36,6 +36,7 @@ function baseRequest(overrides: Partial<Parameters<GraphAgentRuntime["run"]>[1]>
     position: { x: 900, y: 400 },
     mode: "answer" as const,
     locale: "zh" as const,
+    externalReferences: [] as Parameters<GraphAgentRuntime["run"]>[1]["externalReferences"],
     ...overrides,
   };
 }
@@ -175,6 +176,40 @@ describe("GraphAgentRuntime", () => {
     database.close();
   });
 
+  it("loads the user's Pi skills and extensions into graph runs", async () => {
+    const { database, runtime, agentDir } = await setup();
+    fs.mkdirSync(path.join(agentDir, "skills", "demo-skill"), { recursive: true });
+    fs.writeFileSync(
+      path.join(agentDir, "skills", "demo-skill", "SKILL.md"),
+      "---\nname: demo-skill\ndescription: Demo skill for tests.\n---\n\n# Demo\n",
+    );
+    fs.mkdirSync(path.join(agentDir, "extensions"), { recursive: true });
+    const marker = path.join(agentDir, "extension-ran.txt");
+    fs.writeFileSync(
+      path.join(agentDir, "extensions", "marker.ts"),
+      `import fs from "node:fs";
+export default function marker(pi) {
+  pi.on("session_start", () => { fs.writeFileSync(${JSON.stringify(marker)}, "ok"); });
+  pi.registerTool({
+    name: "marker_tool", label: "Marker", description: "test",
+    parameters: { type: "object", properties: {} },
+    execute: async () => ({ content: [{ type: "text", text: "ok" }], details: {} }),
+  });
+}
+`,
+    );
+    const events = await collect(runtime, database, baseRequest({ locale: "en" }));
+    expect(events.at(-1)?.type).toBe("run_finished");
+    expect(fs.existsSync(marker)).toBe(true);
+    const graph = database.getGraph("learning-rag")!;
+    const entries = parseSessionEntries(fs.readFileSync(graph.graph.piSessionPath!, "utf8"));
+    const system = entries.find((entry) => entry.type === "message" && entry.message.role === "system");
+    const systemText = system?.type === "message" ? JSON.stringify(system.message) : "";
+    expect(systemText).toContain("demo-skill");
+    expect(systemText).toContain("learning partner");
+    database.close();
+  });
+
   it("injects references and selected text as a context entry instead of rewriting the prompt", async () => {
     const { database, runtime } = await setup();
     const events = await collect(
@@ -243,6 +278,90 @@ describe("GraphAgentRuntime", () => {
     expect(finished?.type === "run_finished" && finished.node.content).toContain("Put the branches on one map");
     expect(finished?.type === "run_finished" && finished.node.content).not.toContain("Back to the main thread");
     expect(finished?.type === "run_finished" && finished.node.summary).toBeTruthy();
+    database.close();
+  });
+
+  it("roots a graph in a codebase: session lives in the project and read-only tools are on", async () => {
+    const { database, runtime, sessionRoot } = await setup();
+    const projectDir = fs.mkdtempSync(path.join(os.tmpdir(), "graphchat-project-"));
+    directories.push(projectDir);
+    fs.writeFileSync(path.join(projectDir, "README.md"), "# Demo project\n");
+    const created = database.createGraph({ title: "Code graph", description: "", projectDir });
+    const events = await collect(
+      runtime,
+      database,
+      baseRequest({ graphId: created.graph.id, parentNodeId: null, prompt: "What does this repo do?", locale: "en" }),
+    );
+    expect(events.at(-1)?.type).toBe("run_finished");
+    // Built-in tools only; the graph tools are custom tools registered separately.
+    expect(runtime.lastRunToolNames.sort()).toEqual(["find", "grep", "ls", "read"]);
+
+    const graph = database.getGraph(created.graph.id)!;
+    expect(graph.graph.projectDir).toBe(projectDir);
+    expect(path.dirname(graph.graph.piSessionPath!)).toBe(
+      path.join(sessionRoot, `--${projectDir.replace(/^[/\\]/, "").replace(/[/\\:]/g, "-")}--`),
+    );
+    const entries = parseSessionEntries(fs.readFileSync(graph.graph.piSessionPath!, "utf8"));
+    expect(entries[0]).toMatchObject({ type: "session", cwd: projectDir });
+    const system = entries.find((entry) => entry.type === "message" && entry.message.role === "system");
+    const systemText = system?.type === "message" ? JSON.stringify(system.message) : "";
+    expect(systemText).toContain(projectDir);
+    expect(systemText).toContain("grep");
+
+    // A plain graph only exposes `read` (for skills) plus the graph tools.
+    await collect(runtime, database, baseRequest({ locale: "en" }));
+    expect(runtime.lastRunToolNames).toEqual(["read"]);
+    database.close();
+  });
+
+  it("resolves references to other graphs and to Pi session turns", async () => {
+    const { database, runtime, sessionRoot } = await setup();
+    // A terminal Pi session in another project.
+    const otherProject = path.join(sessionRoot, "--home-user-other--");
+    fs.mkdirSync(otherProject, { recursive: true });
+    const terminal = SessionManager.create("/home/user/other", otherProject, { id: "terminal-session" });
+    terminal.appendMessage({ role: "user", content: "Why did the deploy fail?", timestamp: Date.now() });
+    terminal.appendMessage({
+      role: "assistant",
+      content: [{ type: "text", text: "The health check timed out because the port was wrong." }],
+      api: "openai-completions",
+      provider: "demo",
+      model: "demo",
+      usage: { input: 1, output: 1, cacheRead: 0, cacheWrite: 0, totalTokens: 2, cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 } },
+      stopReason: "stop",
+      timestamp: Date.now(),
+    });
+    const turnId = terminal.getBranch()[0]!.id;
+    // A second graph that references a node from the seeded graph.
+    const other = database.createGraph({ title: "Ops notes", description: "" });
+    const events = await collect(
+      runtime,
+      database,
+      baseRequest({
+        graphId: other.graph.id,
+        parentNodeId: null,
+        prompt: "Connect the deploy failure to what I know about embeddings.",
+        locale: "en",
+        externalReferences: [
+          { kind: "node", nodeId: "embedding" },
+          { kind: "pi-turn", sessionId: "terminal-session", turnId },
+          { kind: "node", nodeId: "missing-node" },
+        ],
+      }),
+    );
+    const finished = events.find((event) => event.type === "run_finished");
+    expect(finished?.type).toBe("run_finished");
+    const node = database.getNode(finished!.nodeId!)!;
+    const titles = node.contextSnapshot!.items.map((item) => item.title);
+    expect(titles).toContain("Understanding RAG: from new concepts to a complete picture · What exactly is an embedding?");
+    expect(titles.some((title) => title.startsWith("Pi · ") && title.includes("Why did the deploy fail?"))).toBe(true);
+    expect(node.contextSnapshot!.items.map((item) => item.nodeId)).toContain(`pi:terminal-session/${turnId}`);
+    expect(node.contextSnapshot!.items).toHaveLength(2);
+
+    const entries = parseSessionEntries(fs.readFileSync(database.getGraph(other.graph.id)!.graph.piSessionPath!, "utf8"));
+    const reference = entries.find((entry) => entry.type === "custom_message" && entry.customType === "graphchat.references");
+    expect(reference?.type === "custom_message" ? String(reference.content) : "").toContain("health check timed out");
+    expect(reference?.type === "custom_message" ? String(reference.content) : "").toContain("semantic coordinates");
     database.close();
   });
 

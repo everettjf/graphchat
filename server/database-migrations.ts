@@ -69,6 +69,9 @@ export function migrateGraphDatabase(db: SQLiteDatabase) {
   if (!graphColumns.some((column) => column.name === "pi_session_path")) {
     db.exec("ALTER TABLE graphs ADD COLUMN pi_session_path TEXT;");
   }
+  if (!graphColumns.some((column) => column.name === "project_dir")) {
+    db.exec("ALTER TABLE graphs ADD COLUMN project_dir TEXT;");
+  }
   const nodeColumns = db
     .prepare("PRAGMA table_info(nodes)")
     .all() as Array<{ name: string }>;

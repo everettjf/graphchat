@@ -1,3 +1,4 @@
+import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import fastifyStatic from "@fastify/static";
@@ -34,13 +35,26 @@ const usingSystemProxy = await configureSystemProxy();
 const dataDirectory = path.resolve(process.env.GRAPHCHAT_DATA_DIR || ".graphchat");
 const database = new GraphDatabase(dataDirectory);
 const piSessionDir = resolvePiSessionDir();
+const piSessions = new PiSessionIndex(piSessionDir);
 const runtime = await GraphAgentRuntime.create(database.getSettings(), {
   dataDirectory,
   sessionRoot: piSessionDir,
+  sessionIndex: piSessions,
 });
 const activeRunControllers = new Map<string, AbortController>();
 const codexAuth = new OpenAICodexAuthManager(runtime.modelRuntime);
-const piSessions = new PiSessionIndex(piSessionDir);
+
+/** Resolve and validate a graph's project directory, or explain why it is unusable. */
+function resolveProjectDir(value: string | null | undefined): { projectDir: string | null } | { error: string } {
+  if (value === undefined || value === null || value.trim() === "") return { projectDir: null };
+  const resolved = path.resolve(value.trim());
+  try {
+    if (!fs.statSync(resolved).isDirectory()) return { error: `Not a directory: ${resolved}` };
+  } catch {
+    return { error: `Project directory does not exist: ${resolved}` };
+  }
+  return { projectDir: resolved };
+}
 const rootDirectory = path.dirname(fileURLToPath(import.meta.url));
 const productionClientDirectory = process.env.GRAPHCHAT_CLIENT_DIR
   ? path.resolve(process.env.GRAPHCHAT_CLIENT_DIR)
@@ -101,7 +115,7 @@ app.get("/api/bootstrap", async () => {
     archivedGraphs,
     activeGraph,
     settings: { ...settings, hasApiKey: runtime.hasApiKey(settings.provider) },
-    piCwd: runtime.sessionCwd(),
+    piCwd: runtime.dataDirectory,
     piSessionDir,
   };
 });
@@ -113,7 +127,9 @@ app.post("/api/graphs", async (request, reply) => {
       .code(400)
       .send({ message: "Invalid graph", issues: parsed.error.issues });
   }
-  return reply.code(201).send(database.createGraph(parsed.data));
+  const project = resolveProjectDir(parsed.data.projectDir);
+  if ("error" in project) return reply.code(400).send({ message: project.error });
+  return reply.code(201).send(database.createGraph({ ...parsed.data, projectDir: project.projectDir }));
 });
 
 app.patch<{ Params: { id: string } }>(
@@ -125,7 +141,13 @@ app.patch<{ Params: { id: string } }>(
         .code(400)
         .send({ message: "Invalid graph update", issues: parsed.error.issues });
     }
-    const graph = database.updateGraph(request.params.id, parsed.data);
+    const input = { ...parsed.data };
+    if (input.projectDir !== undefined) {
+      const project = resolveProjectDir(input.projectDir);
+      if ("error" in project) return reply.code(400).send({ message: project.error });
+      input.projectDir = project.projectDir;
+    }
+    const graph = database.updateGraph(request.params.id, input);
     if (!graph) return reply.code(404).send({ message: "Graph not found" });
     return graph;
   },
@@ -269,6 +291,44 @@ app.put<{ Params: { id: string } }>("/api/graphs/:id/layout", async (request, re
     throw error;
   }
 });
+
+app.get<{ Params: { id: string } }>("/api/nodes/:id", async (request, reply) => {
+  const node = database.getNode(request.params.id);
+  if (!node) return reply.code(404).send({ message: "Node not found" });
+  return node;
+});
+
+app.get<{ Params: { id: string }; Querystring: { q?: string; limit?: string } }>(
+  "/api/graphs/:id/search",
+  async (request, reply) => {
+    if (!database.getGraph(request.params.id)) {
+      return reply.code(404).send({ message: "Graph not found" });
+    }
+    const limit = Math.min(20, Math.max(1, Number(request.query.limit) || 8));
+    return { nodes: database.searchNodes(request.params.id, request.query.q ?? "", limit) };
+  },
+);
+
+app.get<{ Querystring: { q?: string; limit?: string } }>("/api/search", async (request) => {
+  const limit = Math.min(20, Math.max(1, Number(request.query.limit) || 8));
+  const nodes = database.searchNodes(null, request.query.q ?? "", limit);
+  const graphs = new Map(database.listGraphs().map((graph) => [graph.id, graph]));
+  return {
+    results: nodes.map((node) => ({
+      node,
+      graph: graphs.get(node.graphId) ?? null,
+    })),
+  };
+});
+
+app.get<{ Params: { sessionId: string } }>(
+  "/api/graphs/by-session/:sessionId",
+  async (request, reply) => {
+    const graph = database.findGraphBySession(request.params.sessionId);
+    if (!graph) return reply.code(404).send({ message: "No graph is backed by this session" });
+    return graph;
+  },
+);
 
 app.post<{ Params: { id: string } }>("/api/nodes/:id/suggest-metadata", async (request, reply) => {
   const suggestion = database.suggestMetadata(request.params.id);

@@ -12,6 +12,7 @@ import {
   Quote,
   Search,
   Sparkles,
+  TerminalSquare,
   X,
 } from "lucide-react";
 import type {
@@ -40,6 +41,9 @@ export function Composer({
     selectedNodeId,
     referenceNodeIds,
     clearReferences,
+    externalReferences,
+    removeExternalReference,
+    clearExternalReferences,
     selectedText,
     composerOpen,
     openComposer,
@@ -82,6 +86,11 @@ export function Composer({
           parentNodeId: selectedNode?.id ?? null,
           relationKind,
           referenceNodeIds,
+          externalReferences: externalReferences.map((reference) =>
+            reference.kind === "node"
+              ? { kind: "node" as const, nodeId: reference.nodeId }
+              : { kind: "pi-turn" as const, sessionId: reference.sessionId, turnId: reference.turnId },
+          ),
           prompt: text,
           selectedText,
           position,
@@ -100,6 +109,7 @@ export function Composer({
       );
       setPrompt("");
       clearReferences();
+      clearExternalReferences();
       closeComposer();
     } catch (error) {
       if ((error as Error).name === "AbortError" && activeRunRef.current) {
@@ -150,6 +160,27 @@ export function Composer({
             )}
             {references.map((node) => (
               <ContextChip key={node.id} icon={Link2} label={node.title} accent />
+            ))}
+            {externalReferences.map((reference) => (
+              <span
+                key={reference.kind === "node" ? `node-${reference.nodeId}` : `pi-${reference.sessionId}-${reference.turnId}`}
+                className="flex items-center"
+                data-testid="external-reference"
+              >
+                <ContextChip
+                  icon={reference.kind === "node" ? Link2 : TerminalSquare}
+                  label={`${reference.kind === "node" ? reference.graphTitle : reference.sessionName} · ${reference.title}`}
+                  accent
+                />
+                <button
+                  type="button"
+                  className="-ml-1 grid size-5 place-items-center rounded-md text-[var(--muted-light)] hover:bg-[var(--hover)] hover:text-[var(--ink)]"
+                  onClick={() => removeExternalReference(reference)}
+                  aria-label={t("composer.removeReference")}
+                >
+                  <X className="size-3" />
+                </button>
+              </span>
             ))}
             {selectedText && (
               <span data-testid="selection-context">

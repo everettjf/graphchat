@@ -35,7 +35,7 @@ export function PiSessionView({
 }) {
   const { locale, t } = useI18n();
   const theme = useTheme();
-  const { sidebarOpen, setSidebarOpen } = useWorkspace();
+  const { sidebarOpen, setSidebarOpen, addExternalReference } = useWorkspace();
   const [selectedTurnId, setSelectedTurnId] = useState<string | null>(null);
   const flowRef = useRef<PiFlowInstance | null>(null);
   const query = useQuery({
@@ -197,7 +197,20 @@ export function PiSessionView({
             </p>
           </section>
           <div className="min-h-0 w-full shrink-0 md:w-[44%] md:min-w-[340px] md:max-w-[560px]">
-            <PiSessionInspector tree={tree} turn={selectedTurn} />
+            <PiSessionInspector
+              tree={tree}
+              turn={selectedTurn}
+              onReference={(turn) => {
+                addExternalReference({
+                  kind: "pi-turn",
+                  sessionId: tree.session.id,
+                  turnId: turn.id,
+                  title: turn.title,
+                  sessionName: tree.session.name || tree.session.firstPrompt || "Pi",
+                });
+                onToast(t("pi.referenceAdded"));
+              }}
+            />
           </div>
         </div>
       )}

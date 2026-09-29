@@ -43,6 +43,10 @@ not try to be one. Two ideas hold it together:
 | Precise follow-ups | Continue from any node, or select text inside an answer and branch from that phrase |
 | Context | The parent path is the session's active branch; references and selected text are injected as a Pi `custom_message` entry |
 | Pi sessions | Read-only tree view of every Pi coding-agent session on this machine, auto-refreshing while Pi runs |
+| Codebase-rooted graphs | Give a graph a project directory: its Pi session lives in that project and answers get Pi's read-only `read`, `grep`, `find`, `ls` tools plus the project's `AGENTS.md` |
+| Cross-session references | Cite a node from another graph or a turn from any terminal Pi session in the next question; they travel as chips in the composer |
+| Pi package | `packages/graphchat-pi` gives the terminal `pi` the graph tools, `/graph`, `/ref`, four learning skills, and two prompt templates |
+| Your Pi setup | Graph runs load your own Pi extensions, skills, prompt templates, and packages through Pi's normal discovery |
 | Models via Pi | ChatGPT subscription (Codex OAuth), OpenAI, Anthropic, Google Gemini, OpenRouter, Ollama, any OpenAI-compatible endpoint |
 | Local data | Bun/Node SQLite with FTS5, versioned JSON backup, Obsidian-friendly Markdown export |
 | Import | Markdown, plain text, and text-based PDF |
@@ -64,6 +68,51 @@ with abandoned branches, tool calls, thinking, labels, and the current position.
 
 Set `PI_CODING_AGENT_SESSION_DIR` (or `PI_CODING_AGENT_DIR`) if your sessions
 live somewhere else; Pi Graph Chat follows the same precedence as Pi.
+
+### Graphs rooted in a codebase
+
+Give a graph a project directory when you create or edit it. From then on:
+
+- the graph's Pi session is stored under that project, so `pi --resume` there
+  finds it and **Open in terminal** starts Pi in the project;
+- answers can `read`, `grep`, `find`, and `ls` the project's files, and the
+  system prompt tells the model to ground implementation questions in the
+  actual code and cite paths;
+- the project's `AGENTS.md` context files are loaded, as they are for `pi`.
+
+Tools stay read-only. Graphs without a project directory only get `read`, which
+is what Pi skills need.
+
+### References across graphs and sessions
+
+Two ways to pull outside context into the next question:
+
+- Mark nodes as references, then switch graphs or start a new thread. The
+  references follow you as chips in the composer and are cited from the other
+  graph.
+- Open a terminal Pi session in the sidebar, select a turn, and click **Use as
+  reference**. The turn's prompt, tools, and answer become context for the next
+  graph question.
+
+Both kinds are recorded in the node's context snapshot and injected into the Pi
+session as a `graphchat.references` entry, exactly like same-graph references.
+
+### The Pi package
+
+```bash
+pi install ./packages/graphchat-pi
+```
+
+This gives the terminal `pi` the `graph_search` and `graph_get_node` tools,
+`/graph` (open the current session in the web app, or bind a plain session to
+a graph), `/ref` (inject a graph node into context), the `graph-synthesize`,
+`graph-compare`, `explain-back`, and `study-cards` skills, and the `/branch`
+and `/synthesize` prompts. See [`packages/graphchat-pi/README.md`](./packages/graphchat-pi/README.md).
+
+Graph runs in the web app go through Pi's normal resource discovery, so your
+`~/.pi/agent` extensions, skills, prompt templates, and installed packages are
+active there too. Set `GRAPHCHAT_PI_EXTENSIONS=0` to run graphs without
+extensions.
 
 ## Quick start
 
@@ -132,6 +181,7 @@ Core code:
 - [`server/graph-session.ts`](./server/graph-session.ts) — opens or creates a graph's Pi session and replays nodes into it
 - [`server/context-compiler.ts`](./server/context-compiler.ts) — reference and selection context
 - [`server/pi-sessions.ts`](./server/pi-sessions.ts) — Pi session index and turn collapsing
+- [`packages/graphchat-pi/extensions/graphchat.ts`](./packages/graphchat-pi/extensions/graphchat.ts) — the terminal-side extension
 - [`server/openai-codex-auth.ts`](./server/openai-codex-auth.ts) — ChatGPT device-code OAuth lifecycle
 - [`src/components/graph-canvas.tsx`](./src/components/graph-canvas.tsx) — knowledge graph interactions
 - [`src/components/pi-session-view.tsx`](./src/components/pi-session-view.tsx) — Pi session tree view
@@ -139,8 +189,8 @@ Core code:
 ## Development
 
 ```bash
-bun run typecheck  # TypeScript client and server
-bun run test       # Vitest: database, Pi runtime, Pi auth, Pi sessions, UI
+bun run typecheck  # TypeScript client, server, and the Pi package
+bun run test       # Vitest: database, Pi runtime, Pi auth, Pi sessions, Pi package, UI
 bun run build      # production build
 bun run test:e2e   # Playwright
 bun run test:all   # everything above
@@ -159,9 +209,11 @@ Graph Chat add the graph layer on top. In order:
 2. Answers run through `createAgentSession()`; graph branches are Pi session
    branches and the same session opens in the terminal — done.
 3. Ship the graph tools, `/graph` command, and study skills as a Pi package,
-   and load the user's Pi extensions and skills into graph runs.
+   and load the user's Pi extensions and skills into graph runs — done.
 4. Root learning sessions in a codebase with Pi's read-only coding tools and
-   reference nodes across sessions.
+   reference nodes across graphs and sessions — done.
+5. Next: show tool calls on graph nodes, spaced-repetition review over study
+   cards, and local embeddings for related-node suggestions across graphs.
 
 See [`docs/CORE_TESTING.md`](./docs/CORE_TESTING.md) for manual acceptance and
 [`docs/GRAPHCHAT_FORMAT.md`](./docs/GRAPHCHAT_FORMAT.md) for the backup format.

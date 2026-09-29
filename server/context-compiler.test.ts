@@ -37,6 +37,21 @@ const graph: GraphDocument = {
 };
 
 describe("compileContext", () => {
+  it("adds external items as references without duplicating graph nodes", () => {
+    const result = compileContext({
+      graph,
+      parentNodeId: "b",
+      referenceNodeIds: ["c"],
+      selectedText: null,
+      externalItems: [
+        { nodeId: "pi:s/t", title: "Pi · turn", reason: "reference", detail: "full", content: "terminal answer", estimatedTokens: 5 },
+        { nodeId: "c", title: "dup", reason: "reference", detail: "full", content: "ignored", estimatedTokens: 5 },
+      ],
+    });
+    expect(result.items.map((item) => item.nodeId)).toEqual(["a", "b", "c", "pi:s/t"]);
+    expect(result.items.at(-1)).toMatchObject({ reason: "reference", content: "terminal answer" });
+  });
+
   it("keeps the main path in chronological order and adds references", () => {
     const result = compileContext({
       graph,

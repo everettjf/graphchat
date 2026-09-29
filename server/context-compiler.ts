@@ -10,6 +10,8 @@ export type CompileContextInput = {
   parentNodeId: string | null;
   referenceNodeIds: string[];
   selectedText: string | null;
+  /** Context resolved outside this graph (other graphs, Pi session turns). */
+  externalItems?: ContextItem[];
   maxEstimatedTokens?: number;
   locale?: RunRequest["locale"];
 };
@@ -21,6 +23,7 @@ export function compileContext({
   parentNodeId,
   referenceNodeIds,
   selectedText,
+  externalItems = [],
   maxEstimatedTokens = 8_000,
   locale = "en",
 }: CompileContextInput): ContextSnapshot {
@@ -75,6 +78,11 @@ export function compileContext({
       content,
       estimatedTokens: estimateTokens(content),
     });
+  }
+
+  for (const item of externalItems) {
+    if (candidates.some((candidate) => candidate.nodeId === item.nodeId)) continue;
+    candidates.push({ ...item, reason: "reference" });
   }
 
   if (selectedText && parentNodeId) {

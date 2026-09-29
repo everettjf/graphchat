@@ -1,4 +1,4 @@
-import { Bookmark, Bot, Brain, Copy, Cpu, GitBranch, Wrench } from "lucide-react";
+import { Bookmark, Bot, Brain, Copy, Cpu, GitBranch, Link2, Wrench } from "lucide-react";
 import type { PiSessionTree, PiToolCall, PiTurn } from "@shared/types";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
@@ -67,9 +67,11 @@ function ToolCallItem({ call }: { call: PiToolCall }) {
 export function PiSessionInspector({
   tree,
   turn,
+  onReference,
 }: {
   tree: PiSessionTree;
   turn: PiTurn | null;
+  onReference?: (turn: PiTurn) => void;
 }) {
   const { locale, t } = useI18n();
 
@@ -102,19 +104,33 @@ export function PiSessionInspector({
                 {formatRelativeTime(turn.timestamp, locale)}
               </span>
             </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="size-8"
-              aria-label={t("inspector.copy")}
-              onClick={() =>
-                void navigator.clipboard.writeText(
-                  [turn.prompt, turn.response].filter(Boolean).join("\n\n"),
-                )
-              }
-            >
-              <Copy className="size-3.5" />
-            </Button>
+            <div className="flex shrink-0 items-center gap-1">
+              {onReference && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8"
+                  onClick={() => onReference(turn)}
+                  data-testid="pi-use-as-reference"
+                >
+                  <Link2 className="size-3.5" />
+                  <span className="hidden sm:inline">{t("pi.useAsReference")}</span>
+                </Button>
+              )}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-8"
+                aria-label={t("inspector.copy")}
+                onClick={() =>
+                  void navigator.clipboard.writeText(
+                    [turn.prompt, turn.response].filter(Boolean).join("\n\n"),
+                  )
+                }
+              >
+                <Copy className="size-3.5" />
+              </Button>
+            </div>
           </header>
 
           <div className="min-h-0 flex-1 overflow-y-auto px-6 py-6">

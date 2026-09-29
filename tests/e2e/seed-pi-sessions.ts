@@ -84,8 +84,19 @@ export function seedPiSessions(sessionDir: string) {
   return manager.getSessionFile()!;
 }
 
+/** A tiny codebase for graphs rooted in a project directory. */
+export function seedProject(projectDir: string) {
+  fs.rmSync(projectDir, { recursive: true, force: true });
+  fs.mkdirSync(path.join(projectDir, "src"), { recursive: true });
+  fs.writeFileSync(path.join(projectDir, "README.md"), "# Demo project\n\nA fixture for Pi Graph Chat tests.\n");
+  fs.writeFileSync(path.join(projectDir, "src", "index.ts"), "export const answer = 42;\n");
+}
+
 export default function globalSetup() {
   const sessionDir = process.env.PI_CODING_AGENT_SESSION_DIR;
   if (!sessionDir) throw new Error("PI_CODING_AGENT_SESSION_DIR is not set for the e2e run.");
   seedPiSessions(sessionDir);
+  const projectDir = process.env.PI_GRAPH_CHAT_E2E_PROJECT_DIR;
+  if (!projectDir) throw new Error("PI_GRAPH_CHAT_E2E_PROJECT_DIR is not set for the e2e run.");
+  seedProject(projectDir);
 }

@@ -68,6 +68,8 @@ export const graphMetaSchema = z.object({
   archivedAt: z.string().nullable().default(null),
   /** Pi session file backing this graph, once the first answer has run. */
   piSessionPath: z.string().nullable().default(null),
+  /** Codebase this graph is rooted in. Runs get Pi's read-only coding tools there. */
+  projectDir: z.string().nullable().default(null),
 });
 
 export const graphDocumentSchema = z.object({
@@ -146,12 +148,26 @@ export const updateGraphLayoutSchema = z.object({
 export const createGraphSchema = z.object({
   title: z.string().trim().min(1).max(120),
   description: z.string().trim().max(300).default(""),
+  projectDir: z.string().trim().max(1_000).nullable().optional(),
 });
 
 export const updateGraphSchema = createGraphSchema.partial().refine(
-  (value) => value.title !== undefined || value.description !== undefined,
+  (value) =>
+    value.title !== undefined ||
+    value.description !== undefined ||
+    value.projectDir !== undefined,
   "At least one graph field is required",
 );
+
+/** Context pulled in from outside the current graph. */
+export const externalReferenceSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("node"), nodeId: z.string().min(1) }),
+  z.object({
+    kind: z.literal("pi-turn"),
+    sessionId: z.string().min(1),
+    turnId: z.string().min(1),
+  }),
+]);
 
 export const runRequestSchema = z.object({
   graphId: z.string(),
@@ -163,6 +179,7 @@ export const runRequestSchema = z.object({
   position: z.object({ x: z.number(), y: z.number() }),
   mode: z.enum(["answer", "explore", "synthesize"]).default("answer"),
   locale: z.enum(["en", "zh"]).default("en"),
+  externalReferences: z.array(externalReferenceSchema).max(20).default([]),
 });
 
 export const importTextSchema = z.object({
@@ -189,6 +206,7 @@ export type UpdateGraphLayoutInput = z.infer<typeof updateGraphLayoutSchema>;
 export type CreateGraphInput = z.infer<typeof createGraphSchema>;
 export type UpdateGraphInput = z.infer<typeof updateGraphSchema>;
 export type RunRequest = z.infer<typeof runRequestSchema>;
+export type ExternalReference = z.infer<typeof externalReferenceSchema>;
 export type ImportTextInput = z.infer<typeof importTextSchema>;
 export type GraphBackup = z.infer<typeof graphBackupSchema>;
 

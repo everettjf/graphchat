@@ -43,6 +43,16 @@ export default function App() {
     hasApiKey: false,
   });
   const [toast, setToast] = useState("");
+  const toastTimer = useRef<number | null>(null);
+  // One timer for all toasts: an older toast's timeout must not clear a newer one.
+  const showToast = useCallback((message: string, durationMs = 2_400) => {
+    if (toastTimer.current !== null) window.clearTimeout(toastTimer.current);
+    setToast(message);
+    toastTimer.current = window.setTimeout(() => {
+      toastTimer.current = null;
+      setToast("");
+    }, durationMs);
+  }, []);
   const [toolsOpen, setToolsOpen] = useState(false);
   const [viewMode, setViewMode] = useState<"content" | "tree" | "graph">("content");
   const [piSessionId, setPiSessionId] = useState<string | null>(null);
@@ -61,6 +71,27 @@ export default function App() {
   const clearReferences = useWorkspace((state) => state.clearReferences);
   const flowRef = useRef<GraphFlowInstance | null>(null);
 
+  // Leaving a graph turns its selected references into external references,
+  // so a question in the next graph can still cite them.
+  const carryReferences = useCallback(() => {
+    const workspace = useWorkspace.getState();
+    const current = document;
+    if (current) {
+      for (const nodeId of workspace.referenceNodeIds) {
+        const node = current.nodes.find((candidate) => candidate.id === nodeId);
+        if (node) {
+          workspace.addExternalReference({
+            kind: "node",
+            nodeId,
+            title: node.title,
+            graphTitle: current.graph.title,
+          });
+        }
+      }
+    }
+    workspace.clearReferences();
+  }, [document]);
+
   useEffect(() => {
     window.localStorage.setItem(
       "graphchat-conversation-width",
@@ -75,7 +106,16 @@ export default function App() {
       setGraphs(bootstrap.data.graphs);
       setArchivedGraphs(bootstrap.data.archivedGraphs);
       setSettings(bootstrap.data.settings);
-      const savedId = window.localStorage.getItem("graphchat-active-graph");
+      // Deep links from the Pi extension's /graph command.
+      const url = new URL(window.location.href);
+      const linkedPiSession = url.searchParams.get("pi");
+      const linkedGraphId = url.searchParams.get("graph");
+      if (linkedPiSession || linkedGraphId) {
+        url.searchParams.delete("pi");
+        url.searchParams.delete("graph");
+        window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
+      }
+      const savedId = linkedGraphId ?? window.localStorage.getItem("graphchat-active-graph");
       const savedGraph = savedId
         ? bootstrap.data.graphs.find((graph) => graph.id === savedId)
         : null;
@@ -85,6 +125,7 @@ export default function App() {
           : bootstrap.data.activeGraph;
       if (!active || !initial) return;
       setDocumentState(initial);
+      if (linkedPiSession) setPiSessionId(linkedPiSession);
       selectNode(
         window.matchMedia("(min-width: 1280px)").matches
           ? initial.nodes[0]?.id ?? null
@@ -118,10 +159,11 @@ export default function App() {
   const openGraph = useCallback(
     async (id: string) => {
       setPiSessionId(null);
+      if (document?.graph.id === id) return;
       const next = await api.graph(id);
+      carryReferences();
       setDocumentState(next);
       window.localStorage.setItem("graphchat-active-graph", id);
-      clearReferences();
       selectNode(
         window.matchMedia("(min-width: 1280px)").matches
           ? next.nodes[0]?.id ?? null
@@ -132,21 +174,21 @@ export default function App() {
         80,
       );
     },
-    [clearReferences, selectNode],
+    [carryReferences, document?.graph.id, selectNode],
   );
 
   const createGraph = useCallback(
-    async (input: { title: string; description: string }) => {
+    async (input: { title: string; description: string; projectDir?: string | null }) => {
       const created = await api.createGraph(input);
       setPiSessionId(null);
       setGraphs((current) => [created.graph, ...current]);
+      carryReferences();
       setDocumentState(created);
       window.localStorage.setItem("graphchat-active-graph", created.graph.id);
-      clearReferences();
       selectNode(null);
       setViewMode("content");
     },
-    [clearReferences, selectNode],
+    [carryReferences, selectNode],
   );
 
   const startNewThread = useCallback(async () => {
@@ -205,7 +247,7 @@ export default function App() {
   }, [startNewThread]);
 
   const updateGraph = useCallback(
-    async (id: string, input: { title: string; description: string }) => {
+    async (id: string, input: { title: string; description: string; projectDir?: string | null }) => {
       const updated = await api.updateGraph(id, input);
       setGraphs((current) =>
         current.map((graph) => (graph.id === id ? updated : graph)),
@@ -302,8 +344,7 @@ export default function App() {
           nodes: current.nodes.map((node) => (node.id === event.node.id ? event.node : node)),
         }));
         window.setTimeout(() => void refreshGraph(), 350);
-        setToast(t("app.answerSaved"));
-        setTimeout(() => setToast(""), 2_400);
+        showToast(t("app.answerSaved"), 2_400);
       } else if (event.type === "run_cancelled") {
         setDocument((current) => ({
           ...current,
@@ -314,8 +355,7 @@ export default function App() {
           ),
         }));
         window.setTimeout(() => void refreshGraph(), 350);
-        setToast(event.message);
-        setTimeout(() => setToast(""), 2_400);
+        showToast(event.message, 2_400);
       } else if (event.type === "run_failed") {
         if (event.nodeId) {
           setDocument((current) => ({
@@ -328,8 +368,7 @@ export default function App() {
           }));
         }
         window.setTimeout(() => void refreshGraph(), 350);
-        setToast(event.message);
-        setTimeout(() => setToast(""), 4_000);
+        showToast(event.message, 4_000);
       }
     },
     [refreshGraph, selectNode, setDocument, t],
@@ -348,11 +387,9 @@ export default function App() {
     try {
       const restored = await api.undoGraph(document.graph.id);
       setDocumentState(restored);
-      setToast(locale.startsWith("zh") ? "已撤销上一步图谱修改" : "Last graph change undone");
-      setTimeout(() => setToast(""), 2_400);
+      showToast(locale.startsWith("zh") ? "已撤销上一步图谱修改" : "Last graph change undone", 2_400);
     } catch (error) {
-      setToast(error instanceof Error ? error.message : "Nothing to undo");
-      setTimeout(() => setToast(""), 2_400);
+      showToast(error instanceof Error ? error.message : "Nothing to undo", 2_400);
     }
   }, [document, locale]);
 
@@ -411,10 +448,7 @@ export default function App() {
         <PiSessionView
           sessionId={piSessionId}
           onBack={() => setPiSessionId(null)}
-          onToast={(message) => {
-            setToast(message);
-            setTimeout(() => setToast(""), 2_400);
-          }}
+          onToast={showToast}
         />
       ) : (
       <div className="flex min-w-0 flex-1 flex-col">
@@ -424,10 +458,7 @@ export default function App() {
           onFitView={() => flowRef.current?.fitView({ padding: 0.18, duration: 450 })}
           onOpenTools={() => setToolsOpen(true)}
           onUndo={() => void handleUndo()}
-          onToast={(message) => {
-            setToast(message);
-            setTimeout(() => setToast(""), 2_400);
-          }}
+          onToast={showToast}
           piCwd={bootstrap.data?.piCwd ?? ""}
           viewMode={viewMode}
           onViewModeChange={setViewMode}
@@ -450,7 +481,7 @@ export default function App() {
           onFlowReady={(instance) => {
             flowRef.current = instance;
           }}
-          onError={setToast}
+          onError={showToast}
               onNodeOpen={() => setViewMode("content")}
             />
           ) : viewMode === "tree" ? (
