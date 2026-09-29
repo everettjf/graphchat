@@ -7,6 +7,7 @@ import {
   LoaderCircle,
   Maximize2,
   Moon,
+  Network,
   PanelLeftOpen,
   RadioTower,
   Sun,
@@ -27,10 +28,12 @@ export const PI_SESSION_REFRESH_MS = 4_000;
 export function PiSessionView({
   sessionId,
   onBack,
+  onOpenGraph,
   onToast,
 }: {
   sessionId: string;
   onBack: () => void;
+  onOpenGraph: (graphId: string) => void;
   onToast: (message: string) => void;
 }) {
   const { locale, t } = useI18n();
@@ -44,6 +47,11 @@ export function PiSessionView({
     refetchInterval: PI_SESSION_REFRESH_MS,
   });
   const tree = query.data;
+  const backingGraph = useQuery({
+    queryKey: ["pi-session-graph", sessionId],
+    queryFn: () => api.graphForPiSession(sessionId),
+    staleTime: 60_000,
+  });
 
   // Default to the session's current position the first time a session loads.
   useEffect(() => {
@@ -117,6 +125,18 @@ export function PiSessionView({
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-1">
+          {backingGraph.data && (
+            <Button
+              variant="soft"
+              size="sm"
+              className="h-8"
+              onClick={() => onOpenGraph(backingGraph.data!.id)}
+              data-testid="pi-open-graph"
+            >
+              <Network className="size-3.5" />
+              <span className="hidden sm:inline">{t("pi.openGraph")}</span>
+            </Button>
+          )}
           <Button
             variant="outline"
             size="sm"

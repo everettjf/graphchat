@@ -19,6 +19,7 @@ import { APP_VERSION, DATABASE_SCHEMA_VERSION } from "../shared/version.js";
 import { GraphAgentRuntime } from "./agent-runtime.js";
 import { GraphDatabase } from "./database.js";
 import { OpenAICodexAuthManager } from "./openai-codex-auth.js";
+import { GraphSessionSync } from "./graph-session.js";
 import { PiSessionIndex, resolvePiSessionDir } from "./pi-sessions.js";
 import { configureSystemProxy } from "./system-proxy.js";
 
@@ -43,6 +44,8 @@ const runtime = await GraphAgentRuntime.create(database.getSettings(), {
 });
 const activeRunControllers = new Map<string, AbortController>();
 const codexAuth = new OpenAICodexAuthManager(runtime.modelRuntime);
+// Turns added to a graph's session from the terminal become nodes on the next read.
+const sessionSync = new GraphSessionSync(database, (graphId) => runtime.isRunning(graphId));
 
 /** Resolve and validate a graph's project directory, or explain why it is unusable. */
 function resolveProjectDir(value: string | null | undefined): { projectDir: string | null } | { error: string } {
@@ -69,6 +72,14 @@ app.get("/health", async () => ({
   service: "pi-graph-chat",
   version: APP_VERSION,
   databaseSchemaVersion: DATABASE_SCHEMA_VERSION,
+}));
+
+app.get("/api/diagnostics", async () => ({
+  dataDirectory,
+  agentDir: runtime.agentDir,
+  piSessionDir,
+  extensionErrors: runtime.extensionErrors,
+  extensionsEnabled: process.env.GRAPHCHAT_PI_EXTENSIONS !== "0",
 }));
 
 app.get("/api/auth/openai-codex", async (_request, reply) => {
@@ -108,7 +119,8 @@ app.delete("/api/auth/openai-codex", async (_request, reply) => {
 app.get("/api/bootstrap", async () => {
   const graphs = database.listGraphs();
   const archivedGraphs = database.listArchivedGraphs();
-  const activeGraph = graphs[0] ? database.getGraph(graphs[0].id) : null;
+  const loaded = graphs[0] ? database.getGraph(graphs[0].id) : null;
+  const activeGraph = loaded ? sessionSync.sync(loaded) : null;
   const settings = database.getSettings();
   return {
     graphs,
@@ -200,7 +212,7 @@ app.delete("/api/archived-graphs", async () => ({
 app.get<{ Params: { id: string } }>("/api/graphs/:id", async (request, reply) => {
   const graph = database.getGraph(request.params.id);
   if (!graph) return reply.code(404).send({ message: "Graph not found" });
-  return graph;
+  return sessionSync.sync(graph);
 });
 
 app.get<{ Params: { id: string } }>("/api/graphs/:id/metrics", async (request, reply) => {
@@ -399,6 +411,7 @@ app.post("/api/runs", async (request, reply) => {
     }
   } finally {
     if (activeNodeId) activeRunControllers.delete(activeNodeId);
+    sessionSync.invalidate(database.getGraph(parsed.data.graphId)?.graph.piSessionPath ?? null);
     reply.raw.end();
   }
 });

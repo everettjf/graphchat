@@ -189,6 +189,24 @@ describe("PiSessionIndex", () => {
     expect(index.get(before.id)).toBeNull();
   });
 
+  it("keeps summaries for every session but parsed trees only for recent ones", () => {
+    const sessionDir = makeSessionDir();
+    for (let index = 0; index < 12; index += 1) {
+      const projectDir = path.join(sessionDir, `--project-${index}--`);
+      fs.mkdirSync(projectDir, { recursive: true });
+      const manager = SessionManager.create(`/home/user/project-${index}`, projectDir, { id: `session-${index}` });
+      manager.appendMessage({ role: "user", content: `Question ${index}`, timestamp: Date.now() });
+      manager.appendMessage(assistant([{ type: "text", text: `Answer ${index}` }]));
+    }
+    const index = new PiSessionIndex(sessionDir);
+    expect(index.list()).toHaveLength(12);
+    for (let n = 0; n < 12; n += 1) expect(index.get(`session-${n}`)?.turns).toHaveLength(1);
+    const cache = (index as unknown as { cache: Map<string, { tree: unknown }> }).cache;
+    expect([...cache.values()].filter((entry) => entry.tree).length).toBe(8);
+    // Evicted trees are re-parsed on demand.
+    expect(index.get("session-0")?.turns).toHaveLength(1);
+  });
+
   it("skips files that are not Pi sessions", () => {
     const sessionDir = makeSessionDir();
     fs.writeFileSync(path.join(sessionDir, "broken.jsonl"), "{not json\n");

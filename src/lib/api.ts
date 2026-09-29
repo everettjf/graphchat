@@ -104,6 +104,13 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(input),
     }).then((response) => parseResponse<{ nodes: GraphNode[] }>(response)),
+  graphForPiSession: async (sessionId: string) => {
+    const response = await fetch(`/api/graphs/by-session/${encodeURIComponent(sessionId)}`, {
+      cache: "no-store",
+    });
+    if (response.status === 404) return null;
+    return parseResponse<GraphMeta>(response);
+  },
   piSessions: () =>
     fetch("/api/pi/sessions", { cache: "no-store" }).then((response) =>
       parseResponse<PiSessionsResponse>(response),

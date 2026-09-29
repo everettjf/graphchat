@@ -458,6 +458,21 @@ export class GraphDatabase {
     return Number(result?.changes ?? 0) > 0;
   }
 
+  /** Session entries whose turns must not be imported back into the graph. */
+  ignorePiEntries(graphId: string, entryIds: string[]) {
+    const insert = this.db.prepare(
+      "INSERT OR IGNORE INTO pi_ignored_entries (graph_id, entry_id) VALUES (?, ?)",
+    );
+    for (const entryId of entryIds) insert.run(graphId, entryId);
+  }
+
+  listIgnoredPiEntries(graphId: string): Set<string> {
+    const rows = this.db
+      .prepare("SELECT entry_id FROM pi_ignored_entries WHERE graph_id = ?")
+      .all(graphId) as Array<{ entry_id: string }>;
+    return new Set(rows.map((row) => row.entry_id));
+  }
+
   /** Record the Pi session entry that holds a node's answer. Not part of undo history. */
   setNodePiEntry(nodeId: string, entryId: string | null): boolean {
     const result = this.db
@@ -620,6 +635,7 @@ export class GraphDatabase {
     const existing = this.getNode(id);
     if (!existing) return false;
     this.recordRevision(existing.graphId, "delete-node");
+    if (existing.piEntryId) this.ignorePiEntries(existing.graphId, [existing.piEntryId]);
     this.db.prepare("DELETE FROM nodes WHERE id = ?").run(id);
     this.touchGraph(existing.graphId);
     return true;
@@ -1039,13 +1055,28 @@ export class GraphDatabase {
     const snapshot = JSON.parse(revision.snapshot) as GraphDocument;
     this.historyEnabled = false;
     try {
+      // Nodes the undo removes keep their entries in the Pi session; remember
+      // them so a session sync does not bring them back as terminal turns.
+      const surviving = new Set(snapshot.nodes.map((node) => node.id));
+      const current = this.getGraph(graphId);
+      this.ignorePiEntries(
+        graphId,
+        (current?.nodes ?? [])
+          .filter((node) => !surviving.has(node.id) && node.piEntryId)
+          .map((node) => node.piEntryId!),
+      );
+      // Entry mappings are not history: a node that gained its entry after the
+      // snapshot keeps it, otherwise the session would re-import its answer.
+      const currentEntry = new Map(
+        (current?.nodes ?? []).map((node) => [node.id, node.piEntryId] as const),
+      );
       this.db.prepare("DELETE FROM nodes WHERE graph_id = ?").run(graphId);
       const insertNode = this.db.prepare(`
         INSERT INTO nodes (
           id, graph_id, kind, title, prompt, content, summary, tags,
           knowledge_status, mastery, source_url, credibility, rating, context_snapshot,
-          selected_text, x, y, status, provider, model, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          selected_text, x, y, status, provider, model, pi_entry_id, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `);
       for (const node of snapshot.nodes) {
         insertNode.run(
@@ -1054,7 +1085,9 @@ export class GraphDatabase {
           node.sourceUrl, node.credibility, node.rating,
           node.contextSnapshot == null ? null : JSON.stringify(node.contextSnapshot),
           node.selectedText,
-          node.x, node.y, node.status, node.provider, node.model, node.createdAt, node.updatedAt,
+          node.x, node.y, node.status, node.provider, node.model,
+          node.piEntryId ?? currentEntry.get(node.id) ?? null,
+          node.createdAt, node.updatedAt,
         );
       }
       const insertEdge = this.db.prepare("INSERT INTO edges VALUES (?, ?, ?, ?, ?, ?, ?, ?)");

@@ -28,7 +28,7 @@ test.describe("Pi Graph Chat", () => {
       ok: true,
       service: "pi-graph-chat",
       version: "0.3.0",
-      databaseSchemaVersion: 6,
+      databaseSchemaVersion: 7,
     });
     await page.goto("/");
     await expect(page.locator("html")).toHaveAttribute("lang", "en");

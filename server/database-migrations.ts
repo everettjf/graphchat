@@ -56,6 +56,11 @@ export function migrateGraphDatabase(db: SQLiteDatabase) {
       snapshot TEXT NOT NULL,
       created_at TEXT NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS pi_ignored_entries (
+      graph_id TEXT NOT NULL REFERENCES graphs(id) ON DELETE CASCADE,
+      entry_id TEXT NOT NULL,
+      PRIMARY KEY (graph_id, entry_id)
+    );
     CREATE INDEX IF NOT EXISTS idx_nodes_graph ON nodes(graph_id);
     CREATE INDEX IF NOT EXISTS idx_edges_graph ON edges(graph_id);
     CREATE INDEX IF NOT EXISTS idx_edges_target ON edges(target);

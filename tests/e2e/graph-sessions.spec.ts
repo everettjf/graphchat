@@ -1,4 +1,6 @@
+import fs from "node:fs";
 import path from "node:path";
+import { SessionManager } from "@earendil-works/pi-coding-agent";
 import { expect, test } from "@playwright/test";
 
 const projectDir = process.env.PI_GRAPH_CHAT_E2E_PROJECT_DIR!;
@@ -57,6 +59,64 @@ test.describe("Codebase-rooted graphs and cross-session references", () => {
 
     await page.getByTestId("graph-open-terminal").click();
     await expect(page.getByText("Command copied to the clipboard")).toBeVisible();
+  });
+
+  test("turns continued in the terminal become graph nodes, and the Pi view links back to the graph", async ({
+    page,
+    request,
+  }) => {
+    await openExampleGraph(page);
+    let graph = await (await request.get("/api/graphs/learning-rag")).json();
+    if (!graph.graph.piSessionPath) {
+      const input = page.getByTestId("composer-input");
+      await input.click();
+      await input.fill("Warm up the session.");
+      await page.getByTestId("composer-submit").click();
+      await expect(page.getByText("Answer saved to the knowledge graph")).toBeVisible({ timeout: 15_000 });
+      graph = await (await request.get("/api/graphs/learning-rag")).json();
+    }
+    const sessionPath: string = graph.graph.piSessionPath;
+    expect(fs.existsSync(sessionPath)).toBe(true);
+    const embedding = graph.nodes.find((node: { id: string }) => node.id === "embedding");
+    expect(embedding.piEntryId).toBeTruthy();
+
+    // Continue the graph's session from the embedding answer, as `pi --session` would.
+    const manager = SessionManager.open(sessionPath);
+    manager.branch(embedding.piEntryId);
+    manager.appendMessage({ role: "user", content: "Terminal question about embeddings", timestamp: Date.now() });
+    manager.appendMessage({
+      role: "assistant",
+      content: [{ type: "text", text: "Answered from the terminal." }],
+      api: "openai-completions",
+      provider: "terminal",
+      model: "terminal-model",
+      usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, totalTokens: 0, cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 } },
+      stopReason: "stop",
+      timestamp: Date.now(),
+    });
+    const bumped = new Date(Date.now() + 5_000);
+    fs.utimesSync(sessionPath, bumped, bumped);
+
+    await page.reload();
+    await openExampleGraph(page);
+    await expect(page.getByTestId("knowledge-tree")).toContainText("Terminal question about embeddings");
+    const refreshed = await (await request.get("/api/graphs/learning-rag")).json();
+    const imported = refreshed.nodes.find(
+      (node: { prompt: string }) => node.prompt === "Terminal question about embeddings",
+    );
+    expect(imported).toMatchObject({ content: "Answered from the terminal.", tags: ["pi-terminal"], provider: "terminal" });
+    expect(
+      refreshed.edges.some(
+        (edge: { source: string; target: string }) => edge.source === "embedding" && edge.target === imported.id,
+      ),
+    ).toBe(true);
+
+    // The graph's own session appears in the Pi list and links back to the graph.
+    await page.getByTestId("pi-session-graphchat-learning-rag").click();
+    await expect(page.getByTestId("pi-session-view")).toBeVisible();
+    await page.getByTestId("pi-open-graph").click();
+    await expect(page.getByTestId("pi-session-view")).toHaveCount(0);
+    await expect(page.getByRole("heading", { name: /^Understanding RAG:/ })).toBeVisible();
   });
 
   test("carries references from another graph and from a Pi session turn into a new question", async ({

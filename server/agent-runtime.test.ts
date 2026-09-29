@@ -404,6 +404,32 @@ export default function marker(pi) {
     database.close();
   });
 
+  it("explains an unreachable Ollama within seconds instead of after Pi's retries", async () => {
+    const { database, runtime } = await setup();
+    await runtime.configure({ provider: "ollama", model: "qwen3.5:4b", baseUrl: "http://127.0.0.1:1/v1", hasApiKey: false });
+    const startedAt = Date.now();
+    const events = await collect(runtime, database, baseRequest({ locale: "en" }));
+    expect(Date.now() - startedAt).toBeLessThan(6_000);
+    expect(events.at(-1)).toMatchObject({
+      type: "run_failed",
+      message: expect.stringContaining("Ollama did not respond at http://127.0.0.1:1/v1"),
+    });
+    database.close();
+  });
+
+  it("refuses to run a graph whose project directory disappeared", async () => {
+    const { database, runtime } = await setup();
+    const projectDir = fs.mkdtempSync(path.join(os.tmpdir(), "graphchat-gone-"));
+    const created = database.createGraph({ title: "Gone", description: "", projectDir });
+    fs.rmSync(projectDir, { recursive: true, force: true });
+    const events = await collect(runtime, database, baseRequest({ graphId: created.graph.id, parentNodeId: null, locale: "en" }));
+    expect(events.at(-1)).toMatchObject({
+      type: "run_failed",
+      message: expect.stringContaining("no longer exists"),
+    });
+    database.close();
+  });
+
   it("marks an aborted run as cancelled and keeps its run identity", async () => {
     const { database, runtime } = await setup();
     const controller = new AbortController();
@@ -424,6 +450,8 @@ export default function marker(pi) {
       expect(cancelled.runId).toBe(started.runId);
       expect(cancelled.nodeId).toBe(started.nodeId);
       expect(database.getNode(started.nodeId)?.status).toBe("cancelled");
+      // The interrupted answer Pi persisted is mapped to the node.
+      expect(database.getNode(started.nodeId)?.piEntryId).toBeTruthy();
     }
     expect(events.some((event) => event.type === "run_finished")).toBe(false);
     database.close();

@@ -417,7 +417,7 @@ describe("GraphDatabase", () => {
     database.close();
   });
 
-  it("migrates a v0.1.1 database in place and marks schema version 6", () => {
+  it("migrates a v0.1.1 database in place and marks schema version 7", () => {
     const directory = fs.mkdtempSync(path.join(os.tmpdir(), "graphchat-migration-"));
     directories.push(directory);
     const filename = path.join(directory, "graphchat.sqlite");
@@ -503,7 +503,7 @@ describe("GraphDatabase", () => {
           user_version: number;
         }
       ).user_version,
-    ).toBe(6);
+    ).toBe(7);
     inspected.close();
   });
 

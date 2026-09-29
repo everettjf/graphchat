@@ -38,6 +38,7 @@ Run Vitest through the package scripts. The scripts force Bun's runtime because 
 - Provider additions go through `CATALOG_PROVIDERS` in `server/agent-runtime.ts` plus the settings dialog and the provider enum in `shared/types.ts`.
 - Graph runs use `DefaultResourceLoader`, so the user's Pi extensions, skills, and packages load into the server process. The `graphchat-pi` extension checks `GRAPHCHAT_EMBEDDED=1` and stays silent there; keep that guard when changing either side.
 - Built-in Pi tools in graph runs are read-only: `read` for plain graphs, `read`/`grep`/`find`/`ls` for graphs with a project directory. Never enable `bash`, `edit`, or `write` from a graph run.
+- `GraphSessionSync` imports terminal turns on graph reads; it must skip graphs with an active run (`runtime.isRunning`) and any node the app creates must get its `pi_entry_id` set, including cancelled and failed runs, or the sync imports the turn a second time.
 - The terminal extension talks to the server over HTTP only through `/api/graphs/:id/search`, `/api/search`, `/api/nodes/:id`, and `/api/graphs/by-session/:sessionId`. Changing those routes means changing `packages/graphchat-pi` and its tests.
 
 ## Conventions

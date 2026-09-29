@@ -11,6 +11,7 @@ import {
   DefaultResourceLoader,
   getAgentDir,
   ModelRuntime,
+  SessionManager,
   SettingsManager,
   type AgentSession,
   type AgentSessionEvent,
@@ -18,6 +19,7 @@ import {
   type ToolDefinition,
 } from "@earendil-works/pi-coding-agent";
 import { nanoid } from "nanoid";
+import fs from "node:fs";
 import path from "node:path";
 import type {
   ContextItem,
@@ -266,6 +268,34 @@ async function createGraphResourceLoader(options: {
   return loader;
 }
 
+/** Turn provider transport failures into a message that says what to do. */
+function describeRunError(
+  error: unknown,
+  settings: ProviderSettings,
+  locale: RunRequest["locale"],
+): string {
+  const zh = locale.startsWith("zh");
+  const message = error instanceof Error ? error.message : String(error);
+  const unreachable = /connection error|ECONNREFUSED|ENOTFOUND|fetch failed|socket hang up|network/i.test(message);
+  if (unreachable && (settings.provider === "ollama" || settings.provider === "custom")) {
+    const endpoint = settings.baseUrl || "http://127.0.0.1:11434/v1";
+    return zh
+      ? `无法连接 ${settings.provider === "ollama" ? "Ollama" : "自定义模型服务"}（${endpoint}）。请先启动它，或在“模型与设置”中换一个模型。`
+      : `${settings.provider === "ollama" ? "Ollama" : "The custom model endpoint"} is not reachable at ${endpoint}. Start it, or pick another model in Models & settings.`;
+  }
+  if (unreachable) {
+    return zh
+      ? `无法连接模型服务（${message}）。请检查网络或代理设置。`
+      : `The model service is not reachable (${message}). Check your network or proxy settings.`;
+  }
+  if (/\b(401|403)\b|unauthorized|invalid api key|authentication/i.test(message)) {
+    return zh
+      ? `模型服务拒绝了凭据（${message}）。请在“模型与设置”中重新登录或更新 API Key。`
+      : `The model service rejected the credentials (${message}). Sign in again or update the API key in Models & settings.`;
+  }
+  return message;
+}
+
 /**
  * Runs graph answers through Pi's coding-agent session runtime.
  *
@@ -277,6 +307,8 @@ export class GraphAgentRuntime {
   private settings: ProviderSettings;
   private readonly runtimeApiKeys = new Map<ProviderSettings["provider"], string>();
   private readonly graphLocks = new Map<string, Promise<void>>();
+  /** Extension files that failed to load in the latest run, with Pi's error text. */
+  extensionErrors: Array<{ path: string; error: string }> = [];
   private faux: FauxProviderHandle | null = null;
   private readonly sessionIndex: PiSessionIndex | null;
   /** Tool names active in the most recent run; diagnostics for tests and UI. */
@@ -327,6 +359,11 @@ export class GraphAgentRuntime {
     if (this.runtimeApiKeys.has(provider)) return true;
     if (provider in CATALOG_PROVIDERS) return this.modelRuntime.hasConfiguredAuth(provider);
     return false;
+  }
+
+  /** True while an answer for this graph is running or queued. */
+  isRunning(graphId: string) {
+    return this.graphLocks.has(graphId);
   }
 
   /** Working directory of a graph's Pi session: its codebase, or the data directory. */
@@ -454,6 +491,7 @@ export class GraphAgentRuntime {
     const events = new AsyncEventQueue<RunStreamEvent>();
     let fullText = "";
     let session: AgentSession | undefined;
+    const sessionLeaf: { manager: SessionManager | null; before: string | null } = { manager: null, before: null };
 
     const runPromise = this.withGraphLock(request.graphId, async () => {
       try {
@@ -463,6 +501,21 @@ export class GraphAgentRuntime {
         const current = database.getGraph(request.graphId) ?? graph;
         const cwd = this.graphCwd(current);
         const projectDir = current.graph.projectDir;
+        if (projectDir) {
+          let usable = false;
+          try {
+            usable = fs.statSync(projectDir).isDirectory();
+          } catch {
+            usable = false;
+          }
+          if (!usable) {
+            throw new Error(
+              request.locale.startsWith("zh")
+                ? `项目目录不存在：${projectDir}。请在图谱设置里修改或清空它。`
+                : `The project directory no longer exists: ${projectDir}. Edit the graph to change or clear it.`,
+            );
+          }
+        }
         const { manager } = openGraphSession(database, current, {
           cwd,
           sessionRoot: this.sessionRoot,
@@ -498,6 +551,15 @@ Always respond in ${RESPONSE_LANGUAGES[request.locale]}.`;
           settingsManager,
           systemPrompt,
         });
+        this.extensionErrors = resourceLoader.getExtensions().errors.map((entry) => ({
+          path: entry.path,
+          error: entry.error,
+        }));
+        for (const failure of this.extensionErrors) {
+          console.warn(`[pi-graph-chat] Pi extension failed to load: ${failure.path}: ${failure.error}`);
+        }
+        sessionLeaf.manager = manager;
+        sessionLeaf.before = manager.getLeafId();
         const created = await createAgentSession({
           cwd,
           agentDir: this.agentDir,
@@ -581,10 +643,15 @@ Always respond in ${RESPONSE_LANGUAGES[request.locale]}.`;
             ? "生成已取消。"
             : "Generation cancelled."
           : error instanceof Error
-            ? error.message
+            ? describeRunError(error, this.settings, request.locale)
             : request.locale.startsWith("zh")
               ? "生成失败，请检查模型设置。"
               : "Generation failed. Check the model settings.";
+        // Pi persists the interrupted answer; record it so the node maps to its
+        // entry and a later session sync does not import it as a new node.
+        if (sessionLeaf.manager && sessionLeaf.manager.getLeafId() !== sessionLeaf.before) {
+          database.setNodePiEntry(node.id, sessionLeaf.manager.getLeafId());
+        }
         const updated = database.updateNode(node.id, {
           status: cancelled ? "cancelled" : "error",
           content:
@@ -700,6 +767,8 @@ Always respond in ${RESPONSE_LANGUAGES[request.locale]}.`;
     if (!baseUrl) {
       throw new Error(zh ? "自定义模型需要填写 Base URL。" : "A custom model requires a Base URL.");
     }
+    // Fail in a second instead of after Pi's retry schedule when the endpoint is down.
+    await this.assertEndpointReachable(baseUrl, providerId, zh);
     this.modelRuntime.registerProvider(providerId, {
       name: providerId === "ollama" ? "Ollama" : "OpenAI-compatible",
       baseUrl,
@@ -726,6 +795,27 @@ Always respond in ${RESPONSE_LANGUAGES[request.locale]}.`;
     const model = this.modelRuntime.getModel(providerId, this.settings.model);
     if (!model) throw new Error(zh ? "无法注册自定义模型。" : "Unable to register the custom model.");
     return model;
+  }
+
+  private async assertEndpointReachable(baseUrl: string, providerId: string, zh: boolean) {
+    // Opt out for endpoints that are slow to answer or close unauthenticated connections.
+    if (process.env.GRAPHCHAT_SKIP_ENDPOINT_PROBE === "1") return;
+    const timeoutMs = 4_000;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      // Any HTTP response means the server is up; auth or 404 errors are not our concern here.
+      await fetch(`${baseUrl.replace(/\/$/, "")}/models`, { signal: controller.signal });
+    } catch {
+      const name = providerId === "ollama" ? "Ollama" : zh ? "自定义模型服务" : "The custom model endpoint";
+      throw new Error(
+        zh
+          ? `${timeoutMs / 1000} 秒内无法连接 ${name}（${baseUrl}）。请先启动它，或在“模型与设置”中换一个模型；如果该服务本身响应慢，设置 GRAPHCHAT_SKIP_ENDPOINT_PROBE=1 跳过这项检查。`
+          : `${name} did not respond at ${baseUrl} within ${timeoutMs / 1000} seconds. Start it, or pick another model in Models & settings; set GRAPHCHAT_SKIP_ENDPOINT_PROBE=1 if the endpoint is just slow.`,
+      );
+    } finally {
+      clearTimeout(timer);
+    }
   }
 
   private createGraphTools(

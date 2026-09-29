@@ -222,6 +222,7 @@ const english = {
   "pi.untitled": "Untitled session",
   "pi.details": "Details",
   "pi.useAsReference": "Use as reference",
+  "pi.openGraph": "Open graph",
   "pi.referenceAdded": "Added as a reference for the next graph question",
   "pi.tools": "{count} tools",
 } as const;
@@ -426,6 +427,7 @@ const chinese: Record<keyof typeof english, string> = {
   "pi.untitled": "未命名会话",
   "pi.details": "详情",
   "pi.useAsReference": "作为引用",
+  "pi.openGraph": "打开图谱",
   "pi.referenceAdded": "已加入下一个图谱问题的引用",
   "pi.tools": "{count} 次工具调用",
 };

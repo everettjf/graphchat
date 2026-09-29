@@ -40,12 +40,25 @@ overhead, and adds a read-only bridge to Pi coding-agent sessions.
 
 ### Changed
 
+- Turns added to a graph's Pi session from the terminal are imported as graph
+  nodes when the graph is next read. Cancelled and failed runs record the
+  entry Pi persisted, deleted or undone nodes hide their turns, interrupted
+  answers are never imported, and undo keeps every node's entry mapping, so
+  the session and the graph cannot drift into duplicates. Schema version 7
+  adds the `pi_ignored_entries` table.
+- Runs against an unreachable Ollama or custom endpoint fail within about a
+  second with an actionable message instead of after Pi's retry schedule;
+  rejected credentials and missing project directories are explained too.
+- The Pi session index keeps parsed trees only for the eight most recently
+  opened sessions and the Pi session view links back to the graph a session
+  backs. `/api/diagnostics` reports the Pi directories and extension load
+  errors.
 - Credentials moved to Pi's own agent directory through `ModelRuntime`:
   ChatGPT sign-in from the settings dialog and `pi /login` now share one
   `auth.json`. The app-owned `.graphchat/auth.json` and the Codex CLI
   credential import were removed.
-- Database schema version 6 adds `graphs.pi_session_path`,
-  `nodes.pi_entry_id`, and `graphs.project_dir`.
+- Database schema version 7 adds `graphs.pi_session_path`,
+  `nodes.pi_entry_id`, `graphs.project_dir`, and `pi_ignored_entries`.
 - Renamed the project and package to `pi-graph-chat`; the launcher is now
   `bun run launch` / `pi-graph-chat`.
 - Upgraded `@earendil-works/pi-ai` and `pi-agent-core` to 0.87.1 and added

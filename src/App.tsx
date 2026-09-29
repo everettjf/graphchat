@@ -448,6 +448,7 @@ export default function App() {
         <PiSessionView
           sessionId={piSessionId}
           onBack={() => setPiSessionId(null)}
+          onOpenGraph={(id) => void openGraph(id)}
           onToast={showToast}
         />
       ) : (

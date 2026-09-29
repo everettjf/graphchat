@@ -69,6 +69,20 @@ with abandoned branches, tool calls, thinking, labels, and the current position.
 Set `PI_CODING_AGENT_SESSION_DIR` (or `PI_CODING_AGENT_DIR`) if your sessions
 live somewhere else; Pi Graph Chat follows the same precedence as Pi.
 
+### Round trip with the terminal
+
+Turns you add to a graph's session in the terminal come back as nodes the next
+time the graph is opened: each prompt becomes a node under the node whose
+answer it continued, tagged `pi-terminal`. The Pi session view shows
+**Open graph** for any session that backs a graph.
+
+Do not keep `pi` open on a graph's session while asking questions in the web
+app. Pi session files are append-only and single-writer, and two writers can
+interleave entries. Finish in one place, then continue in the other.
+
+If `pi` is not on your PATH, install it with
+`npm install -g @earendil-works/pi-coding-agent` (Node.js 22.19+).
+
 ### Graphs rooted in a codebase
 
 Give a graph a project directory when you create or edit it. From then on:

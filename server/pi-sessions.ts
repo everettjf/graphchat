@@ -249,8 +249,12 @@ type CacheEntry = {
   mtimeMs: number;
   size: number;
   summary: PiSessionSummary;
+  /** Full turn tree; kept only for recently opened sessions to bound memory. */
   tree: PiSessionTree | null;
 };
+
+/** How many parsed session trees stay in memory; summaries are kept for all. */
+const TREE_CACHE_LIMIT = 8;
 
 function listSessionFiles(root: string): string[] {
   const files: string[] = [];
@@ -277,6 +281,7 @@ function listSessionFiles(root: string): string[] {
  */
 export class PiSessionIndex {
   private readonly cache = new Map<string, CacheEntry>();
+  private readonly recentTrees: string[] = [];
 
   constructor(readonly sessionDir: string) {}
 
@@ -303,11 +308,22 @@ export class PiSessionIndex {
       cached = [...this.cache.values()].find((entry) => entry.summary.id === id);
     }
     if (!cached) return null;
-    const fresh = this.load(cached.summary.path);
+    const fresh = this.load(cached.summary.path, true);
     return fresh?.tree ?? null;
   }
 
-  private load(file: string): CacheEntry | null {
+  private rememberTree(file: string) {
+    const index = this.recentTrees.indexOf(file);
+    if (index >= 0) this.recentTrees.splice(index, 1);
+    this.recentTrees.push(file);
+    while (this.recentTrees.length > TREE_CACHE_LIMIT) {
+      const evicted = this.recentTrees.shift()!;
+      const entry = this.cache.get(evicted);
+      if (entry) entry.tree = null;
+    }
+  }
+
+  private load(file: string, withTree = false): CacheEntry | null {
     let stat: fs.Stats;
     try {
       stat = fs.statSync(file);
@@ -316,7 +332,12 @@ export class PiSessionIndex {
       return null;
     }
     const cached = this.cache.get(file);
-    if (cached && cached.mtimeMs === stat.mtimeMs && cached.size === stat.size) return cached;
+    if (cached && cached.mtimeMs === stat.mtimeMs && cached.size === stat.size) {
+      if (!withTree || cached.tree) {
+        if (withTree) this.rememberTree(file);
+        return cached;
+      }
+    }
     let entries: FileEntry[];
     try {
       entries = parseSessionEntries(fs.readFileSync(file, "utf8"));
@@ -352,9 +373,10 @@ export class PiSessionIndex {
       mtimeMs: stat.mtimeMs,
       size: stat.size,
       summary,
-      tree: { session: summary, turns, leafTurnId },
+      tree: withTree ? { session: summary, turns, leafTurnId } : null,
     };
     this.cache.set(file, next);
+    if (withTree) this.rememberTree(file);
     return next;
   }
 }
