@@ -12,6 +12,8 @@ import {
   type Provider,
 } from "@earendil-works/pi-ai";
 import { openAICompletionsApi } from "@earendil-works/pi-ai/api/openai-completions.lazy";
+import { anthropicProvider } from "@earendil-works/pi-ai/providers/anthropic";
+import { googleProvider } from "@earendil-works/pi-ai/providers/google";
 import { openaiProvider } from "@earendil-works/pi-ai/providers/openai";
 import { openaiCodexProvider } from "@earendil-works/pi-ai/providers/openai-codex";
 import { openrouterProvider } from "@earendil-works/pi-ai/providers/openrouter";
@@ -59,7 +61,7 @@ class AsyncEventQueue<T> implements AsyncIterable<T> {
 }
 
 const SYSTEM_PROMPTS = {
-  zh: `你是 Graph Chat 的学习伙伴。你的任务是帮助用户理解陌生知识，而不是炫耀术语。
+  zh: `你是 Pi Graph Chat 的学习伙伴。你的任务是帮助用户理解陌生知识，而不是炫耀术语。
 
 规则：
 1. 优先基于提供的图谱上下文回答，并指出不同分支之间的关系。
@@ -68,7 +70,7 @@ const SYSTEM_PROMPTS = {
 4. 引用图中信息时使用 [节点: ID]，让用户可以追溯来源。
 5. 不要在正文中添加“带回主线”或类似的总结段；界面会单独展示摘要。
 6. 不要自行修改图谱，只能读取；需要新增知识卡时，用文字提出建议。`,
-  en: `You are Graph Chat's learning partner. Help the user understand unfamiliar ideas instead of showing off terminology.
+  en: `You are Pi Graph Chat's learning partner. Help the user understand unfamiliar ideas instead of showing off terminology.
 
 Rules:
 1. Answer from the supplied graph context first and explain relationships between branches.
@@ -83,12 +85,6 @@ Rules:
 const RESPONSE_LANGUAGES: Record<RunRequest["locale"], string> = {
   en: "English",
   zh: "Simplified Chinese",
-  es: "Spanish",
-  fr: "French",
-  de: "German",
-  ja: "Japanese",
-  ko: "Korean",
-  "zh-TW": "Traditional Chinese",
 };
 
 function summarize(content: string): string {
@@ -156,35 +152,17 @@ Separate “what it is” from “what it does.” The first sets its boundaries
 ${request.selectedText ? `You selected “${request.selectedText}”. This branch should explain that exact phrase without reopening the whole answer.` : "If the idea still feels abstract, select one phrase and create a smaller branch."}`;
   }
 
-  const traditionalChinese = request.locale === "zh-TW";
   const sourceLines =
     sources.length > 0
       ? sources
           .map(
             (item) =>
-              `- **${item.title}**：${summarize(item.content).slice(0, 88)} [${traditionalChinese ? "節點" : "节点"}: ${item.nodeId}]`,
+              `- **${item.title}**：${summarize(item.content).slice(0, 88)} [节点: ${item.nodeId}]`,
           )
           .join("\n")
-      : traditionalChinese
-        ? "- 這是一個新的學習起點，目前沒有引用其他節點。"
-        : "- 这是一个新的学习起点，目前没有引用其他节点。";
+      : "- 这是一个新的学习起点，目前没有引用其他节点。";
 
   if (request.mode === "synthesize") {
-    if (traditionalChinese) {
-      return `### 把這些分支放到同一張圖裡
-
-你正在追問：**${request.prompt}**
-
-從已選擇的上下文中，可以先提煉出這幾條線索：
-
-${sourceLines}
-
-### 它們如何匯聚
-
-這些分支並不是彼此獨立的答案：一個分支通常給出概念的表示方式，另一個分支解釋它在系統中的作用。把它們組合起來時，應該先找共同對象，再區分各自負責的步驟，最後用一條因果鏈重新表述。
-
-一個實用的檢查方式是問自己：**輸入是什麼、經過了什麼轉換、輸出又被誰使用？** 如果能沿這三個問題講通，表示分支已經真正匯聚，而不只是被放在一起。`;
-    }
     return `### 把这些分支放到同一张图里
 
 你正在追问：**${request.prompt}**
@@ -198,22 +176,6 @@ ${sourceLines}
 这些分支并不是彼此独立的答案：一个分支通常给出概念的表示方式，另一个分支解释它在系统中的作用。把它们组合起来时，应该先找共同对象，再区分各自负责的步骤，最后用一条因果链重新表述。
 
 一个实用的检查方式是问自己：**输入是什么、经过了什么转换、输出又被谁使用？** 如果能沿这三个问题讲通，说明分支已经真正汇聚，而不只是被放在一起。`;
-  }
-
-  if (traditionalChinese) {
-    return `### 先抓住核心
-
-你問的是：**${request.prompt}**
-
-可以先把它理解為：新概念不是孤立定義，而是在已有知識鏈條中承擔某個具體作用。目前圖譜給出的相關線索是：
-
-${sourceLines}
-
-### 用一個簡單的方法理解
-
-先區分「它是什麼」和「它用來做什麼」。前者給出邊界，後者把概念放回流程。再找一個反例：如果拿掉它，系統的哪一步會失效？這樣得到的理解通常比背定義更牢固。
-
-${request.selectedText ? `你選中的原文是「${request.selectedText}」。這表示本次分支應圍繞這句話解釋，不需要把整段回答重新展開。` : "如果這個概念仍然抽象，可以繼續選中其中一個詞建立更小的分支。"}`;
   }
 
   return `### 先抓住核心
@@ -230,6 +192,15 @@ ${sourceLines}
 
 ${request.selectedText ? `你选中的原文是“${request.selectedText}”。这说明本次分支应围绕这句话解释，不需要把整段回答重新展开。` : "如果这个概念仍然抽象，可以继续选中其中一个词创建更小的分支。"}`;
 }
+
+/** Pi providers with a static model catalog and API-key auth. */
+const CATALOG_PROVIDERS = {
+  openai: { create: openaiProvider, envKey: "OPENAI_API_KEY", label: "OpenAI" },
+  openrouter: { create: openrouterProvider, envKey: "OPENROUTER_API_KEY", label: "OpenRouter" },
+  anthropic: { create: anthropicProvider, envKey: "ANTHROPIC_API_KEY", label: "Anthropic" },
+  google: { create: googleProvider, envKey: "GEMINI_API_KEY", label: "Google Gemini" },
+} as const;
+type CatalogProviderId = keyof typeof CATALOG_PROVIDERS;
 
 export class GraphAgentRuntime {
   private settings: ProviderSettings;
@@ -249,9 +220,8 @@ export class GraphAgentRuntime {
 
   hasApiKey(provider: ProviderSettings["provider"] = this.settings.provider) {
     if (this.runtimeApiKeys.has(provider)) return true;
-    if (provider === "openai") return Boolean(process.env.OPENAI_API_KEY);
-    if (provider === "openrouter") return Boolean(process.env.OPENROUTER_API_KEY);
-    return false;
+    const catalog = CATALOG_PROVIDERS[provider as CatalogProviderId];
+    return catalog ? Boolean(process.env[catalog.envKey]) : false;
   }
 
   async *run(
@@ -349,8 +319,8 @@ export class GraphAgentRuntime {
         const graphContext = contextToPrompt(context, request.locale);
         await agent.prompt(
           request.locale.startsWith("zh")
-            ? `以下是由 Graph Chat 明确选择的图谱上下文：\n\n${graphContext}\n\n---\n\n用户当前问题：${request.prompt}`
-            : `Here is the graph context explicitly selected by Graph Chat:\n\n${graphContext}\n\n---\n\nCurrent question: ${request.prompt}`,
+            ? `以下是由 Pi Graph Chat 明确选择的图谱上下文：\n\n${graphContext}\n\n---\n\n用户当前问题：${request.prompt}`
+            : `Here is the graph context explicitly selected by Pi Graph Chat:\n\n${graphContext}\n\n---\n\nCurrent question: ${request.prompt}`,
         );
 
         if (signal?.aborted) {
@@ -387,13 +357,6 @@ export class GraphAgentRuntime {
           nodeId: node.id,
           node: completed,
         });
-        database.recordEvent(request.graphId, "run-completed", {
-          mode: request.mode,
-          provider: this.settings.provider,
-          durationMs: Date.now() - startedAt,
-          contextItems: context.items.length,
-          referenceNodes: request.referenceNodeIds.length,
-        });
       } catch (error) {
         const cancelled =
           Boolean(signal?.aborted) ||
@@ -418,11 +381,6 @@ export class GraphAgentRuntime {
                 : `Generation failed: ${message}`),
         });
         if (cancelled) {
-          database.recordEvent(request.graphId, "run-cancelled", {
-            mode: request.mode,
-            provider: this.settings.provider,
-            durationMs: Date.now() - startedAt,
-          });
           events.push({
             type: "run_cancelled",
             runId,
@@ -431,11 +389,6 @@ export class GraphAgentRuntime {
             node: updated || undefined,
           });
         } else {
-          database.recordEvent(request.graphId, "run-failed", {
-            mode: request.mode,
-            provider: this.settings.provider,
-            durationMs: Date.now() - startedAt,
-          });
           events.push({
             type: "run_failed",
             runId,
@@ -469,7 +422,7 @@ export class GraphAgentRuntime {
     if (this.settings.provider === "demo") {
       const faux = fauxProvider({
         provider: "graphchat-demo",
-        models: [{ id: "graphchat-guide", name: "Graph Chat Guide", contextWindow: 128_000, maxTokens: 8_000 }],
+        models: [{ id: "graphchat-guide", name: "Pi Graph Chat Guide", contextWindow: 128_000, maxTokens: 8_000 }],
         tokensPerSecond: 180,
         tokenSize: { min: 2, max: 8 },
       });
@@ -505,32 +458,21 @@ export class GraphAgentRuntime {
             : "Sign in with ChatGPT from Models & settings first.",
         );
       }
-    } else if (this.settings.provider === "openai") {
-      provider = openaiProvider();
+    } else if (this.settings.provider in CATALOG_PROVIDERS) {
+      const providerId = this.settings.provider as CatalogProviderId;
+      const catalog = CATALOG_PROVIDERS[providerId];
+      provider = catalog.create();
       models.setProvider(provider);
-      model = models.getModel("openai", this.settings.model) as Model<any>;
+      model = models.getModel(providerId, this.settings.model) as Model<any>;
       if (!model) {
         throw new Error(
           request.locale.startsWith("zh")
-            ? `Pi 的 OpenAI 模型目录中没有 ${this.settings.model}。`
-            : `${this.settings.model} is not in Pi's OpenAI model catalog.`,
+            ? `Pi 的 ${catalog.label} 模型目录中没有 ${this.settings.model}。`
+            : `${this.settings.model} is not in Pi's ${catalog.label} model catalog.`,
         );
       }
-      const key = this.runtimeApiKeys.get("openai") || process.env.OPENAI_API_KEY;
-      if (key) await credentials.modify("openai", async () => ({ type: "api_key", key }));
-    } else if (this.settings.provider === "openrouter") {
-      provider = openrouterProvider();
-      models.setProvider(provider);
-      model = models.getModel("openrouter", this.settings.model) as Model<any>;
-      if (!model) {
-        throw new Error(
-          request.locale.startsWith("zh")
-            ? `Pi 的 OpenRouter 模型目录中没有 ${this.settings.model}。`
-            : `${this.settings.model} is not in Pi's OpenRouter model catalog.`,
-        );
-      }
-      const key = this.runtimeApiKeys.get("openrouter") || process.env.OPENROUTER_API_KEY;
-      if (key) await credentials.modify("openrouter", async () => ({ type: "api_key", key }));
+      const key = this.runtimeApiKeys.get(providerId) || process.env[catalog.envKey];
+      if (key) await credentials.modify(providerId, async () => ({ type: "api_key", key }));
     } else {
       const providerId = this.settings.provider;
       const baseUrl =
@@ -577,7 +519,7 @@ export class GraphAgentRuntime {
             name: `${providerId} API key`,
             resolve: async ({ credential }) => ({
               auth: { apiKey: credential?.key || "local", baseUrl },
-              source: credential?.key ? "Graph Chat session" : "Local endpoint",
+              source: credential?.key ? "Pi Graph Chat session" : "Local endpoint",
             }),
           },
         },
@@ -620,8 +562,8 @@ Always respond in ${RESPONSE_LANGUAGES[request.locale]}.`,
       label: locale.startsWith("zh") ? "搜索知识图" : "Search knowledge graph",
       description:
         locale.startsWith("zh")
-          ? "在当前 Graph Chat 知识图中搜索与查询相关的节点。"
-          : "Search the current Graph Chat graph for nodes related to a query.",
+          ? "在当前 Pi Graph Chat 知识图中搜索与查询相关的节点。"
+          : "Search the current Pi Graph Chat graph for nodes related to a query.",
       parameters: Type.Object({
         query: Type.String({
           description:
@@ -653,8 +595,8 @@ Always respond in ${RESPONSE_LANGUAGES[request.locale]}.`,
       label: locale.startsWith("zh") ? "读取图谱节点" : "Read graph node",
       description:
         locale.startsWith("zh")
-          ? "按节点 ID 读取一个 Graph Chat 节点的完整内容。"
-          : "Read the full content of one Graph Chat node by ID.",
+          ? "按节点 ID 读取一个 Pi Graph Chat 节点的完整内容。"
+          : "Read the full content of one Pi Graph Chat node by ID.",
       parameters: Type.Object({
         nodeId: Type.String({
           description: locale.startsWith("zh") ? "图谱节点 ID" : "Graph node ID",

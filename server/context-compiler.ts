@@ -24,7 +24,6 @@ export function compileContext({
   maxEstimatedTokens = 8_000,
   locale = "en",
 }: CompileContextInput): ContextSnapshot {
-  const traditionalChinese = locale === "zh-TW";
   const nodeMap = new Map(graph.nodes.map((node) => [node.id, node]));
   const incomingBranch = new Map<string, string>();
   for (const edge of graph.edges) {
@@ -48,7 +47,7 @@ export function compileContext({
     if (!node) continue;
     const content = [
       node.prompt &&
-        `${traditionalChinese ? "問題" : locale.startsWith("zh") ? "问题" : "Question"}: ${node.prompt}`,
+        `${locale.startsWith("zh") ? "问题" : "Question"}: ${node.prompt}`,
       node.content,
     ]
       .filter(Boolean)
@@ -84,11 +83,7 @@ export function compileContext({
       nodeId: parentNodeId,
       title:
         node?.title ??
-        (traditionalChinese
-          ? "選中的原文"
-          : locale.startsWith("zh")
-            ? "选中的原文"
-            : "Selected text"),
+        (locale.startsWith("zh") ? "选中的原文" : "Selected text"),
       reason: "selection",
       detail: "selection",
       content: selectedText,
@@ -115,20 +110,15 @@ export function contextToPrompt(
   snapshot: ContextSnapshot,
   locale: RunRequest["locale"] = "en",
 ): string {
-  const traditionalChinese = locale === "zh-TW";
   if (snapshot.items.length === 0) {
-    return traditionalChinese
-      ? "沒有額外的圖譜上下文。"
-      : locale.startsWith("zh")
+    return locale.startsWith("zh")
       ? "没有额外的图谱上下文。"
       : "No additional graph context.";
   }
   return snapshot.items
     .map(
       (item, index) =>
-        traditionalChinese
-          ? `[來源 ${index + 1} · 節點 ${item.nodeId} · ${item.title}]\n${item.content}`
-          : locale.startsWith("zh")
+        locale.startsWith("zh")
           ? `[来源 ${index + 1} · 节点 ${item.nodeId} · ${item.title}]\n${item.content}`
           : `[Source ${index + 1} · Node ${item.nodeId} · ${item.title}]\n${item.content}`,
     )

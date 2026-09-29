@@ -1,15 +1,17 @@
 # Repository Guidelines
 
-Graph Chat is a local-first React/TypeScript learning workspace backed by a graph-oriented local store and a shared server runtime. Preserve user data and credential isolation across migrations.
+Pi Graph Chat is a personal, local-first React/TypeScript learning workspace built on the Pi agent ecosystem. The knowledge graph lives in a local SQLite store; Pi coding-agent sessions are read from Pi's own session directory. Preserve user data and credential isolation.
 
 ## Structure
 
-- `src/`: React UI, graph canvas, workspace state, and client services.
-- `server/`: local API, SQLite persistence, credentials, provider integration, and exports.
-- `tests/`: Vitest coverage.
-- `e2e/`: Playwright workflows.
-- `docs/`: data format, product validation, and release checklists.
-- `scripts/`: release, validation, seeding, and packaged CLI entry points.
+- `src/`: React UI, graph canvas, Pi session view, workspace state, and client services.
+- `server/`: local API, SQLite persistence, credentials, Pi provider integration, Pi session index, and exports.
+- `shared/`: types and schemas shared by client and server.
+- `tests/e2e/`: Playwright workflows, including the seeded Pi session fixture.
+- `docs/`: data format and manual acceptance guide.
+- `scripts/`: launcher, provider smoke test, and seeding.
+
+Unit tests sit next to the code they cover (`*.test.ts`, `*.test.tsx`).
 
 ## Verification
 
@@ -21,9 +23,16 @@ bun run build
 bun run test:e2e
 ```
 
-Use `bun run test:all` before releases.
+Use `bun run test:all` before pushing.
 
-Run Vitest through the package scripts. The scripts force Bun's runtime because Graph Chat relies on SQLite FTS5; invoking `vitest` or `npm test` under Node may use a SQLite build without FTS5 and produce misleading migration failures.
+Run Vitest through the package scripts. The scripts force Bun's runtime because the database relies on SQLite FTS5; invoking `vitest` under Node may use a SQLite build without FTS5 and produce misleading failures.
+
+## Pi
+
+- Pi packages are pinned to one exact version in `package.json`. Bump all of them together and run the full verification.
+- `@earendil-works/pi-coding-agent` is used for `SessionManager` and `parseSessionEntries`; do not hand-write a session parser.
+- The Pi session view is read-only. Never write to files under the Pi session directory.
+- Provider additions go through `CATALOG_PROVIDERS` in `server/agent-runtime.ts` plus the settings dialog and the provider enum in `shared/types.ts`.
 
 ## Conventions
 
@@ -31,6 +40,7 @@ Run Vitest through the package scripts. The scripts force Bun's runtime because 
 - Version persisted formats and provide migrations for existing `.graphchat` data.
 - Give graph nodes and edges stable identity; do not derive identity from mutable labels.
 - Keep the default bind address local-only and require an explicit choice for network exposure.
-- Add an end-to-end scenario when changing import, branching, synthesis, review, or export.
+- Add an end-to-end scenario when changing import, branching, synthesis, review, export, or the Pi session bridge.
+- Interface languages are English and Simplified Chinese only.
 
-Keep English and Chinese READMEs aligned. Canonical repository: `https://github.com/everettjf/graphchat`.
+Keep English and Chinese READMEs aligned. Canonical repository: `https://github.com/everettjf/pi-graph-chat`.

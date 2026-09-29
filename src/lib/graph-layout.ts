@@ -38,24 +38,36 @@ export function getGraphDepth(nodes: GraphNode[], edges: GraphEdge[]): number {
   return maxDepth;
 }
 
-export function layoutGraphNodes(
-  nodes: GraphNode[],
-  edges: GraphEdge[],
-): GraphNode[] {
-  if (nodes.length === 0) return [];
+export type TreeLayoutInput = {
+  ids: string[];
+  parentById: Map<string, string | null>;
+  nodeWidth?: number;
+  rowGap?: number;
+  columnGap?: number;
+};
 
-  const nodeById = new Map(nodes.map((node) => [node.id, node]));
-  const parentByTarget = new Map<string, string>();
+/**
+ * Generic top-down tree layout: siblings share a row, each subtree gets a
+ * contiguous span of lanes, and parents are centered above their children.
+ */
+export function layoutTree({
+  ids,
+  parentById,
+  nodeWidth = GRAPH_NODE_WIDTH,
+  rowGap = GRAPH_ROW_GAP,
+  columnGap = COLUMN_GAP,
+}: TreeLayoutInput): Map<string, { x: number; y: number }> {
+  const idSet = new Set(ids);
   const children = new Map<string, string[]>();
-
-  for (const edge of edges.filter(isStructuralEdge)) {
-    if (!nodeById.has(edge.source) || !nodeById.has(edge.target)) continue;
-    if (parentByTarget.has(edge.target)) continue;
-    parentByTarget.set(edge.target, edge.source);
-    children.set(edge.source, [...(children.get(edge.source) || []), edge.target]);
+  const hasParent = new Set<string>();
+  for (const id of ids) {
+    const parent = parentById.get(id) ?? null;
+    if (parent === null || !idSet.has(parent)) continue;
+    hasParent.add(id);
+    children.set(parent, [...(children.get(parent) || []), id]);
   }
 
-  const roots = nodes.filter((node) => !parentByTarget.has(node.id));
+  const roots = ids.filter((id) => !hasParent.has(id));
   const subtreeLanes = new Map<string, number>();
   const measuring = new Set<string>();
   const measure = (nodeId: string): number => {
@@ -77,7 +89,7 @@ export function layoutGraphNodes(
 
   const positions = new Map<string, { x: number; y: number }>();
   const placed = new Set<string>();
-  const laneWidth = GRAPH_NODE_WIDTH + COLUMN_GAP;
+  const laneWidth = nodeWidth + columnGap;
   const place = (nodeId: string, leftLane: number, depth: number) => {
     if (placed.has(nodeId)) return;
     placed.add(nodeId);
@@ -101,22 +113,44 @@ export function layoutGraphNodes(
     }
 
     positions.set(nodeId, {
-      x: CANVAS_PADDING + centerLane * laneWidth - GRAPH_NODE_WIDTH / 2,
-      y: CANVAS_PADDING + depth * GRAPH_ROW_GAP,
+      x: CANVAS_PADDING + centerLane * laneWidth - nodeWidth / 2,
+      y: CANVAS_PADDING + depth * rowGap,
     });
   };
 
   let nextLane = 0;
   for (const root of roots) {
-    place(root.id, nextLane, 0);
-    nextLane += measure(root.id) + 0.5;
+    place(root, nextLane, 0);
+    nextLane += measure(root) + 0.5;
   }
-  for (const node of nodes) {
-    if (placed.has(node.id)) continue;
-    place(node.id, nextLane, 0);
-    nextLane += measure(node.id) + 0.5;
+  for (const id of ids) {
+    if (placed.has(id)) continue;
+    place(id, nextLane, 0);
+    nextLane += measure(id) + 0.5;
+  }
+  return positions;
+}
+
+export function layoutGraphNodes(
+  nodes: GraphNode[],
+  edges: GraphEdge[],
+): GraphNode[] {
+  if (nodes.length === 0) return [];
+
+  const nodeById = new Map(nodes.map((node) => [node.id, node]));
+  const parentById = new Map<string, string | null>(
+    nodes.map((node) => [node.id, null]),
+  );
+  for (const edge of edges.filter(isStructuralEdge)) {
+    if (!nodeById.has(edge.source) || !nodeById.has(edge.target)) continue;
+    if (parentById.get(edge.target)) continue;
+    parentById.set(edge.target, edge.source);
   }
 
+  const positions = layoutTree({
+    ids: nodes.map((node) => node.id),
+    parentById,
+  });
   return nodes.map((node) => ({
     ...node,
     ...(positions.get(node.id) || {}),

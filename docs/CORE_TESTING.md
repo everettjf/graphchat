@@ -1,4 +1,4 @@
-# Graph Chat core feature test guide
+# Pi Graph Chat core feature test guide
 
 This guide verifies the product loop introduced for the first six months:
 source material -> branch -> compare -> synthesize -> mark as knowledge -> review -> export.
@@ -8,11 +8,11 @@ source material -> branch -> compare -> synthesize -> mark as knowledge -> revie
 From the repository root:
 
 ```bash
-npm install
-npm run typecheck
-npm test
-npm run build
-npm run test:e2e
+bun install
+bun run typecheck
+bun run test
+bun run build
+bun run test:e2e
 ```
 
 Expected result:
@@ -36,7 +36,7 @@ Start the app with an isolated data directory so existing data is untouched:
 
 ```powershell
 $env:GRAPHCHAT_DATA_DIR="$PWD\.graphchat-manual-test"
-npm run graphchat
+bun run launch
 ```
 
 Open `http://127.0.0.1:4317`.
@@ -88,7 +88,7 @@ Pass condition: two note nodes are created, connected in source order, tagged
 `imported`, and each retains the source URL.
 
 For PDF, pass condition additionally requires one imported section per page.
-Scanned image-only PDFs require OCR before import; Graph Chat does not silently
+Scanned image-only PDFs require OCR before import; Pi Graph Chat does not silently
 pretend that an image-only page contained readable text.
 
 ### 4. Knowledge asset lifecycle
@@ -167,16 +167,16 @@ Import a Markdown document with 100 headings. Verify:
 This is a smoke test, not a benchmark. Before claiming the 100–200 node product
 gate, record interaction latency on at least one low-end and one typical laptop.
 
-## Product validation
+## Pi sessions
 
-Run 8–12 observed sessions with target users. Give each person a real source and
-ask them to produce one defensible conclusion. Record:
+Run `pi` in any project, ask two questions, then use `/tree` to branch from the
+first answer and ask a third. Open Pi Graph Chat and verify:
 
-- time to first branch;
-- time to first cross-branch synthesis;
-- whether the final conclusion has two or more sources;
-- whether the user can relocate and explain it one week later;
-- whether the graph helped more than opening separate chats.
-
-The feature set passes the product gate only if users complete the loop without
-coaching and return to the graph; automated tests prove correctness, not value.
+- the session appears under **Pi sessions** in the sidebar with its working
+  directory and a relative time;
+- the canvas shows three turn cards, one of them marked as an abandoned branch
+  and one as the current position;
+- selecting a card shows its prompt, response, tool calls, and model;
+- **Open in terminal** copies a `pi --session` command that resumes the session;
+- while `pi` is still running, new turns appear within a few seconds without a
+  reload.

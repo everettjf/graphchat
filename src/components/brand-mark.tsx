@@ -9,7 +9,7 @@ export function BrandMark({ compact = false }: { compact?: boolean }) {
       </div>
       {!compact && (
         <div className="font-display text-[17px] font-semibold tracking-[-0.02em] text-[var(--ink)]">
-          Graph Chat
+          Pi Graph Chat
         </div>
       )}
     </div>

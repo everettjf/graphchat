@@ -73,7 +73,16 @@ export const graphDocumentSchema = z.object({
 });
 
 export const providerSettingsSchema = z.object({
-  provider: z.enum(["demo", "openai-codex", "openai", "openrouter", "ollama", "custom"]),
+  provider: z.enum([
+    "demo",
+    "openai-codex",
+    "openai",
+    "anthropic",
+    "google",
+    "openrouter",
+    "ollama",
+    "custom",
+  ]),
   model: z.string().min(1),
   baseUrl: z.string().optional().default(""),
   hasApiKey: z.boolean().default(false),
@@ -149,7 +158,7 @@ export const runRequestSchema = z.object({
   selectedText: z.string().nullable().default(null),
   position: z.object({ x: z.number(), y: z.number() }),
   mode: z.enum(["answer", "explore", "synthesize"]).default("answer"),
-  locale: z.enum(["en", "zh", "es", "fr", "de", "ja", "ko", "zh-TW"]).default("en"),
+  locale: z.enum(["en", "zh"]).default("en"),
 });
 
 export const importTextSchema = z.object({
@@ -158,11 +167,6 @@ export const importTextSchema = z.object({
   content: z.string().min(1).max(1_000_000),
   sourceUrl: z.string().trim().max(2_000).default(""),
   format: z.enum(["markdown", "text"]).default("markdown"),
-});
-
-export const productEventContextSchema = z.object({
-  sessionId: z.string().trim().min(1).max(128),
-  appVersion: z.string().trim().min(1).max(32),
 });
 
 export const graphBackupSchema = z.object({
@@ -208,60 +212,10 @@ export type GraphMetrics = {
   verified: number;
   mastered: number;
   reusableConclusions: number;
-  firstBranchAt: string | null;
-  firstSynthesisAt: string | null;
-  lastOpenedAt: string | null;
   activityLast7Days: number;
   evidenceCoverage: number;
   ratedAnswers: number;
   helpfulRate: number | null;
-};
-
-export type ProductValidationGraph = {
-  graphId: string;
-  createdAt: string;
-  eligible: boolean;
-  activated: boolean;
-  activationAt: string | null;
-  timeToFirstBranchMinutes: number | null;
-  timeToFirstSynthesisMinutes: number | null;
-  distinctSessions: number;
-  returnedAfter7Days: boolean;
-  conclusions: number;
-  evidenceBackedConclusions: number;
-  evidenceCoverage: number;
-  completedRuns: number;
-  cancelledRuns: number;
-  failedRuns: number;
-  helpfulRate: number | null;
-};
-
-export type ProductValidationReport = {
-  schemaVersion: 1;
-  appVersion: string;
-  generatedAt: string;
-  privacy: "local-only; excludes prompts, content, titles, source URLs, and credentials";
-  definitions: {
-    eligibleGraph: string;
-    activation: string;
-    evidenceBackedConclusion: string;
-    returnedAfter7Days: string;
-  };
-  summary: {
-    eligibleGraphs: number;
-    activatedGraphs: number;
-    activationRate: number;
-    medianTimeToFirstSynthesisMinutes: number | null;
-    returnedAfter7DaysGraphs: number;
-    sevenDayReturnRate: number;
-    conclusions: number;
-    evidenceBackedConclusions: number;
-    evidenceCoverage: number;
-    completedRuns: number;
-    cancelledRuns: number;
-    failedRuns: number;
-  };
-  graphs: ProductValidationGraph[];
 };
 
 export type ContextItem = z.infer<typeof contextItemSchema>;
@@ -319,3 +273,66 @@ export type CodexAuthStatus =
     }
   | { state: "authenticated"; source: string }
   | { state: "error"; message: string };
+
+// ---------------------------------------------------------------------------
+// Pi coding-agent sessions (read-only bridge)
+// ---------------------------------------------------------------------------
+
+export type PiSessionSummary = {
+  id: string;
+  path: string;
+  cwd: string;
+  name: string | null;
+  parentSessionPath: string | null;
+  createdAt: string;
+  modifiedAt: string;
+  turnCount: number;
+  firstPrompt: string;
+  provider: string | null;
+  model: string | null;
+};
+
+export type PiToolCall = {
+  id: string;
+  name: string;
+  arguments: string;
+  result: string;
+  isError: boolean;
+};
+
+export type PiTurnKind =
+  | "user"
+  | "assistant"
+  | "compaction"
+  | "branch_summary"
+  | "custom_message"
+  | "other";
+
+export type PiTurn = {
+  id: string;
+  parentId: string | null;
+  kind: PiTurnKind;
+  title: string;
+  timestamp: string;
+  prompt: string;
+  response: string;
+  thinking: string;
+  toolCalls: PiToolCall[];
+  provider: string | null;
+  model: string | null;
+  label: string | null;
+  entryIds: string[];
+  onActivePath: boolean;
+  isLeaf: boolean;
+};
+
+export type PiSessionTree = {
+  session: PiSessionSummary;
+  turns: PiTurn[];
+  leafTurnId: string | null;
+};
+
+export type PiSessionsResponse = {
+  sessionDir: string;
+  sessions: PiSessionSummary[];
+};

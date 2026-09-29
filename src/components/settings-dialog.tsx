@@ -5,6 +5,7 @@ import {
   Copy,
   Cpu,
   ExternalLink,
+  Gem,
   KeyRound,
   Laptop,
   LoaderCircle,
@@ -12,6 +13,7 @@ import {
   LogOut,
   Server,
   ShieldCheck,
+  Sparkles,
 } from "lucide-react";
 import type { CodexAuthStatus, ProviderSettings } from "@shared/types";
 import {
@@ -42,6 +44,18 @@ const providers = [
     icon: Cpu,
   },
   {
+    id: "anthropic",
+    label: null,
+    description: "settings.anthropicDescription",
+    icon: Sparkles,
+  },
+  {
+    id: "google",
+    label: null,
+    description: "settings.googleDescription",
+    icon: Gem,
+  },
+  {
     id: "openrouter",
     label: null,
     description: "settings.openrouterDescription",
@@ -61,10 +75,23 @@ const providers = [
   },
 ] as const;
 
+const providerNames: Record<ProviderSettings["provider"], string> = {
+  demo: "Demo",
+  "openai-codex": "ChatGPT",
+  openai: "OpenAI",
+  anthropic: "Anthropic",
+  google: "Gemini",
+  openrouter: "OpenRouter",
+  ollama: "Ollama",
+  custom: "Custom",
+};
+
 const defaultModels: Record<ProviderSettings["provider"], string> = {
   demo: "graphchat-guide",
-  "openai-codex": "gpt-5.4-mini",
+  "openai-codex": "gpt-5.5",
   openai: "gpt-5.4-mini",
+  anthropic: "claude-sonnet-5",
+  google: "gemini-3.5-flash",
   openrouter: "openai/gpt-5.4-mini",
   ollama: "qwen3.5:4b",
   custom: "your-model",
@@ -226,11 +253,7 @@ export function SettingsDialog({
                     ? t(provider.label as TranslationKey)
                     : provider.id === "openai-codex"
                       ? "ChatGPT"
-                      : provider.id === "openrouter"
-                        ? "OpenRouter"
-                        : provider.id === "ollama"
-                          ? "Ollama"
-                          : "OpenAI"}
+                      : providerNames[provider.id]}
                 </span>
                 <span className="mt-1 hidden text-[9px] leading-4 text-[var(--muted-light)] sm:block">
                   {t(provider.description as TranslationKey)}

@@ -23,6 +23,7 @@ import { Composer } from "@/components/composer";
 import { SettingsDialog } from "@/components/settings-dialog";
 import { WorkspaceTools } from "@/components/workspace-tools";
 import { KnowledgeTree } from "@/components/knowledge-tree";
+import { PiSessionView } from "@/components/pi-session-view";
 import { SplitHandle } from "@/components/split-handle";
 import { Button } from "@/components/ui/button";
 import { BrandMark } from "@/components/brand-mark";
@@ -44,6 +45,12 @@ export default function App() {
   const [toast, setToast] = useState("");
   const [toolsOpen, setToolsOpen] = useState(false);
   const [viewMode, setViewMode] = useState<"content" | "tree" | "graph">("content");
+  const [piSessionId, setPiSessionId] = useState<string | null>(null);
+  const piSessions = useQuery({
+    queryKey: ["pi-sessions"],
+    queryFn: api.piSessions,
+    refetchInterval: 8_000,
+  });
   const [conversationWidth, setConversationWidth] = useState(() => {
     const saved = Number(window.localStorage.getItem("graphchat-conversation-width"));
     return saved >= 30 && saved <= 75 ? saved : 50;
@@ -78,7 +85,6 @@ export default function App() {
           : bootstrap.data.activeGraph;
       if (!active || !initial) return;
       setDocumentState(initial);
-      void api.recordGraphOpen(initial.graph.id);
       selectNode(
         window.matchMedia("(min-width: 1280px)").matches
           ? initial.nodes[0]?.id ?? null
@@ -111,9 +117,9 @@ export default function App() {
 
   const openGraph = useCallback(
     async (id: string) => {
+      setPiSessionId(null);
       const next = await api.graph(id);
       setDocumentState(next);
-      void api.recordGraphOpen(next.graph.id);
       window.localStorage.setItem("graphchat-active-graph", id);
       clearReferences();
       selectNode(
@@ -132,10 +138,10 @@ export default function App() {
   const createGraph = useCallback(
     async (input: { title: string; description: string }) => {
       const created = await api.createGraph(input);
+      setPiSessionId(null);
       setGraphs((current) => [created.graph, ...current]);
       setDocumentState(created);
       window.localStorage.setItem("graphchat-active-graph", created.graph.id);
-      void api.recordGraphOpen(created.graph.id);
       clearReferences();
       selectNode(null);
       setViewMode("content");
@@ -388,6 +394,10 @@ export default function App() {
         archivedGraphs={archivedGraphs}
         activeGraphId={document.graph.id}
         nodes={document.nodes}
+        piSessions={piSessions.data?.sessions ?? []}
+        piSessionDir={piSessions.data?.sessionDir ?? ""}
+        activePiSessionId={piSessionId}
+        onSelectPiSession={setPiSessionId}
         onSelectGraph={(id) => void openGraph(id)}
         onCreateGraph={createGraph}
         onNewThread={startNewThread}
@@ -397,6 +407,16 @@ export default function App() {
         onDeleteArchivedGraph={deleteArchivedGraph}
         onDeleteAllArchivedGraphs={deleteAllArchivedGraphs}
       />
+      {piSessionId ? (
+        <PiSessionView
+          sessionId={piSessionId}
+          onBack={() => setPiSessionId(null)}
+          onToast={(message) => {
+            setToast(message);
+            setTimeout(() => setToast(""), 2_400);
+          }}
+        />
+      ) : (
       <div className="flex min-w-0 flex-1 flex-col">
         <Topbar
           document={document}
@@ -474,6 +494,7 @@ export default function App() {
           )}
         </div>
       </div>
+      )}
       <SettingsDialog settings={settings} onSaved={setSettings} />
       <WorkspaceTools
         document={document}

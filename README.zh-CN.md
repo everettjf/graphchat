@@ -1,197 +1,133 @@
 <div align="center">
-  <a href="https://xnu.app/graphchat/">
-    <img src="./docs/assets/logo.svg" width="84" height="84" alt="Graph Chat logo" />
-  </a>
+  <img src="./docs/assets/logo.svg" width="84" height="84" alt="Pi Graph Chat logo" />
 
-  <h1>Graph Chat</h1>
+  <h1>Pi Graph Chat</h1>
 
-  <p><strong>Learn in branches. Remember in graphs.</strong></p>
-  <p>把 AI 对话变成一张可以分叉、引用、汇聚和继续生长的知识图。</p>
+  <p><strong>在分支中学习，在图谱中记忆，运行在 Pi 之上。</strong></p>
+  <p>一个自用的本地优先学习工作区：把 AI 对话变成知识图，并把 Pi coding agent 的会话显示成树。</p>
 
   <p><a href="./README.md">English</a> · <strong>简体中文</strong></p>
 
   <p>
-    <a href="https://xnu.app/graphchat/?lang=zh"><strong>产品主页</strong></a>
-    ·
-    <a href="#快速开始">快速开始</a>
-    ·
-    <a href="#使用-chatgpt-订阅">ChatGPT 订阅登录</a>
-    ·
-    <a href="#架构">架构</a>
-  </p>
-
-  <p>
     <img alt="MIT" src="https://img.shields.io/badge/license-MIT-20332c?style=flat-square" />
     <img alt="Bun" src="https://img.shields.io/badge/Bun-1.3+-3c7c56?style=flat-square&logo=bun&logoColor=white" />
-    <img alt="Node.js" src="https://img.shields.io/badge/Node.js-%E2%89%A522.19-compatible-557064?style=flat-square&logo=nodedotjs&logoColor=white" />
     <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-strict-3178c6?style=flat-square&logo=typescript&logoColor=white" />
     <img alt="React" src="https://img.shields.io/badge/React-19-149eca?style=flat-square&logo=react&logoColor=white" />
-    <img alt="Pi" src="https://img.shields.io/badge/agent-Pi-7567a8?style=flat-square" />
-    <img alt="Tests" src="https://img.shields.io/badge/tests-27%20passing-3c7c56?style=flat-square" />
+    <img alt="Pi" src="https://img.shields.io/badge/Pi-0.87-7567a8?style=flat-square" />
   </p>
 </div>
 
 <br />
 
-Graph Chat 是一个本地优先、图谱原生的 AI 学习工作区。面对回答里的陌生概念，你不需要把所有追问塞进一条越来越混乱的聊天记录：从任意节点创建分支，在分支中深入理解，再引用多个分支汇聚成新的问题。每次回答都会保留它实际使用的上下文与来源。
+Pi Graph Chat 是我给自己做的学习工具，不是产品，也不打算做成产品。它建立在两个想法上：
+
+1. **对话应该是图，而不是列表。** 从任意节点分支，在分支里深入一个概念，再引用多个分支提出新问题。每次回答都保留它实际使用的上下文。
+2. **Pi 就是运行时。** [Pi agent 生态](https://github.com/earendil-works/pi) 已经有树状会话格式、三十多个 provider、扩展、skills 和 coding agent。Pi Graph Chat 直接依赖它们，而不是重新实现。
 
 <div align="center">
-  <img src="./docs/assets/ui-light.png" width="49%" alt="浅色模式下的 Graph Chat 工作区" />
-  <img src="./docs/assets/ui-dark.png" width="49%" alt="深色模式下的 Graph Chat 工作区" />
+  <img src="./docs/assets/ui-light.png" width="49%" alt="浅色模式下的 Pi Graph Chat 工作区" />
+  <img src="./docs/assets/ui-dark.png" width="49%" alt="深色模式下的 Pi Graph Chat 工作区" />
 </div>
 
-## 为什么是图，而不是聊天列表
+## 现在能做什么
 
-普通聊天只记录“接下来问了什么”，Graph Chat 还记录“这个问题从哪里来、引用了哪些理解、最后回到了哪条主线”。
-
-```text
-原始问题 ──→ AI 回答 ──→ 陌生概念 A ──→ 深入解释
-                  │
-                  └────→ 陌生概念 B ──→ 例子与反例
-                                      ╲
-                    A 的解释 ·········→ 汇聚问题 ──→ 新理解
-```
-
-- 实线表示沿当前上下文继续追问。
-- 虚线表示跨分支引用，适合比较、综合和迁移知识。
-- 节点记录问题、回答、模型、上下文快照与来源。
-- 图谱是长期知识结构，Pi agent loop 是每次回答的运行时。
-
-## 功能
-
-| 能力 | 当前实现 |
+| 方向 | 当前实现 |
 | --- | --- |
-| 图谱学习 | React Flow 无限画布、分支边、跨分支引用边、拖拽与搜索 |
-| 多知识图 | 创建、切换、重命名、归档和恢复彼此独立的学习空间 |
-| 精确追问 | 从节点继续提问，也可以选中回答中的一段文字创建分支 |
-| 分支汇聚 | 同时引用多个节点，让模型比较、综合或寻找共同机制 |
-| Agent runtime | Pi agent core、流式事件、工具调用、自动重试与取消 |
-| ChatGPT 订阅 | Pi `openai-codex` 设备码 OAuth，支持自动 token refresh |
-| 其他模型 | OpenAI API、OpenRouter、Ollama、OpenAI-compatible endpoint |
-| 本地数据 | Bun/Node SQLite、WAL、JSON 导出、无需外部数据库 |
-| 本地检索 | SQLite FTS5 对标题、问题、摘要、正文、标签和来源地址进行排序检索 |
-| 八种界面语言 | 应用与文档默认英文，可持久化切换简体中文、西班牙语、法语、德语、日语、韩语与繁体中文 |
-| 深浅双色主题 | 基于设计令牌的中性视觉体系，默认跟随系统外观，右上角可手动切换并持久保存 |
-| 可靠运行 | 流式事件绑定运行节点，支持显式取消与中断恢复 |
-| 隐私边界 | API Key 仅在进程内；OAuth 凭据只保存在本机私有文件 |
-| 工程质量 | TypeScript strict、Vitest、数据库测试、Pi runtime 测试、Playwright E2E |
+| 知识图 | React Flow 无限画布、分支边与续接边、跨分支引用、综合节点、搜索 |
+| 精确追问 | 从任意节点继续，或选中回答里的一段文字从那句话分支 |
+| 上下文编译 | 从父路径、显式引用和选中文字构建有预算、可追溯的上下文 |
+| Pi 会话 | 只读显示本机所有 Pi coding agent 会话的树，Pi 运行时自动刷新 |
+| 通过 Pi 使用模型 | ChatGPT 订阅（Codex OAuth）、OpenAI、Anthropic、Google Gemini、OpenRouter、Ollama、任意 OpenAI-compatible endpoint |
+| 本地数据 | Bun/Node SQLite + FTS5、版本化 JSON 备份、Obsidian 友好的 Markdown 导出 |
+| 导入 | Markdown、纯文本、文本型 PDF |
+| 学习 | 知识元数据、学习卡片、本地图谱指标 |
+| 界面 | 英文和简体中文，浅色和深色主题 |
+
+### Pi 会话
+
+在任何项目里运行 `pi`，Pi 会把对话以只追加的树保存在 `~/.pi/agent/sessions/`。Pi Graph Chat 读取这些文件，把每个会话显示成回合树：每个提问一张卡片，连同它后面的助手工作，包括被放弃的分支、工具调用、思考过程、标签和当前位置。
+
+- 在侧边栏点击一个会话即可打开。视图每隔几秒刷新，正在运行的 `pi` 会话会随着你的操作在画布上生长。
+- **在终端打开** 会复制 `cd <cwd> && pi --session <file>`，你可以带着 Pi 完整的编码工具继续同一个会话。
+- 视图是只读的，会话文件由 Pi 负责写入。
+
+如果会话不在默认位置，设置 `PI_CODING_AGENT_SESSION_DIR`（或 `PI_CODING_AGENT_DIR`），优先级与 Pi 本身一致。
 
 ## 快速开始
 
-### 独立运行包
-
-最简单的方式不需要安装 Bun、Node.js 或数据库：
-
-1. 从 [GitHub 最新 Release](https://github.com/everettjf/graphchat/releases/latest) 下载对应平台的压缩包。
-2. 解压。
-3. 运行 `graphchat`（Windows 上是 `graphchat.exe`）。
-
-Graph Chat 会打开 `http://127.0.0.1:4317`，数据默认保存在 `.graphchat/`。
-
-### 从源码运行
-
-推荐 Bun 1.3+；Node.js 22.19+ 也完整支持。
+开发需要 Bun 1.3+；Node.js 22.19+ 可以运行构建后的服务。
 
 ```bash
-git clone https://github.com/everettjf/graphchat.git
-cd graphchat
+git clone https://github.com/everettjf/pi-graph-chat.git
+cd pi-graph-chat
 bun install
-bun run graphchat
+bun run launch
 ```
 
-`graphchat` 启动器会构建应用、启动本地服务并自动打开浏览器。需要热更新开发时，运行 `bun run dev`，再打开 [http://localhost:5173](http://localhost:5173)。
+`bun run launch` 会构建应用、在 `http://127.0.0.1:4317` 启动本地服务并打开浏览器。需要热更新时运行 `bun run dev`，再打开 [http://localhost:5173](http://localhost:5173)。
 
-首次运行会生成一张英文的 RAG 示例学习图。应用默认英文，可以从侧边栏切换为简体中文、西班牙语、法语、德语、日语、韩语或繁体中文；模型运行会跟随所选语言，语言偏好保存在本机。本地演示无需密钥，也不会访问外部模型。界面默认跟随系统的浅色/深色外观，也可以从右上角手动切换，选择会保存在本机。
+首次运行会创建一张关于 RAG 的示例图，不需要任何凭据。数据保存在 `.graphchat/`，可用 `GRAPHCHAT_DATA_DIR` 更改位置。
 
-手动生产模式：
+## 模型
 
-```bash
-bun run build
-bun run start:bun
-```
+打开侧边栏的「模型与设置」。所有 provider 都由 Pi 的 `pi-ai` 层提供。
 
-生产服务默认监听 `http://127.0.0.1:4317`。
+| Provider | 认证方式 |
+| --- | --- |
+| ChatGPT | 通过 Pi 的 `openai-codex` provider 走设备码 OAuth；已有 Codex CLI 登录时会复用 |
+| OpenAI | `OPENAI_API_KEY` 或进程内输入 |
+| Anthropic | `ANTHROPIC_API_KEY` 或进程内输入 |
+| Google Gemini | `GEMINI_API_KEY` 或进程内输入 |
+| OpenRouter | `OPENROUTER_API_KEY` 或进程内输入 |
+| Ollama | 无需密钥；`http://127.0.0.1:11434/v1` |
+| 自定义 | 任意 OpenAI-compatible endpoint，可选进程内密钥 |
 
-如果更习惯 Node/npm，可改用 `npm install`、`npm run dev`、`npm run build` 和 `npm start`。Bun 与 Pi 没有架构冲突：Pi 负责 agent harness、模型与 OAuth loop；Bun/Node 负责本地 HTTP、SQLite 和前端工具链。Graph Chat 会在 Bun 下使用 `bun:sqlite`，在 Node 下使用 `node:sqlite`。
-
-## 使用 ChatGPT 订阅
-
-Graph Chat 通过 Pi 内置的 `openai-codex` Provider 使用 ChatGPT 订阅，不需要复制 API Key。
-
-1. 打开左下角的「模型与设置」。
-2. 选择「ChatGPT」。
-3. 点击「使用 ChatGPT 登录」。
-4. 在 OpenAI 页面输入一次性设备码。
-5. 返回 Graph Chat，连接状态会自动更新；选择模型并保存。
-
-登录流程由 Pi 发起。Graph Chat 不接触你的密码；OAuth access/refresh credential 保存到 `.graphchat/auth.json`，不会出现在网页 API、日志或数据导出中。登出会删除该凭据。ChatGPT/Codex 的可用额度和模型取决于你的账户、方案与 OpenAI 当前政策。
-
-> OpenAI 官方说明：Codex 可使用符合条件的 ChatGPT 方案登录，使用限制因方案而异。详见 [Using Codex with your ChatGPT plan](https://help.openai.com/en/articles/11369540)。
-
-## 其他 Provider
-
-复制 `.env.example` 为 `.env`，或直接在设置中配置：
-
-| Provider | 认证方式 | 默认配置 |
-| --- | --- | --- |
-| OpenAI | `OPENAI_API_KEY` 或当前进程内输入 | Pi OpenAI Provider |
-| OpenRouter | `OPENROUTER_API_KEY` 或当前进程内输入 | Pi OpenRouter Provider |
-| Ollama | 无需密钥 | `http://127.0.0.1:11434/v1` |
-| 自定义 | 可选进程内 API Key | 任意 OpenAI-compatible endpoint |
+API Key 只留在服务进程里，不会写入 SQLite、导出文件或日志。ChatGPT OAuth 凭据保存在 `.graphchat/auth.json`，在支持的平台上使用 `0600` 权限。
 
 ## 架构
 
 ```mermaid
 flowchart LR
-    UI["React 19 + tokenized light/dark UI<br/>React Flow"] --> API["Fastify API<br/>NDJSON streaming"]
-    API --> CTX["Context compiler<br/>主线 · 引用 · 选中文字"]
-    CTX --> AGENT["Pi Agent Core<br/>model · tools · retry loop"]
-    AGENT --> MODELS["ChatGPT OAuth · OpenAI<br/>OpenRouter · Ollama"]
-    API --> DB[("Bun / Node SQLite<br/>graphs · nodes · edges")]
-    API --> AUTH[("Local auth.json<br/>OAuth only")]
+    UI["React 19 · React Flow"] --> API["Fastify API · NDJSON 流式"]
+    API --> CTX["上下文编译器"]
+    CTX --> AGENT["pi-agent-core · 工具 · 重试循环"]
+    AGENT --> MODELS["pi-ai providers"]
+    API --> DB[("SQLite · 图 · 节点 · 边")]
+    API --> PI[("~/.pi/agent/sessions · 只读")]
+    PI --> SM["pi-coding-agent SessionManager"]
 ```
-
-Graph Chat 不把整张图无差别发送给模型。上下文编译器会按当前父节点、显式引用和选中文字构建一个有上限、可追溯的快照，再交给 Pi 运行。Pi 可以使用只读图谱工具继续搜索或读取节点，但不能自行修改知识图。
 
 核心代码：
 
-- [`server/agent-runtime.ts`](./server/agent-runtime.ts) — Pi agent、模型路由、工具和流式事件
-- [`server/openai-codex-auth.ts`](./server/openai-codex-auth.ts) — ChatGPT 设备码 OAuth 生命周期
+- [`server/agent-runtime.ts`](./server/agent-runtime.ts) — Pi agent、provider 路由、图谱工具、流式事件
 - [`server/context-compiler.ts`](./server/context-compiler.ts) — 图谱上下文选择与预算
-- [`server/credential-store.ts`](./server/credential-store.ts) — 原子、最小暴露的本地 OAuth 存储
-- [`src/components/graph-canvas.tsx`](./src/components/graph-canvas.tsx) — 图谱交互
+- [`server/pi-sessions.ts`](./server/pi-sessions.ts) — Pi 会话索引与回合折叠
+- [`server/openai-codex-auth.ts`](./server/openai-codex-auth.ts) — ChatGPT 设备码 OAuth 生命周期
+- [`src/components/graph-canvas.tsx`](./src/components/graph-canvas.tsx) — 知识图交互
+- [`src/components/pi-session-view.tsx`](./src/components/pi-session-view.tsx) — Pi 会话树视图
 
-## 数据与安全
-
-- 默认数据目录：`.graphchat/`
-- 知识图数据库：`.graphchat/graphchat.sqlite`
-- ChatGPT OAuth：`.graphchat/auth.json`
-- API Key：仅存当前 Node.js 进程，不写入 SQLite 或 `auth.json`
-- 导出：只包含图谱、节点和边，不包含任何凭据
-- 默认监听：`127.0.0.1`，不会自动暴露到局域网
-
-如需更改数据位置，设置 `GRAPHCHAT_DATA_DIR`。OAuth 文件在支持 POSIX 权限的平台上使用 `0600`；请像保护其他本地登录凭据一样保护数据目录。
-
-## 开发与验证
+## 开发
 
 ```bash
-bun run typecheck  # TypeScript client + server
-bun run test       # 单元、数据库、凭据与 Pi runtime
+bun run typecheck  # TypeScript 客户端与服务端
+bun run test       # Vitest：数据库、凭据、Pi runtime、Pi 会话、UI
 bun run build      # 生产构建
-bun run test:e2e   # Playwright 端到端
-bun run test:all   # 完整验证
+bun run test:e2e   # Playwright
+bun run test:all   # 以上全部
 ```
+
+请通过 package 脚本运行 Vitest。脚本强制使用 Bun 运行时，因为数据库依赖 SQLite FTS5；没有 FTS5 的 Node SQLite 会产生误导性的失败。
 
 ## 路线图
 
-- 在本地 SQLite FTS 之上增加可选的向量排序与混合检索
-- 安全网页抓取、OCR 与来源增量刷新
-- 端到端加密的可选同步服务
-- 协作分享与只读知识图发布
+目标是让 Pi 的会话文件成为唯一真相源，Pi Graph Chat 只在上面加图谱层。顺序如下：
 
-## 参与贡献
+1. 只读的 Pi 会话桥 —— 已完成。
+2. 用 `pi-coding-agent` 的 `createAgentSession()` 跑回答，让图谱分支就是 Pi 会话分支，同一个会话可以在终端打开。
+3. 把图谱工具、`/graph` 命令和学习 skills 打包成 Pi package。
+4. 让学习会话根植于代码库，并支持跨会话引用节点。
 
-Issue、讨论和 Pull Request 都很欢迎。请先阅读 [CONTRIBUTING.md](./CONTRIBUTING.md)；提交前运行 `bun run test:all`（或 `npm run test:all`），并确保新增行为包含相应测试。安全问题请按 [SECURITY.md](./SECURITY.md) 私下报告。
+手动验收见 [`docs/CORE_TESTING.md`](./docs/CORE_TESTING.md)，备份格式见 [`docs/GRAPHCHAT_FORMAT.md`](./docs/GRAPHCHAT_FORMAT.md)。
 
 ## License
 

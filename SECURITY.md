@@ -2,7 +2,7 @@
 
 ## Supported versions
 
-Graph Chat is in early development. Security fixes are applied to the latest version on the `main` branch.
+Pi Graph Chat is in early development. Security fixes are applied to the latest version on the `main` branch.
 
 ## Reporting a vulnerability
 
@@ -22,6 +22,6 @@ Please avoid including real API keys, OAuth tokens, or private conversation data
 - Provider API keys are kept in the server process and are not written to the graph database.
 - ChatGPT OAuth credentials are stored locally in `.graphchat/auth.json`, outside exported graphs, with restrictive file permissions where the operating system supports them.
 - Authentication responses sent to the browser contain status metadata only, never access or refresh tokens.
-- Graph Chat does not operate a hosted credential service in this release.
+- Pi Graph Chat does not operate a hosted credential service in this release.
 
-If you deploy Graph Chat beyond localhost, add transport security, access control, isolated secret storage, and an explicit threat model for your environment.
+If you deploy Pi Graph Chat beyond localhost, add transport security, access control, isolated secret storage, and an explicit threat model for your environment.

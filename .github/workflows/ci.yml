@@ -14,25 +14,6 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  lockfiles:
-    runs-on: ubuntu-latest
-    timeout-minutes: 8
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Set up Node
-        uses: actions/setup-node@v6
-        with:
-          node-version: 22.19.0
-          cache: npm
-
-      - name: Validate npm lockfile
-        run: npm ci --ignore-scripts
-
-      - name: Validate release metadata and both lockfiles
-        run: npm run release:validate
-
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -52,4 +33,4 @@ jobs:
         run: bunx playwright install --with-deps chromium
 
       - name: Verify
-        run: bun run verify
+        run: bun run test:all

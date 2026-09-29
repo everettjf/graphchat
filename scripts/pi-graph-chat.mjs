@@ -7,26 +7,26 @@ import { fileURLToPath } from "node:url";
 
 const scriptDirectory = path.dirname(fileURLToPath(import.meta.url));
 const packageRoot = path.resolve(scriptDirectory, "..");
-let packageVersion = "0.2.1";
+let packageVersion = "0.3.0";
 try {
   packageVersion = JSON.parse(
     fs.readFileSync(path.join(packageRoot, "package.json"), "utf8"),
   ).version;
 } catch {
-  // Standalone release executables intentionally do not carry package.json.
+  // Fall back to the compiled-in version when package.json is unavailable.
 }
 const args = process.argv.slice(2);
 
 if (args.includes("--help") || args.includes("-h")) {
-  console.log(`Graph Chat ${packageVersion}
+  console.log(`Pi Graph Chat ${packageVersion}
 
 Usage:
-  graphchat [options]
+  pi-graph-chat [options]
 
 Options:
   --port <number>      Local port (default: 4317)
   --host <address>     Bind address (default: 127.0.0.1)
-  --data-dir <path>    Graph Chat data directory
+  --data-dir <path>    Pi Graph Chat data directory
   --no-open            Do not open a browser automatically
   --version, -v        Print the version
   --help, -h           Show this help
@@ -56,15 +56,11 @@ if (!/^\d+$/.test(port) || Number(port) < 1 || Number(port) > 65_535) {
   throw new Error("--port must be a number between 1 and 65535.");
 }
 
-const executableClient = path.join(path.dirname(process.execPath), "dist");
-const packageClient = path.join(packageRoot, "dist");
-const clientDirectory = fs.existsSync(path.join(executableClient, "index.html"))
-  ? executableClient
-  : packageClient;
+const clientDirectory = path.join(packageRoot, "dist");
 
 if (!fs.existsSync(path.join(clientDirectory, "index.html"))) {
   throw new Error(
-    "The production client is missing. Run `bun run build` before starting Graph Chat.",
+    "The production client is missing. Run `bun run build` before starting Pi Graph Chat.",
   );
 }
 
@@ -78,7 +74,7 @@ await import("../dist-server/server/index.js");
 
 const visibleHost = host === "0.0.0.0" || host === "::" ? "127.0.0.1" : host;
 const url = `http://${visibleHost}:${port}`;
-console.log(`\nGraph Chat is ready at ${url}`);
+console.log(`\nPi Graph Chat is ready at ${url}`);
 
 if (!args.includes("--no-open")) {
   const command =

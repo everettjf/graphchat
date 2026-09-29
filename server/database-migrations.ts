@@ -56,18 +56,9 @@ export function migrateGraphDatabase(db: SQLiteDatabase) {
       snapshot TEXT NOT NULL,
       created_at TEXT NOT NULL
     );
-    CREATE TABLE IF NOT EXISTS graph_events (
-      id TEXT PRIMARY KEY,
-      graph_id TEXT NOT NULL REFERENCES graphs(id) ON DELETE CASCADE,
-      type TEXT NOT NULL,
-      metadata TEXT NOT NULL DEFAULT '{}',
-      created_at TEXT NOT NULL
-    );
     CREATE INDEX IF NOT EXISTS idx_nodes_graph ON nodes(graph_id);
     CREATE INDEX IF NOT EXISTS idx_edges_graph ON edges(graph_id);
     CREATE INDEX IF NOT EXISTS idx_edges_target ON edges(target);
-    CREATE INDEX IF NOT EXISTS idx_graph_events_graph_created
-      ON graph_events(graph_id, created_at);
   `);
   const graphColumns = db
     .prepare("PRAGMA table_info(graphs)")

@@ -5,7 +5,7 @@ async function openGraphView(page: import("@playwright/test").Page) {
   await expect(page.getByTestId("graph-canvas")).toBeVisible();
 }
 
-test.describe("Graph Chat", () => {
+test.describe("Pi Graph Chat", () => {
   test("collapses and reopens the sidebar", async ({ page }) => {
     await page.goto("/");
     const sidebar = page.getByTestId("sidebar");
@@ -26,13 +26,13 @@ test.describe("Graph Chat", () => {
   }) => {
     expect(await (await request.get("/health")).json()).toEqual({
       ok: true,
-      service: "graphchat",
-      version: "0.2.2",
+      service: "pi-graph-chat",
+      version: "0.3.0",
       databaseSchemaVersion: 4,
     });
     await page.goto("/");
     await expect(page.locator("html")).toHaveAttribute("lang", "en");
-    await expect(page.getByText("Graph Chat", { exact: true })).toBeVisible();
+    await expect(page.getByText("Pi Graph Chat", { exact: true })).toBeVisible();
     await expect(page.getByTestId("node-inspector")).toBeVisible();
     await expect(page.getByTestId("knowledge-tree")).toBeVisible();
     const separator = page.getByRole("separator", {
@@ -193,25 +193,25 @@ test.describe("Graph Chat", () => {
   });
 
   test("switches and persists supported interface languages", async ({ page }) => {
-    await page.goto("/?lang=zh-TW");
-    await expect(page.locator("html")).toHaveAttribute("lang", "zh-TW");
+    await page.goto("/?lang=de");
+    await expect(page.locator("html")).toHaveAttribute("lang", "en");
     await page.getByTestId("language-menu").click();
-    await expect(page.getByRole("menuitem", { name: "繁體中文" })).toHaveAttribute(
+    await expect(page.getByRole("menuitem", { name: "English" })).toHaveAttribute(
       "aria-current",
       "true",
     );
-    await expect(page.getByRole("menuitem", { name: "हिन्दी" })).toHaveCount(0);
+    await expect(page.getByRole("menuitem", { name: "Deutsch" })).toHaveCount(0);
 
-    await page.getByRole("menuitem", { name: "Deutsch" }).click();
-    await expect(page.locator("html")).toHaveAttribute("lang", "de");
-    await expect(page).toHaveURL(/\?lang=de$/);
+    await page.getByRole("menuitem", { name: "简体中文" }).click();
+    await expect(page.locator("html")).toHaveAttribute("lang", "zh-CN");
+    await expect(page).toHaveURL(/\?lang=zh$/);
     expect(
       await page.evaluate(() => window.localStorage.getItem("graphchat-language")),
-    ).toBe("de");
+    ).toBe("zh");
 
     await page.reload();
     await page.getByTestId("language-menu").click();
-    await expect(page.getByRole("menuitem", { name: "Deutsch" })).toHaveAttribute(
+    await expect(page.getByRole("menuitem", { name: "简体中文" })).toHaveAttribute(
       "aria-current",
       "true",
     );
@@ -240,7 +240,7 @@ test.describe("Graph Chat", () => {
         page.getByRole("button", { name: "Sign in with ChatGPT" }),
       ).toBeVisible();
     }
-    await expect(page.getByLabel("Model ID")).toHaveValue("gpt-5.4-mini");
+    await expect(page.getByLabel("Model ID")).toHaveValue("gpt-5.5");
     await page.getByRole("button", { name: "Cancel" }).click();
 
     expect(["authenticated", "signed_out"]).toContain(authStatus.state);
@@ -260,7 +260,6 @@ test.describe("Graph Chat", () => {
     await page.getByRole("button", { name: "Tools" }).click();
     await expect(page.getByRole("heading", { name: "Tools" })).toBeVisible();
     await expect(page.getByText("Local graph metrics")).toBeVisible();
-    await expect(page.getByText("Product validation")).toBeVisible();
 
     await page.getByLabel("Choose source file").setInputFiles({
       name: "sample.pdf",
@@ -282,16 +281,6 @@ test.describe("Graph Chat", () => {
 
     const metrics = await (await request.get("/api/graphs/learning-rag/metrics")).json();
     expect(metrics.nodes).toBeGreaterThanOrEqual(8);
-
-    const validation = await (
-      await request.get("/api/validation/export.json")
-    ).json();
-    expect(validation).toMatchObject({
-      schemaVersion: 1,
-      appVersion: "0.2.2",
-      summary: { eligibleGraphs: 1 },
-    });
-    expect(JSON.stringify(validation)).not.toContain("Reads see the latest write");
 
     const markdown = await request.get("/api/graphs/learning-rag/export.md");
     expect(markdown.ok()).toBeTruthy();

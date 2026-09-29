@@ -1,19 +1,45 @@
 # Changelog
 
-All notable Graph Chat changes are documented here.
+All notable Pi Graph Chat changes are documented here.
 
-## Unreleased
+## 0.3.0 - Unreleased
+
+Pi Graph Chat is now a personal tool built on the Pi agent ecosystem. This
+release renames the project from Graph Chat, drops product and release
+overhead, and adds a read-only bridge to Pi coding-agent sessions.
 
 ### Added
 
+- Added a read-only Pi session view: every session under Pi's session
+  directory is listed in the sidebar and rendered as a tree of turns with
+  abandoned branches, tool calls, thinking, labels, and the current position.
+  The view refreshes automatically and can copy a `pi --session` command to
+  continue the session in the terminal.
+- Added Anthropic and Google Gemini providers through Pi's `pi-ai` catalog.
 - Added light and dark themes with a system-preference default, a persistent
   top-right toggle, and a no-flash bootstrap script.
 
 ### Changed
 
+- Renamed the project and package to `pi-graph-chat`; the launcher is now
+  `bun run launch` / `pi-graph-chat`.
+- Upgraded `@earendil-works/pi-ai` and `pi-agent-core` to 0.87.1 and added
+  `@earendil-works/pi-coding-agent` for session parsing.
+- ChatGPT sign-in status is read without triggering a token refresh.
+- The default ChatGPT model is `gpt-5.5`.
+- Interface languages are reduced to English and Simplified Chinese.
+- Local graph metrics count recent node activity instead of product events.
 - Redesigned the workspace with a neutral, token-driven design system:
   Inter Variable typography, refined radii and shadows, and restyled graph
   canvas, nodes, minimap, and Markdown in both themes.
+
+### Removed
+
+- Removed product-validation instrumentation, the `graph_events` table, and
+  the validation report endpoint.
+- Removed npm publishing, standalone binaries, the GitHub Pages site, release
+  validation scripts, and the npm lockfile. Bun is the only supported
+  development toolchain.
 
 ### Fixed
 

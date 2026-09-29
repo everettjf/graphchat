@@ -136,7 +136,6 @@ describe("GraphDatabase", () => {
       nodes: 8,
       conclusions: 1,
       mastered: 1,
-      firstBranchAt: expect.any(String),
       activityLast7Days: expect.any(Number),
     });
     expect(database.exportGraphMarkdown("learning-rag")).toContain(
@@ -546,78 +545,4 @@ describe("GraphDatabase", () => {
     expect(elapsed).toBeLessThan(2_500);
     database.close();
   }, 15_000);
-
-  it("exports privacy-safe activation, evidence, session, and reliability metrics", () => {
-    const database = createDatabase();
-    const graph = database.createGraph({
-      title: "Private pilot graph",
-      description: "Must not appear in validation export",
-    });
-    const day = 86_400_000;
-    const openedAt = new Date("2026-01-01T00:00:00.000Z");
-    database.recordEvent(
-      graph.graph.id,
-      "graph-opened",
-      { sessionId: "pilot-session-1", appVersion: "0.2.0" },
-      openedAt.toISOString(),
-    );
-    database.importText({
-      graphId: graph.graph.id,
-      title: "Secret source title",
-      content: "# Evidence A\n\nPrivate source content\n\n# Evidence B\n\nMore private content",
-      sourceUrl: "https://private.example/source",
-      format: "markdown",
-    });
-    const imported = database.getGraph(graph.graph.id)!.nodes;
-    const synthesis = database.createNode({
-      graphId: graph.graph.id,
-      parentNodeId: imported[0]!.id,
-      referenceNodeIds: [imported[1]!.id],
-      kind: "summary",
-      title: "Private conclusion title",
-      prompt: "Private pilot prompt",
-      content: "Private answer",
-      summary: "Evidence-backed summary",
-      selectedText: null,
-      x: 100,
-      y: 100,
-    });
-    database.updateNode(synthesis.id, { knowledgeStatus: "conclusion", rating: 1 });
-    database.recordEvent(graph.graph.id, "run-completed", {
-      mode: "synthesize",
-      durationMs: 1200,
-    });
-    database.recordEvent(
-      graph.graph.id,
-      "graph-opened",
-      { sessionId: "pilot-session-2", appVersion: "0.2.0" },
-      new Date(openedAt.getTime() + 8 * day).toISOString(),
-    );
-
-    const report = database.getProductValidationReport();
-    const pilot = report.graphs.find((entry) => entry.graphId === graph.graph.id);
-    expect(pilot).toMatchObject({
-      eligible: true,
-      activated: true,
-      distinctSessions: 2,
-      returnedAfter7Days: true,
-      evidenceBackedConclusions: 1,
-      evidenceCoverage: 1,
-      completedRuns: 1,
-      helpfulRate: 1,
-    });
-    expect(report.summary).toMatchObject({
-      eligibleGraphs: 1,
-      activatedGraphs: 1,
-      activationRate: 1,
-      sevenDayReturnRate: 1,
-      evidenceCoverage: 1,
-    });
-    const serialized = JSON.stringify(report);
-    expect(serialized).not.toContain("Private pilot prompt");
-    expect(serialized).not.toContain("Private source content");
-    expect(serialized).not.toContain("private.example");
-    expect(serialized).not.toContain("Private conclusion title");
-    database.close();
-  });
 });

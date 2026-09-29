@@ -28,7 +28,7 @@ function isCredential(value: unknown): value is Credential {
 /**
  * Minimal file-backed Pi credential store.
  *
- * Graph Chat uses it only for OAuth credentials. Writes are serialized and
+ * Pi Graph Chat uses it only for OAuth credentials. Writes are serialized and
  * atomic; the file is created with owner-only permissions on platforms that
  * support POSIX modes. Secrets never leave this class through list().
  */
@@ -136,7 +136,7 @@ function jwtExpiry(token: string) {
 }
 
 /**
- * Reuse an existing Codex desktop/CLI ChatGPT login when Graph Chat has no
+ * Reuse an existing Codex desktop/CLI ChatGPT login when Pi Graph Chat has no
  * app-owned credential yet. Token values are never logged or returned.
  */
 export async function importCodexCliCredential(

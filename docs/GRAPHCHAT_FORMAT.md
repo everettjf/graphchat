@@ -1,6 +1,6 @@
-# Graph Chat interchange format
+# Pi Graph Chat interchange format
 
-Graph Chat exports a versioned JSON document from `GET /api/export`.
+Pi Graph Chat exports a versioned JSON document from `GET /api/export`.
 Version 2 is the first public knowledge-asset format.
 
 ```ts

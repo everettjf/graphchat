@@ -8,7 +8,6 @@ import {
   createNodeSchema,
   graphBackupSchema,
   importTextSchema,
-  productEventContextSchema,
   providerSettingsSchema,
   runRequestSchema,
   type ProviderSettings,
@@ -24,6 +23,7 @@ import {
 } from "./credential-store.js";
 import { GraphDatabase } from "./database.js";
 import { OpenAICodexAuthManager } from "./openai-codex-auth.js";
+import { PiSessionIndex, resolvePiSessionDir } from "./pi-sessions.js";
 import { configureSystemProxy } from "./system-proxy.js";
 
 if (typeof process.loadEnvFile === "function") {
@@ -48,6 +48,8 @@ const reusedCodexLogin =
 const runtime = new GraphAgentRuntime(database.getSettings(), credentialStore);
 const activeRunControllers = new Map<string, AbortController>();
 const codexAuth = new OpenAICodexAuthManager(credentialStore);
+const piSessionDir = resolvePiSessionDir();
+const piSessions = new PiSessionIndex(piSessionDir);
 const rootDirectory = path.dirname(fileURLToPath(import.meta.url));
 const productionClientDirectory = process.env.GRAPHCHAT_CLIENT_DIR
   ? path.resolve(process.env.GRAPHCHAT_CLIENT_DIR)
@@ -62,7 +64,7 @@ if (usingSystemProxy) {
 
 app.get("/health", async () => ({
   ok: true,
-  service: "graphchat",
+  service: "pi-graph-chat",
   version: APP_VERSION,
   databaseSchemaVersion: DATABASE_SCHEMA_VERSION,
 }));
@@ -196,28 +198,6 @@ app.get<{ Params: { id: string } }>("/api/graphs/:id/metrics", async (request, r
   return database.getMetrics(request.params.id);
 });
 
-app.post<{ Params: { id: string } }>("/api/graphs/:id/events/open", async (request, reply) => {
-  const parsed = productEventContextSchema.safeParse(request.body);
-  if (!parsed.success) {
-    return reply
-      .code(400)
-      .send({ message: "Invalid product event context", issues: parsed.error.issues });
-  }
-  if (!database.recordEvent(request.params.id, "graph-opened", parsed.data)) {
-    return reply.code(404).send({ message: "Graph not found" });
-  }
-  return reply.code(204).send();
-});
-
-app.get("/api/validation/export.json", async (_request, reply) => {
-  reply.header("Cache-Control", "no-store");
-  reply.header(
-    "Content-Disposition",
-    'attachment; filename="graphchat-product-validation.json"',
-  );
-  return database.getProductValidationReport();
-});
-
 app.post<{ Params: { id: string } }>("/api/graphs/:id/undo", async (request, reply) => {
   if (!database.getGraph(request.params.id)) {
     return reply.code(404).send({ message: "Graph not found" });
@@ -260,7 +240,7 @@ app.post("/api/import", async (request, reply) => {
 app.post("/api/restore", async (request, reply) => {
   const parsed = graphBackupSchema.safeParse(request.body);
   if (!parsed.success) {
-    return reply.code(400).send({ message: "Invalid Graph Chat backup", issues: parsed.error.issues });
+    return reply.code(400).send({ message: "Invalid Pi Graph Chat backup", issues: parsed.error.issues });
   }
   return reply.code(201).send({ graphs: database.restoreBackup(parsed.data) });
 });
@@ -324,6 +304,18 @@ app.post("/api/settings", async (request, reply) => {
   database.saveSettings(parsed.data);
   runtime.configure(parsed.data, typeof body.apiKey === "string" ? body.apiKey : undefined);
   return { ...parsed.data, hasApiKey: runtime.hasApiKey(parsed.data.provider) };
+});
+
+app.get("/api/pi/sessions", async (_request, reply) => {
+  reply.header("Cache-Control", "no-store");
+  return { sessionDir: piSessionDir, sessions: piSessions.list() };
+});
+
+app.get<{ Params: { id: string } }>("/api/pi/sessions/:id", async (request, reply) => {
+  reply.header("Cache-Control", "no-store");
+  const tree = piSessions.get(request.params.id);
+  if (!tree) return reply.code(404).send({ message: "Pi session not found" });
+  return tree;
 });
 
 app.get("/api/export", async (_request, reply) => {

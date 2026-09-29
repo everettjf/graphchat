@@ -52,25 +52,6 @@ describe("I18nProvider", () => {
     expect(screen.getByText("新建学习起点")).toBeVisible();
   });
 
-  it.each([
-    ["es", "Idioma", "es"],
-    ["fr", "Langue", "fr"],
-    ["de", "Sprache", "de"],
-    ["ja", "言語", "ja"],
-    ["ko", "언어", "ko"],
-    ["zh-TW", "語言", "zh-TW"],
-  ])("loads %s from the URL", (locale, languageLabel, htmlLang) => {
-    window.history.replaceState(null, "", `/?lang=${locale}`);
-    render(
-      <I18nProvider>
-        <Probe />
-      </I18nProvider>,
-    );
-    expect(screen.getByTestId("locale")).toHaveTextContent(locale);
-    expect(screen.getByTestId("language-label")).toHaveTextContent(languageLabel);
-    expect(document.documentElement.lang).toBe(htmlLang);
-  });
-
   it("falls back to English for the removed Hindi locale", () => {
     window.history.replaceState(null, "", "/?lang=hi");
     render(

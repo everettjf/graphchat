@@ -1,4 +1,4 @@
-# Contributing to Graph Chat
+# Contributing to Pi Graph Chat
 
 Thanks for helping make graph-native learning better. Bug reports, product ideas, documentation improvements, and code contributions are all welcome.
 
@@ -10,7 +10,7 @@ Thanks for helping make graph-native learning better. Bug reports, product ideas
 
 ## Local development
 
-Graph Chat recommends Bun 1.3 or newer. Node.js 22.19 or newer is also supported.
+Pi Graph Chat uses Bun 1.3 or newer. Node.js 22.19 or newer can run the built server.
 
 ```bash
 bun install
@@ -27,9 +27,7 @@ Run the complete release check before opening a pull request:
 bun run test:all
 ```
 
-This checks TypeScript, unit and integration tests, the documentation site, the production build, and Playwright end-to-end tests.
-
-The equivalent npm command is `npm run test:all`.
+This checks TypeScript, unit and integration tests, the production build, and Playwright end-to-end tests.
 
 ## Pull requests
 

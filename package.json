@@ -1,38 +1,22 @@
 {
-  "name": "@everettjf/graphchat",
-  "version": "0.2.2",
-  "private": false,
+  "name": "pi-graph-chat",
+  "version": "0.3.0",
+  "private": true,
   "packageManager": "bun@1.3.14",
   "type": "module",
-  "description": "A local-first, graph-native AI learning workspace.",
+  "description": "A local-first, graph-native learning workspace built on the Pi agent ecosystem.",
   "license": "MIT",
   "author": "Everett",
-  "homepage": "https://xnu.app/graphchat/",
+  "homepage": "https://github.com/everettjf/pi-graph-chat",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/everettjf/graphchat.git"
+    "url": "git+https://github.com/everettjf/pi-graph-chat.git"
   },
   "bugs": {
-    "url": "https://github.com/everettjf/graphchat/issues"
+    "url": "https://github.com/everettjf/pi-graph-chat/issues"
   },
   "bin": {
-    "graphchat": "scripts/graphchat.mjs"
-  },
-  "files": [
-    "dist",
-    "dist-server",
-    "scripts/graphchat.mjs",
-    "README.md",
-    "README.zh-CN.md",
-    "CHANGELOG.md",
-    "docs/CORE_TESTING.md",
-    "docs/GRAPHCHAT_FORMAT.md",
-    "docs/PRODUCT_VALIDATION.md",
-    "docs/V020_TESTING.md",
-    "LICENSE"
-  ],
-  "publishConfig": {
-    "access": "public"
+    "pi-graph-chat": "scripts/pi-graph-chat.mjs"
   },
   "keywords": [
     "ai",
@@ -41,6 +25,7 @@
     "learning",
     "local-first",
     "pi-agent",
+    "pi-coding-agent",
     "react"
   ],
   "engines": {
@@ -50,27 +35,22 @@
     "dev": "concurrently -k -n api,web -c blue,magenta \"tsx watch server/index.ts\" \"vite\"",
     "dev:server": "tsx watch server/index.ts",
     "dev:client": "vite",
-    "docs:preview": "node scripts/serve-docs.mjs",
     "build": "node scripts/clean-build.mjs && tsc -p tsconfig.json --noEmit && tsc -p tsconfig.server.json --noEmit && vite build && tsc -p tsconfig.server.json",
     "start": "node dist-server/server/index.js",
     "start:bun": "bun dist-server/server/index.js",
-    "graphchat": "bun run build && bun ./scripts/graphchat.mjs",
-    "prepack": "npm run build",
-    "release:current": "bun run release:validate && bun run build && bun build ./scripts/graphchat.mjs --compile --outfile ./release/graphchat",
-    "release:validate": "node scripts/validate-release.mjs",
+    "launch": "bun run build && bun ./scripts/pi-graph-chat.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.server.json --noEmit",
     "test": "bun x --bun vitest run",
     "test:watch": "bun x --bun vitest",
     "test:e2e": "playwright test",
     "test:providers": "node scripts/provider-smoke.mjs",
     "test:seed-realistic": "node scripts/seed-realistic-learning-data.mjs",
-    "test:site": "node scripts/validate-site.mjs",
-    "test:all": "npm run release:validate && tsc -p tsconfig.json --noEmit && tsc -p tsconfig.server.json --noEmit && bun x --bun vitest run && node scripts/validate-site.mjs && vite build && tsc -p tsconfig.server.json && playwright test",
-    "verify": "npm run release:validate && npm audit --omit=dev --audit-level=moderate && npm run test:all"
+    "test:all": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.server.json --noEmit && bun x --bun vitest run && vite build && tsc -p tsconfig.server.json && playwright test"
   },
   "dependencies": {
-    "@earendil-works/pi-agent-core": "0.82.1",
-    "@earendil-works/pi-ai": "0.82.1",
+    "@earendil-works/pi-agent-core": "0.87.1",
+    "@earendil-works/pi-ai": "0.87.1",
+    "@earendil-works/pi-coding-agent": "0.87.1",
     "@fastify/static": "^10.1.2",
     "@fontsource-variable/inter": "^5.3.0",
     "@radix-ui/react-dialog": "^1.1.15",

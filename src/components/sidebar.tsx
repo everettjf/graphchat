@@ -11,8 +11,9 @@ import {
   Search,
   Settings2,
   Sparkles,
+  TerminalSquare,
 } from "lucide-react";
-import type { GraphMeta, GraphNode } from "@shared/types";
+import type { GraphMeta, GraphNode, PiSessionSummary } from "@shared/types";
 import { BrandMark } from "./brand-mark";
 import { Button } from "./ui/button";
 import { cn, formatRelativeTime } from "@/lib/utils";
@@ -33,6 +34,10 @@ type SidebarProps = {
   archivedGraphs: GraphMeta[];
   activeGraphId: string;
   nodes: GraphNode[];
+  piSessions: PiSessionSummary[];
+  piSessionDir: string;
+  activePiSessionId: string | null;
+  onSelectPiSession: (id: string) => void;
   onSelectGraph: (id: string) => void;
   onCreateGraph: (input: {
     title: string;
@@ -54,6 +59,10 @@ export function Sidebar({
   archivedGraphs,
   activeGraphId,
   nodes,
+  piSessions,
+  piSessionDir,
+  activePiSessionId,
+  onSelectPiSession,
   onSelectGraph,
   onCreateGraph,
   onNewThread,
@@ -147,9 +156,12 @@ export function Sidebar({
           <SidebarItem
             icon={GitFork}
             label={t("sidebar.knowledgeGraph")}
-            active={!search}
+            active={!search && !activePiSessionId}
             badge={nodes.length}
-            onClick={() => setSearch("")}
+            onClick={() => {
+              setSearch("");
+              if (activePiSessionId) onSelectGraph(activeGraphId);
+            }}
           />
         </nav>
 
@@ -181,7 +193,7 @@ export function Sidebar({
               key={graph.id}
               className={cn(
                 "group relative flex h-9 items-center border-b border-[var(--border)] transition last:border-b-0 hover:bg-[var(--hover)]",
-                graph.id === activeGraphId && "bg-[var(--paper-deep)]",
+                graph.id === activeGraphId && !activePiSessionId && "bg-[var(--paper-deep)]",
               )}
               onContextMenu={(event) => {
                 event.preventDefault();
@@ -193,7 +205,7 @@ export function Sidebar({
                 });
               }}
             >
-              {graph.id === activeGraphId && (
+              {graph.id === activeGraphId && !activePiSessionId && (
                 <span className="absolute inset-y-1.5 left-0 w-0.5 rounded-r-sm bg-[var(--accent)]" />
               )}
               <button
@@ -203,7 +215,7 @@ export function Sidebar({
                   closeOnNarrowScreen();
                   onSelectGraph(graph.id);
                 }}
-                aria-current={graph.id === activeGraphId ? "page" : undefined}
+                aria-current={graph.id === activeGraphId && !activePiSessionId ? "page" : undefined}
               >
                 <span className="block truncate text-[11px] font-semibold leading-3.5 text-[var(--ink)]">
                   {graph.title}
@@ -230,6 +242,57 @@ export function Sidebar({
               </button>
             </div>
           ))}
+          </div>
+
+          <div className="mb-1 mt-3 flex items-center justify-between px-2">
+            <span className="flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-[0.16em] text-[var(--muted-light)]">
+              <TerminalSquare className="size-3" /> {t("pi.sessions")}
+              <span className="rounded-md bg-[var(--hover)] px-1.5 py-0.5 text-[8px] font-medium tracking-normal">
+                {piSessions.length}
+              </span>
+            </span>
+          </div>
+          <div
+            className="overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-xs)]"
+            data-testid="pi-session-list"
+          >
+            {piSessions.length === 0 ? (
+              <p className="px-3 py-2.5 text-[9px] leading-3.5 text-[var(--muted-light)]">
+                {t("pi.sessionsEmpty", { dir: piSessionDir })}
+                <br />
+                {t("pi.sessionsHint")}
+              </p>
+            ) : (
+              piSessions.slice(0, 40).map((session) => (
+                <button
+                  key={session.id}
+                  type="button"
+                  className={cn(
+                    "relative block h-9 w-full border-b border-[var(--border)] px-3 text-left transition last:border-b-0 hover:bg-[var(--hover)]",
+                    session.id === activePiSessionId && "bg-[var(--paper-deep)]",
+                  )}
+                  data-testid={`pi-session-${session.id}`}
+                  aria-current={session.id === activePiSessionId ? "page" : undefined}
+                  onClick={() => {
+                    setSearch("");
+                    closeOnNarrowScreen();
+                    onSelectPiSession(session.id);
+                  }}
+                >
+                  {session.id === activePiSessionId && (
+                    <span className="absolute inset-y-1.5 left-0 w-0.5 rounded-r-sm bg-[var(--accent)]" />
+                  )}
+                  <span className="block truncate text-[11px] font-semibold leading-3.5 text-[var(--ink)]">
+                    {session.name || session.firstPrompt || t("pi.untitled")}
+                  </span>
+                  <span className="block truncate text-[8.5px] leading-3 text-[var(--muted-light)]">
+                    {session.cwd.split(/[\\/]/).filter(Boolean).at(-1) || session.cwd}
+                    {" · "}
+                    {formatRelativeTime(session.modifiedAt, locale)}
+                  </span>
+                </button>
+              ))
+            )}
           </div>
 
           <div className="mb-1 mt-3 px-2 text-[9px] font-bold uppercase tracking-[0.16em] text-[var(--muted-light)]">

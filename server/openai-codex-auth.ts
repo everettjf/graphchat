@@ -26,10 +26,11 @@ export class OpenAICodexAuthManager {
       return this.state;
     }
     try {
-      const auth = await this.models.getAuth(PROVIDER_ID);
-      this.state = auth
-        ? { state: "authenticated", source: auth.source || "ChatGPT OAuth" }
-        : { state: "signed_out" };
+      const auth = await this.models.checkAuth(PROVIDER_ID);
+      this.state =
+        auth?.type === "oauth"
+          ? { state: "authenticated", source: auth.source || "ChatGPT OAuth" }
+          : { state: "signed_out" };
     } catch (error) {
       this.state = {
         state: "error",

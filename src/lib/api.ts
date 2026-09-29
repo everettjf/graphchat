@@ -8,8 +8,9 @@ import type {
   GraphNode,
   ImportTextInput,
   MetadataSuggestion,
+  PiSessionTree,
+  PiSessionsResponse,
   ProviderSettings,
-  ProductValidationReport,
   RunRequest,
   RunStreamEvent,
   StudyCard,
@@ -17,16 +18,6 @@ import type {
   UpdateNodeInput,
   UpdateGraphLayoutInput,
 } from "@shared/types";
-import { APP_VERSION } from "@shared/version";
-
-function productSessionId() {
-  const key = "graphchat-product-session";
-  const existing = window.sessionStorage.getItem(key);
-  if (existing) return existing;
-  const created = window.crypto.randomUUID();
-  window.sessionStorage.setItem(key, created);
-  return created;
-}
 
 type BootstrapData = {
   graphs: GraphMeta[];
@@ -104,26 +95,19 @@ export const api = {
     fetch(`/api/graphs/${graphId}/undo`, { method: "POST" }).then((response) =>
       parseResponse<GraphDocument>(response),
     ),
-  recordGraphOpen: (graphId: string) =>
-    fetch(`/api/graphs/${graphId}/events/open`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        sessionId: productSessionId(),
-        appVersion: APP_VERSION,
-      }),
-    }).then((response) => {
-      if (!response.ok) throw new Error("Unable to record graph activity.");
-    }),
   updateGraphLayout: (id: string, input: UpdateGraphLayoutInput) =>
     fetch(`/api/graphs/${id}/layout`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(input),
     }).then((response) => parseResponse<{ nodes: GraphNode[] }>(response)),
-  validationReport: () =>
-    fetch("/api/validation/export.json", { cache: "no-store" }).then((response) =>
-      parseResponse<ProductValidationReport>(response),
+  piSessions: () =>
+    fetch("/api/pi/sessions", { cache: "no-store" }).then((response) =>
+      parseResponse<PiSessionsResponse>(response),
+    ),
+  piSession: (id: string) =>
+    fetch(`/api/pi/sessions/${encodeURIComponent(id)}`, { cache: "no-store" }).then(
+      (response) => parseResponse<PiSessionTree>(response),
     ),
   studyCards: (graphId: string) =>
     fetch(`/api/graphs/${graphId}/study`).then((response) =>

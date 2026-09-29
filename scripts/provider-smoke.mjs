@@ -121,7 +121,7 @@ async function smokeProvider({ provider, model, baseUrl: providerBaseUrl }) {
 }
 
 const health = await json("/health");
-if (!health.ok) throw new Error("Graph Chat smoke server is unhealthy");
+if (!health.ok) throw new Error("Pi Graph Chat smoke server is unhealthy");
 const auth = await json("/api/auth/openai-codex");
 if (auth.state !== "authenticated") {
   throw new Error(`Codex authentication is ${auth.state}, expected authenticated`);
@@ -135,7 +135,7 @@ const selectedProvider = process.env.GRAPHCHAT_SMOKE_PROVIDER;
 if (!selectedProvider || selectedProvider === "openai-codex") {
   await smokeProvider({
     provider: "openai-codex",
-    model: "gpt-5.4-mini",
+    model: "gpt-5.5",
     baseUrl: "",
   });
 }
