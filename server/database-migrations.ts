@@ -66,6 +66,9 @@ export function migrateGraphDatabase(db: SQLiteDatabase) {
   if (!graphColumns.some((column) => column.name === "archived_at")) {
     db.exec("ALTER TABLE graphs ADD COLUMN archived_at TEXT;");
   }
+  if (!graphColumns.some((column) => column.name === "pi_session_path")) {
+    db.exec("ALTER TABLE graphs ADD COLUMN pi_session_path TEXT;");
+  }
   const nodeColumns = db
     .prepare("PRAGMA table_info(nodes)")
     .all() as Array<{ name: string }>;
@@ -77,6 +80,7 @@ export function migrateGraphDatabase(db: SQLiteDatabase) {
     ["credibility", "INTEGER"],
     ["rating", "INTEGER NOT NULL DEFAULT 0"],
     ["context_snapshot", "TEXT"],
+    ["pi_entry_id", "TEXT"],
   ] as const;
   for (const [name, definition] of additions) {
     if (!nodeColumns.some((column) => column.name === name)) {

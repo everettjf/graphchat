@@ -24,6 +24,9 @@ type BootstrapData = {
   archivedGraphs: GraphMeta[];
   activeGraph: GraphDocument | null;
   settings: ProviderSettings;
+  /** Working directory of graph-backed Pi sessions (the data directory). */
+  piCwd: string;
+  piSessionDir: string;
 };
 
 async function parseResponse<T>(response: Response): Promise<T> {

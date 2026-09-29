@@ -34,8 +34,9 @@ Pi Graph Chat 是我给自己做的学习工具，不是产品，也不打算做
 | 方向 | 当前实现 |
 | --- | --- |
 | 知识图 | React Flow 无限画布、分支边与续接边、跨分支引用、综合节点、搜索 |
+| Pi 承载的图 | 每张图就是一个 Pi 会话文件；图里的分支就是会话树的分支，**在终端打开** 会用 `pi --session` 接着聊 |
 | 精确追问 | 从任意节点继续，或选中回答里的一段文字从那句话分支 |
-| 上下文编译 | 从父路径、显式引用和选中文字构建有预算、可追溯的上下文 |
+| 上下文 | 父路径就是会话的当前分支；引用和选中文字以 Pi 的 `custom_message` 条目注入 |
 | Pi 会话 | 只读显示本机所有 Pi coding agent 会话的树，Pi 运行时自动刷新 |
 | 通过 Pi 使用模型 | ChatGPT 订阅（Codex OAuth）、OpenAI、Anthropic、Google Gemini、OpenRouter、Ollama、任意 OpenAI-compatible endpoint |
 | 本地数据 | Bun/Node SQLite + FTS5、版本化 JSON 备份、Obsidian 友好的 Markdown 导出 |
@@ -82,25 +83,29 @@ bun run launch
 | Ollama | 无需密钥；`http://127.0.0.1:11434/v1` |
 | 自定义 | 任意 OpenAI-compatible endpoint，可选进程内密钥 |
 
-API Key 只留在服务进程里，不会写入 SQLite、导出文件或日志。ChatGPT OAuth 凭据保存在 `.graphchat/auth.json`，在支持的平台上使用 `0600` 权限。
+凭据就是 Pi 的凭据。在设置里登录 ChatGPT 会写入 Pi 自己的 `~/.pi/agent/auth.json`，所以这里登录一次终端也能用，终端里 `pi /login` 过这里也能用。设置里输入的 API Key 只留在服务进程，不会写入 SQLite、导出文件、日志或 `auth.json`。设置 `PI_CODING_AGENT_DIR` 可以让 Pi 和 Pi Graph Chat 一起使用另一个 agent 目录。
 
 ## 架构
 
 ```mermaid
 flowchart LR
     UI["React 19 · React Flow"] --> API["Fastify API · NDJSON 流式"]
-    API --> CTX["上下文编译器"]
-    CTX --> AGENT["pi-agent-core · 工具 · 重试循环"]
-    AGENT --> MODELS["pi-ai providers"]
-    API --> DB[("SQLite · 图 · 节点 · 边")]
-    API --> PI[("~/.pi/agent/sessions · 只读")]
-    PI --> SM["pi-coding-agent SessionManager"]
+    API --> CTX["上下文编译器 · 引用 · 选中文字"]
+    CTX --> AGENT["pi-coding-agent createAgentSession()"]
+    AGENT --> MODELS["ModelRuntime · pi-ai providers · Pi auth.json"]
+    AGENT --> SESSION[("~/.pi/agent/sessions · 每张图一个文件")]
+    API --> DB[("SQLite · 图谱覆盖层 · FTS · 元数据 · 布局")]
+    API --> PI["Pi 会话索引 · 只读视图"]
+    PI --> SESSION
 ```
+
+Pi 会话文件是对话的正本。SQLite 只保存 Pi 不知道的东西：节点位置、摘要、标签、掌握度、引用关系和全文索引。一张图第一次运行回答时，已有节点会被回放进新建的会话，让树结构一致；之后每次回答都从父节点对应的条目分支。
 
 核心代码：
 
-- [`server/agent-runtime.ts`](./server/agent-runtime.ts) — Pi agent、provider 路由、图谱工具、流式事件
-- [`server/context-compiler.ts`](./server/context-compiler.ts) — 图谱上下文选择与预算
+- [`server/agent-runtime.ts`](./server/agent-runtime.ts) — `createAgentSession()` 运行、通过 `ModelRuntime` 路由 provider、图谱工具、流式事件
+- [`server/graph-session.ts`](./server/graph-session.ts) — 打开或创建图对应的 Pi 会话，并把节点回放进去
+- [`server/context-compiler.ts`](./server/context-compiler.ts) — 引用与选中文字的上下文
 - [`server/pi-sessions.ts`](./server/pi-sessions.ts) — Pi 会话索引与回合折叠
 - [`server/openai-codex-auth.ts`](./server/openai-codex-auth.ts) — ChatGPT 设备码 OAuth 生命周期
 - [`src/components/graph-canvas.tsx`](./src/components/graph-canvas.tsx) — 知识图交互
@@ -110,7 +115,7 @@ flowchart LR
 
 ```bash
 bun run typecheck  # TypeScript 客户端与服务端
-bun run test       # Vitest：数据库、凭据、Pi runtime、Pi 会话、UI
+bun run test       # Vitest：数据库、Pi runtime、Pi 登录、Pi 会话、UI
 bun run build      # 生产构建
 bun run test:e2e   # Playwright
 bun run test:all   # 以上全部
@@ -123,9 +128,9 @@ bun run test:all   # 以上全部
 目标是让 Pi 的会话文件成为唯一真相源，Pi Graph Chat 只在上面加图谱层。顺序如下：
 
 1. 只读的 Pi 会话桥 —— 已完成。
-2. 用 `pi-coding-agent` 的 `createAgentSession()` 跑回答，让图谱分支就是 Pi 会话分支，同一个会话可以在终端打开。
-3. 把图谱工具、`/graph` 命令和学习 skills 打包成 Pi package。
-4. 让学习会话根植于代码库，并支持跨会话引用节点。
+2. 回答通过 `createAgentSession()` 运行，图谱分支就是 Pi 会话分支，同一个会话可以在终端打开 —— 已完成。
+3. 把图谱工具、`/graph` 命令和学习 skills 打包成 Pi package，并在图谱运行中加载用户自己的 Pi 扩展和 skills。
+4. 让学习会话根植于代码库，使用 Pi 的只读编码工具，并支持跨会话引用节点。
 
 手动验收见 [`docs/CORE_TESTING.md`](./docs/CORE_TESTING.md)，备份格式见 [`docs/GRAPHCHAT_FORMAT.md`](./docs/GRAPHCHAT_FORMAT.md)。
 

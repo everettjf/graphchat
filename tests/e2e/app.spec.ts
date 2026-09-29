@@ -28,7 +28,7 @@ test.describe("Pi Graph Chat", () => {
       ok: true,
       service: "pi-graph-chat",
       version: "0.3.0",
-      databaseSchemaVersion: 4,
+      databaseSchemaVersion: 5,
     });
     await page.goto("/");
     await expect(page.locator("html")).toHaveAttribute("lang", "en");
@@ -74,7 +74,9 @@ test.describe("Pi Graph Chat", () => {
   test("merges a cross-branch reference into a streamed Pi answer and persists it", async ({
     page,
     request,
+    context,
   }) => {
+    await context.grantPermissions(["clipboard-read", "clipboard-write"]);
     await page.goto("/");
     await openGraphView(page);
     const initialCount = await page.locator('[data-testid^="graph-node-"]').count();
@@ -122,6 +124,26 @@ test.describe("Pi Graph Chat", () => {
           edge.target === createdNode.id,
       ),
     ).toBeTruthy();
+
+    // The graph is now backed by a Pi session that mirrors its tree.
+    const graph = await (await request.get("/api/graphs/learning-rag")).json();
+    expect(graph.graph.piSessionPath).toMatch(/graphchat-learning-rag\.jsonl$/);
+    expect(createdNode.piEntryId).toBeTruthy();
+    const piSessions = await (await request.get("/api/pi/sessions")).json();
+    const backing = piSessions.sessions.find(
+      (session: { id: string }) => session.id === "graphchat-learning-rag",
+    );
+    expect(backing).toMatchObject({ name: graph.graph.title });
+    const tree = await (await request.get("/api/pi/sessions/graphchat-learning-rag")).json();
+    const answerTurn = tree.turns.find(
+      (turn: { prompt: string }) =>
+        turn.prompt === "How do embeddings and vector databases work together?",
+    );
+    expect(answerTurn).toMatchObject({ isLeaf: true, onActivePath: true });
+    expect(answerTurn.response).toContain("Put the branches on one map");
+
+    await page.getByTestId("graph-open-terminal").click();
+    await expect(page.getByText("Command copied to the clipboard")).toBeVisible();
   });
 
   test("keeps streaming deltas attached to their run node when selection changes", async ({
@@ -506,6 +528,7 @@ test.describe("Pi Graph Chat", () => {
   }) => {
     await page.goto("/");
     await page
+      .getByTestId("graph-list")
       .getByRole("button", { name: /^Understanding RAG:/ })
       .last()
       .click();

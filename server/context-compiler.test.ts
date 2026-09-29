@@ -11,6 +11,7 @@ const graph: GraphDocument = {
     createdAt: timestamp,
     updatedAt: timestamp,
     archivedAt: null,
+    piSessionPath: null,
   },
   nodes: ["a", "b", "c"].map((id, index) => ({
     id,
@@ -26,6 +27,7 @@ const graph: GraphDocument = {
     status: "complete",
     provider: "demo",
     model: "demo",
+    piEntryId: null,
     createdAt: timestamp,
     updatedAt: timestamp,
   })),

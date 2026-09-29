@@ -167,6 +167,19 @@ Import a Markdown document with 100 headings. Verify:
 This is a smoke test, not a benchmark. Before claiming the 100–200 node product
 gate, record interaction latency on at least one low-end and one typical laptop.
 
+## Graph-backed Pi sessions
+
+Open the example RAG graph, add a reference to "What does a vector database
+do?", select "What exactly is an embedding?", and ask a synthesis question.
+Verify:
+
+- the answer streams and is saved as a node with a reference edge;
+- the graph's session appears under **Pi sessions** with the graph's title;
+- the new prompt is a child of the embedding node's answer in that tree, and
+  a `graphchat.references` entry precedes it;
+- the topbar terminal button copies a `pi --session` command, and running it
+  resumes the conversation at the new answer.
+
 ## Pi sessions
 
 Run `pi` in any project, ask two questions, then use `/tree` to branch from the

@@ -88,6 +88,7 @@ export class GraphDatabase {
       createdAt: timestamp,
       updatedAt: timestamp,
       archivedAt: null,
+      piSessionPath: null,
     };
     this.db
       .prepare(
@@ -110,6 +111,7 @@ export class GraphDatabase {
       credibility: null,
       rating: 0,
       contextSnapshot: null,
+      piEntryId: null,
     };
     const nodes: GraphNode[] = [
       {
@@ -335,6 +337,7 @@ export class GraphDatabase {
       createdAt: timestamp,
       updatedAt: timestamp,
       archivedAt: null,
+      piSessionPath: null,
     };
     this.db
       .prepare(
@@ -443,6 +446,22 @@ export class GraphDatabase {
     return count;
   }
 
+  /** Record the Pi session file that backs a graph. Not part of undo history. */
+  setGraphSession(graphId: string, sessionPath: string | null): boolean {
+    const result = this.db
+      .prepare("UPDATE graphs SET pi_session_path = ? WHERE id = ?")
+      .run(sessionPath, graphId) as { changes?: number };
+    return Number(result?.changes ?? 0) > 0;
+  }
+
+  /** Record the Pi session entry that holds a node's answer. Not part of undo history. */
+  setNodePiEntry(nodeId: string, entryId: string | null): boolean {
+    const result = this.db
+      .prepare("UPDATE nodes SET pi_entry_id = ? WHERE id = ?")
+      .run(entryId, nodeId) as { changes?: number };
+    return Number(result?.changes ?? 0) > 0;
+  }
+
   getNode(id: string): GraphNode | null {
     const row = this.db.prepare("SELECT * FROM nodes WHERE id = ?").get(id) as Record<string, unknown> | undefined;
     return row ? this.mapNode(row) : null;
@@ -472,6 +491,7 @@ export class GraphDatabase {
       status: input.content ? "complete" : "idle",
       provider,
       model,
+      piEntryId: null,
       createdAt: timestamp,
       updatedAt: timestamp,
     };
@@ -1103,6 +1123,7 @@ export class GraphDatabase {
     status: row.status as GraphNode["status"],
     provider: row.provider == null ? null : String(row.provider),
     model: row.model == null ? null : String(row.model),
+    piEntryId: row.pi_entry_id == null ? null : String(row.pi_entry_id),
     createdAt: String(row.created_at),
     updatedAt: String(row.updated_at),
   });
@@ -1114,6 +1135,7 @@ export class GraphDatabase {
     createdAt: String(row.created_at),
     updatedAt: String(row.updated_at),
     archivedAt: row.archived_at == null ? null : String(row.archived_at),
+    piSessionPath: row.pi_session_path == null ? null : String(row.pi_session_path),
   });
 
   private mapEdge = (row: Record<string, unknown>): GraphEdge => ({

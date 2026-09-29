@@ -187,7 +187,10 @@ export function Sidebar({
               <Plus className="size-3.5" />
             </button>
           </div>
-          <div className="overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-xs)]">
+          <div
+            className="overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-xs)]"
+            data-testid="graph-list"
+          >
           {graphs.map((graph) => (
             <div
               key={graph.id}

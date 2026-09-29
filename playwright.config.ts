@@ -12,6 +12,7 @@ const localChrome = [
 // Stable path: the config is evaluated in the runner and in each worker, so a
 // pid-based name would differ between the seeded server and the test workers.
 const piSessionDir = path.join(os.tmpdir(), "pi-graph-chat-e2e-sessions");
+const piAgentDir = path.join(os.tmpdir(), "pi-graph-chat-e2e-agent");
 process.env.PI_CODING_AGENT_SESSION_DIR = piSessionDir;
 
 export default defineConfig({
@@ -36,6 +37,8 @@ export default defineConfig({
       PORT: "4173",
       GRAPHCHAT_DATA_DIR: path.join(os.tmpdir(), `graphchat-e2e-${process.pid}`),
       PI_CODING_AGENT_SESSION_DIR: piSessionDir,
+      // Keep Pi auth and settings away from the developer's real ~/.pi.
+      PI_CODING_AGENT_DIR: piAgentDir,
     }
   },
   projects: [

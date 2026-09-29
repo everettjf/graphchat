@@ -10,6 +10,7 @@ import {
   PanelRightOpen,
   Sparkles,
   Sun,
+  TerminalSquare,
   TreePine,
   Undo2,
   Wrench,
@@ -27,6 +28,7 @@ import {
 import { useWorkspace } from "@/store/workspace";
 import { toggleTheme, useTheme } from "@/lib/theme";
 import { localeMeta, locales, useI18n } from "@/i18n";
+import { buildOpenInTerminalCommand } from "@/lib/pi-terminal";
 
 export function Topbar({
   document,
@@ -34,6 +36,8 @@ export function Topbar({
   onFitView,
   onOpenTools,
   onUndo,
+  onToast,
+  piCwd,
   viewMode,
   onViewModeChange,
 }: {
@@ -42,6 +46,8 @@ export function Topbar({
   onFitView: () => void;
   onOpenTools: () => void;
   onUndo: () => void;
+  onToast: (message: string) => void;
+  piCwd: string;
   viewMode: "content" | "tree" | "graph";
   onViewModeChange: (mode: "content" | "tree" | "graph") => void;
 }) {
@@ -49,6 +55,17 @@ export function Topbar({
   const setSettingsOpen = useWorkspace((state) => state.setSettingsOpen);
   const theme = useTheme();
   const { locale, setLocale, t } = useI18n();
+  const sessionPath = document.graph.piSessionPath;
+  const copyTerminalCommand = async () => {
+    if (!sessionPath) return;
+    const command = buildOpenInTerminalCommand(piCwd, sessionPath);
+    try {
+      await navigator.clipboard.writeText(command);
+      onToast(t("pi.copied"));
+    } catch {
+      onToast(`${t("pi.copyFailed")}: ${command}`);
+    }
+  };
 
   return (
     <header className="topbar-shell z-10 flex h-14 shrink-0 items-center justify-between border-b border-[var(--border)] bg-[var(--surface)]/85 px-4 backdrop-blur-xl sm:px-5">
@@ -158,6 +175,20 @@ export function Topbar({
             <Undo2 className="size-3.5" />
           </Button>
         </Tooltip>
+        {sessionPath && (
+          <Tooltip content={t("pi.openInTerminalHint")}>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-8"
+              onClick={() => void copyTerminalCommand()}
+              aria-label={t("pi.openInTerminal")}
+              data-testid="graph-open-terminal"
+            >
+              <TerminalSquare className="size-3.5" />
+            </Button>
+          </Tooltip>
+        )}
         <Tooltip content={locale.startsWith("zh") ? "工具" : "Tools"}>
           <Button
             variant="ghost"

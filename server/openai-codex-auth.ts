@@ -1,25 +1,20 @@
-import {
-  createModels,
-  type AuthEvent,
-  type AuthPrompt,
-  type CredentialStore,
-} from "@earendil-works/pi-ai";
-import { openaiCodexProvider } from "@earendil-works/pi-ai/providers/openai-codex";
+import type { AuthEvent, AuthPrompt } from "@earendil-works/pi-ai";
+import type { ModelRuntime } from "@earendil-works/pi-coding-agent";
 import type { CodexAuthStatus } from "../shared/types.js";
 
 const PROVIDER_ID = "openai-codex";
 
+/**
+ * ChatGPT device-code sign-in on top of Pi's model runtime. Credentials land
+ * in Pi's own auth.json, so the terminal `pi` shares the login.
+ */
 export class OpenAICodexAuthManager {
-  private readonly models;
   private state: CodexAuthStatus | null = null;
   private controller: AbortController | null = null;
   private loginTask: Promise<void> | null = null;
   private attempt = 0;
 
-  constructor(credentials: CredentialStore) {
-    this.models = createModels({ credentials });
-    this.models.setProvider(openaiCodexProvider());
-  }
+  constructor(private readonly models: ModelRuntime) {}
 
   async getStatus(): Promise<CodexAuthStatus> {
     if (this.state?.state === "starting" || this.state?.state === "pending") {
@@ -64,8 +59,8 @@ export class OpenAICodexAuthManager {
     this.loginTask = this.models
       .login(PROVIDER_ID, "oauth", {
         signal: controller.signal,
-        prompt: (prompt) => this.answerPrompt(prompt),
-        notify: (event) => this.handleEvent(event, setState),
+        prompt: (prompt: AuthPrompt) => this.answerPrompt(prompt),
+        notify: (event: AuthEvent) => this.handleEvent(event, setState),
       })
       .then(() => {
         setState({ state: "authenticated", source: "ChatGPT OAuth" });

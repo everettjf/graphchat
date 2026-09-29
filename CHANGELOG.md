@@ -10,6 +10,13 @@ overhead, and adds a read-only bridge to Pi coding-agent sessions.
 
 ### Added
 
+- Every knowledge graph is now backed by a Pi session file. Answers run
+  through `pi-coding-agent`'s `createAgentSession()`; a new answer branches
+  the session at the parent node's entry, existing nodes are replayed into
+  the session on first use, and references plus selected text are injected
+  as a `custom_message` entry instead of being pasted into the prompt. The
+  graph topbar can copy a `pi --session` command to continue the graph in
+  the terminal.
 - Added a read-only Pi session view: every session under Pi's session
   directory is listed in the sidebar and rendered as a tree of turns with
   abandoned branches, tool calls, thinking, labels, and the current position.
@@ -21,6 +28,12 @@ overhead, and adds a read-only bridge to Pi coding-agent sessions.
 
 ### Changed
 
+- Credentials moved to Pi's own agent directory through `ModelRuntime`:
+  ChatGPT sign-in from the settings dialog and `pi /login` now share one
+  `auth.json`. The app-owned `.graphchat/auth.json` and the Codex CLI
+  credential import were removed.
+- Database schema version 5 adds `graphs.pi_session_path` and
+  `nodes.pi_entry_id`.
 - Renamed the project and package to `pi-graph-chat`; the launcher is now
   `bun run launch` / `pi-graph-chat`.
 - Upgraded `@earendil-works/pi-ai` and `pi-agent-core` to 0.87.1 and added

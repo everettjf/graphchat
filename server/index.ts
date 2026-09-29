@@ -1,5 +1,4 @@
 import path from "node:path";
-import os from "node:os";
 import { fileURLToPath } from "node:url";
 import fastifyStatic from "@fastify/static";
 import Fastify from "fastify";
@@ -17,10 +16,6 @@ import {
 } from "../shared/types.js";
 import { APP_VERSION, DATABASE_SCHEMA_VERSION } from "../shared/version.js";
 import { GraphAgentRuntime } from "./agent-runtime.js";
-import {
-  FileCredentialStore,
-  importCodexCliCredential,
-} from "./credential-store.js";
 import { GraphDatabase } from "./database.js";
 import { OpenAICodexAuthManager } from "./openai-codex-auth.js";
 import { PiSessionIndex, resolvePiSessionDir } from "./pi-sessions.js";
@@ -38,26 +33,19 @@ const app = Fastify({ logger: { level: process.env.NODE_ENV === "test" ? "silent
 const usingSystemProxy = await configureSystemProxy();
 const dataDirectory = path.resolve(process.env.GRAPHCHAT_DATA_DIR || ".graphchat");
 const database = new GraphDatabase(dataDirectory);
-const credentialStore = new FileCredentialStore(path.join(dataDirectory, "auth.json"));
-const reusedCodexLogin =
-  process.env.NODE_ENV !== "test" &&
-  (await importCodexCliCredential(
-    credentialStore,
-    path.join(os.homedir(), ".codex", "auth.json"),
-  ));
-const runtime = new GraphAgentRuntime(database.getSettings(), credentialStore);
-const activeRunControllers = new Map<string, AbortController>();
-const codexAuth = new OpenAICodexAuthManager(credentialStore);
 const piSessionDir = resolvePiSessionDir();
+const runtime = await GraphAgentRuntime.create(database.getSettings(), {
+  dataDirectory,
+  sessionRoot: piSessionDir,
+});
+const activeRunControllers = new Map<string, AbortController>();
+const codexAuth = new OpenAICodexAuthManager(runtime.modelRuntime);
 const piSessions = new PiSessionIndex(piSessionDir);
 const rootDirectory = path.dirname(fileURLToPath(import.meta.url));
 const productionClientDirectory = process.env.GRAPHCHAT_CLIENT_DIR
   ? path.resolve(process.env.GRAPHCHAT_CLIENT_DIR)
   : path.resolve(rootDirectory, "../../dist");
 
-if (reusedCodexLogin) {
-  app.log.info("Reused the current user's Codex ChatGPT login.");
-}
 if (usingSystemProxy) {
   app.log.info("Using the operating system proxy for external model requests.");
 }
@@ -113,6 +101,8 @@ app.get("/api/bootstrap", async () => {
     archivedGraphs,
     activeGraph,
     settings: { ...settings, hasApiKey: runtime.hasApiKey(settings.provider) },
+    piCwd: runtime.sessionCwd(),
+    piSessionDir,
   };
 });
 
@@ -302,7 +292,7 @@ app.post("/api/settings", async (request, reply) => {
   });
   if (!parsed.success) return reply.code(400).send({ message: "Invalid settings", issues: parsed.error.issues });
   database.saveSettings(parsed.data);
-  runtime.configure(parsed.data, typeof body.apiKey === "string" ? body.apiKey : undefined);
+  await runtime.configure(parsed.data, typeof body.apiKey === "string" ? body.apiKey : undefined);
   return { ...parsed.data, hasApiKey: runtime.hasApiKey(parsed.data.provider) };
 });
 

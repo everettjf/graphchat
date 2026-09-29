@@ -1,23 +1,24 @@
-import { Agent, type AgentEvent, type AgentTool } from "@earendil-works/pi-agent-core";
 import {
-  createModels,
-  createProvider,
   fauxAssistantMessage,
   fauxProvider,
   fauxToolCall,
-  InMemoryCredentialStore,
   Type,
-  type CredentialStore,
+  type FauxProviderHandle,
   type Model,
-  type Provider,
 } from "@earendil-works/pi-ai";
-import { openAICompletionsApi } from "@earendil-works/pi-ai/api/openai-completions.lazy";
-import { anthropicProvider } from "@earendil-works/pi-ai/providers/anthropic";
-import { googleProvider } from "@earendil-works/pi-ai/providers/google";
-import { openaiProvider } from "@earendil-works/pi-ai/providers/openai";
-import { openaiCodexProvider } from "@earendil-works/pi-ai/providers/openai-codex";
-import { openrouterProvider } from "@earendil-works/pi-ai/providers/openrouter";
+import {
+  createAgentSession,
+  createExtensionRuntime,
+  getAgentDir,
+  ModelRuntime,
+  SettingsManager,
+  type AgentSession,
+  type AgentSessionEvent,
+  type ResourceLoader,
+  type ToolDefinition,
+} from "@earendil-works/pi-coding-agent";
 import { nanoid } from "nanoid";
+import path from "node:path";
 import type {
   ContextSnapshot,
   ProviderSettings,
@@ -27,6 +28,8 @@ import type {
 import { stripTrailingMainThreadSection } from "../shared/answer-content.js";
 import { compileContext, contextToPrompt } from "./context-compiler.js";
 import type { GraphDatabase } from "./database.js";
+import { openGraphSession } from "./graph-session.js";
+import { resolvePiSessionDir } from "./pi-sessions.js";
 
 type QueueResolver<T> = (value: IteratorResult<T>) => void;
 
@@ -195,33 +198,99 @@ ${request.selectedText ? `你选中的原文是“${request.selectedText}”。�
 
 /** Pi providers with a static model catalog and API-key auth. */
 const CATALOG_PROVIDERS = {
-  openai: { create: openaiProvider, envKey: "OPENAI_API_KEY", label: "OpenAI" },
-  openrouter: { create: openrouterProvider, envKey: "OPENROUTER_API_KEY", label: "OpenRouter" },
-  anthropic: { create: anthropicProvider, envKey: "ANTHROPIC_API_KEY", label: "Anthropic" },
-  google: { create: googleProvider, envKey: "GEMINI_API_KEY", label: "Google Gemini" },
+  openai: { envKey: "OPENAI_API_KEY", label: "OpenAI" },
+  openrouter: { envKey: "OPENROUTER_API_KEY", label: "OpenRouter" },
+  anthropic: { envKey: "ANTHROPIC_API_KEY", label: "Anthropic" },
+  google: { envKey: "GEMINI_API_KEY", label: "Google Gemini" },
 } as const;
 type CatalogProviderId = keyof typeof CATALOG_PROVIDERS;
 
+const DEMO_PROVIDER_ID = "graphchat-demo";
+const DEMO_MODEL_ID = "graphchat-guide";
+const CODEX_PROVIDER_ID = "openai-codex";
+
+export type GraphAgentRuntimeOptions = {
+  /** Directory that holds the graph database. Doubles as the Pi session cwd. */
+  dataDirectory: string;
+  /** Pi agent directory (auth.json, models.json). Defaults to Pi's own. */
+  agentDir?: string;
+  /** Root of Pi's session tree. Defaults to Pi's own session directory. */
+  sessionRoot?: string;
+};
+
+function learningResourceLoader(systemPrompt: string): ResourceLoader {
+  return {
+    getExtensions: () => ({ extensions: [], errors: [], runtime: createExtensionRuntime() }),
+    getSkills: () => ({ skills: [], diagnostics: [] }),
+    getPrompts: () => ({ prompts: [], diagnostics: [] }),
+    getThemes: () => ({ themes: [], diagnostics: [] }),
+    getAgentsFiles: () => ({ agentsFiles: [] }),
+    getSystemPrompt: () => systemPrompt,
+    getSystemPromptSource: () => undefined,
+    getAppendSystemPrompt: () => [],
+    getAppendSystemPromptSources: () => [],
+    extendResources: () => {},
+    reload: async () => {},
+  };
+}
+
+/**
+ * Runs graph answers through Pi's coding-agent session runtime.
+ *
+ * Every graph is backed by a Pi session file. A new answer branches the
+ * session at the parent node's entry, so the graph's structure and the
+ * session tree stay identical and the same session opens in the terminal.
+ */
 export class GraphAgentRuntime {
   private settings: ProviderSettings;
-  private runtimeApiKeys = new Map<ProviderSettings["provider"], string>();
+  private readonly runtimeApiKeys = new Map<ProviderSettings["provider"], string>();
+  private readonly graphLocks = new Map<string, Promise<void>>();
+  private faux: FauxProviderHandle | null = null;
+  readonly dataDirectory: string;
+  readonly sessionRoot: string;
 
-  constructor(
+  private constructor(
     settings: ProviderSettings,
-    private readonly oauthCredentials: CredentialStore = new InMemoryCredentialStore(),
+    readonly modelRuntime: ModelRuntime,
+    options: GraphAgentRuntimeOptions,
   ) {
     this.settings = settings;
+    this.dataDirectory = path.resolve(options.dataDirectory);
+    this.sessionRoot = options.sessionRoot ?? resolvePiSessionDir();
   }
 
-  configure(settings: ProviderSettings, apiKey?: string) {
+  static async create(
+    settings: ProviderSettings,
+    options: GraphAgentRuntimeOptions,
+  ): Promise<GraphAgentRuntime> {
+    const agentDir = options.agentDir ?? getAgentDir();
+    const modelRuntime = await ModelRuntime.create({
+      authPath: path.join(agentDir, "auth.json"),
+      modelsPath: path.join(agentDir, "models.json"),
+      refreshOnCreate: false,
+    });
+    return new GraphAgentRuntime(settings, modelRuntime, options);
+  }
+
+  async configure(settings: ProviderSettings, apiKey?: string) {
     this.settings = settings;
-    if (apiKey?.trim()) this.runtimeApiKeys.set(settings.provider, apiKey.trim());
+    const key = apiKey?.trim();
+    if (!key) return;
+    this.runtimeApiKeys.set(settings.provider, key);
+    if (settings.provider in CATALOG_PROVIDERS) {
+      await this.modelRuntime.setRuntimeApiKey(settings.provider, key);
+    }
   }
 
   hasApiKey(provider: ProviderSettings["provider"] = this.settings.provider) {
     if (this.runtimeApiKeys.has(provider)) return true;
-    const catalog = CATALOG_PROVIDERS[provider as CatalogProviderId];
-    return catalog ? Boolean(process.env[catalog.envKey]) : false;
+    if (provider in CATALOG_PROVIDERS) return this.modelRuntime.hasConfiguredAuth(provider);
+    return false;
+  }
+
+  /** Command that resumes a graph's Pi session in the terminal. */
+  sessionCwd() {
+    return this.dataDirectory;
   }
 
   async *run(
@@ -230,7 +299,6 @@ export class GraphAgentRuntime {
     signal?: AbortSignal,
   ): AsyncGenerator<RunStreamEvent> {
     const runId = nanoid();
-    const startedAt = Date.now();
     const graph = database.getGraph(request.graphId);
     if (!graph) {
       yield {
@@ -293,50 +361,84 @@ export class GraphAgentRuntime {
 
     const events = new AsyncEventQueue<RunStreamEvent>();
     let fullText = "";
-    let agent: Agent | undefined;
+    let session: AgentSession | undefined;
 
-    const runPromise = (async () => {
+    const runPromise = this.withGraphLock(request.graphId, async () => {
       try {
-        const runtime = await this.createPiRuntime(database, request, context);
-        agent = runtime.agent;
-        if (signal) {
-          if (signal.aborted) agent.abort();
-          signal.addEventListener("abort", () => agent?.abort(), { once: true });
-        }
-        agent.subscribe((event) => {
-          this.forwardAgentEvent(
-            event,
-            events,
-            runId,
-            node.id,
-            request.locale,
-            (delta) => {
-              fullText += delta;
-            },
-          );
+        const model = await this.resolveModel(request, context);
+        // Re-read inside the lock: a queued run must see entries the previous
+        // run just assigned, or it would replay those nodes a second time.
+        const current = database.getGraph(request.graphId) ?? graph;
+        const { manager } = openGraphSession(database, current, {
+          cwd: this.dataDirectory,
+          sessionRoot: this.sessionRoot,
         });
 
-        const graphContext = contextToPrompt(context, request.locale);
-        await agent.prompt(
-          request.locale.startsWith("zh")
-            ? `以下是由 Pi Graph Chat 明确选择的图谱上下文：\n\n${graphContext}\n\n---\n\n用户当前问题：${request.prompt}`
-            : `Here is the graph context explicitly selected by Pi Graph Chat:\n\n${graphContext}\n\n---\n\nCurrent question: ${request.prompt}`,
-        );
+        // Branch the Pi session at the parent's answer so the new prompt becomes
+        // its child; a root question starts a new root in the session tree.
+        const parent = request.parentNodeId ? database.getNode(request.parentNodeId) : null;
+        if (parent?.piEntryId && manager.getEntry(parent.piEntryId)) manager.branch(parent.piEntryId);
+        else manager.resetLeaf();
+
+        // The parent path is already the session's active branch. Only references
+        // and selected text need to be injected, as a context-bearing entry.
+        const extras = context.items.filter((item) => item.reason !== "main-path");
+        if (extras.length > 0) {
+          manager.appendCustomMessageEntry(
+            "graphchat.references",
+            contextToPrompt({ ...context, items: extras }, request.locale),
+            true,
+            { nodeIds: extras.map((item) => item.nodeId), targetNodeId: node.id },
+          );
+        }
+
+        const systemPrompt = `${request.locale.startsWith("zh") ? SYSTEM_PROMPTS.zh : SYSTEM_PROMPTS.en}
+
+Always respond in ${RESPONSE_LANGUAGES[request.locale]}.`;
+        const created = await createAgentSession({
+          cwd: this.dataDirectory,
+          model,
+          thinkingLevel: "off",
+          modelRuntime: this.modelRuntime,
+          sessionManager: manager,
+          resourceLoader: learningResourceLoader(systemPrompt),
+          tools: [],
+          customTools: this.createGraphTools(database, request.graphId, request.locale),
+          settingsManager: SettingsManager.inMemory({
+            compaction: { enabled: true },
+            retry: { enabled: true, maxRetries: 2 },
+          }),
+        });
+        session = created.session;
+        const activeSession = session;
+        if (signal) {
+          if (signal.aborted) void activeSession.abort();
+          signal.addEventListener("abort", () => void activeSession.abort(), { once: true });
+        }
+        activeSession.subscribe((event) => {
+          this.forwardSessionEvent(event, events, runId, node.id, request.locale, (delta) => {
+            fullText += delta;
+          });
+        });
+
+        await activeSession.prompt(request.prompt, { expandPromptTemplates: false });
 
         if (signal?.aborted) {
           const abortError = new Error("Generation cancelled");
           abortError.name = "AbortError";
           throw abortError;
         }
-        if (!fullText.trim()) {
+        const answerText = fullText.trim() ? fullText : activeSession.getLastAssistantText() ?? "";
+        if (!answerText.trim()) {
           throw new Error(
-            agent.state.errorMessage ||
+            activeSession.agent.state.errorMessage ||
               (request.locale.startsWith("zh")
                 ? "模型没有返回文本。"
                 : "The model returned no text."),
           );
         }
-        const completedContent = stripTrailingMainThreadSection(fullText);
+        const completedContent = stripTrailingMainThreadSection(answerText);
+        database.setNodePiEntry(node.id, manager.getLeafId());
         const completed = database.updateNode(node.id, {
           content: completedContent,
           summary: summarize(completedContent),
@@ -351,12 +453,7 @@ export class GraphAgentRuntime {
               : "Unable to save the generated answer.",
           );
         }
-        events.push({
-          type: "run_finished",
-          runId,
-          nodeId: node.id,
-          node: completed,
-        });
+        events.push({ type: "run_finished", runId, nodeId: node.id, node: completed });
       } catch (error) {
         const cancelled =
           Boolean(signal?.aborted) ||
@@ -380,196 +477,155 @@ export class GraphAgentRuntime {
                 ? `生成失败：${message}`
                 : `Generation failed: ${message}`),
         });
-        if (cancelled) {
-          events.push({
-            type: "run_cancelled",
-            runId,
-            nodeId: node.id,
-            message,
-            node: updated || undefined,
-          });
-        } else {
-          events.push({
-            type: "run_failed",
-            runId,
-            nodeId: node.id,
-            message,
-            node: updated || undefined,
-          });
-        }
+        events.push(
+          cancelled
+            ? { type: "run_cancelled", runId, nodeId: node.id, message, node: updated || undefined }
+            : { type: "run_failed", runId, nodeId: node.id, message, node: updated || undefined },
+        );
       } finally {
+        session?.dispose();
         events.end();
       }
-    })();
+    });
 
     for await (const event of events) yield event;
     await runPromise;
   }
 
-  private async createPiRuntime(
-    database: GraphDatabase,
-    request: RunRequest,
-    context: ContextSnapshot,
-  ): Promise<{ agent: Agent }> {
-    const credentials =
-      this.settings.provider === "openai-codex"
-        ? this.oauthCredentials
-        : new InMemoryCredentialStore();
-    const models = createModels({ credentials });
-    let provider: Provider;
-    let model: Model<any>;
+  /** Session files are single-writer: serialize runs that touch the same graph. */
+  private withGraphLock<T>(graphId: string, task: () => Promise<T>): Promise<T> {
+    const previous = this.graphLocks.get(graphId) ?? Promise.resolve();
+    const next = previous.then(task, task);
+    const settled = next.then(
+      () => undefined,
+      () => undefined,
+    );
+    this.graphLocks.set(graphId, settled);
+    void settled.then(() => {
+      if (this.graphLocks.get(graphId) === settled) this.graphLocks.delete(graphId);
+    });
+    return next;
+  }
 
-    if (this.settings.provider === "demo") {
-      const faux = fauxProvider({
-        provider: "graphchat-demo",
-        models: [{ id: "graphchat-guide", name: "Pi Graph Chat Guide", contextWindow: 128_000, maxTokens: 8_000 }],
-        tokensPerSecond: 180,
-        tokenSize: { min: 2, max: 8 },
-      });
-      const finalAnswer = buildDemoAnswer(request, context);
-      if (request.mode === "explore") {
-        faux.setResponses([
-          fauxAssistantMessage(
-            fauxToolCall("graph_search", { query: request.prompt }),
-            { stopReason: "toolUse" },
-          ),
-          fauxAssistantMessage(finalAnswer),
-        ]);
-      } else {
-        faux.setResponses([fauxAssistantMessage(finalAnswer)]);
+  private async resolveModel(request: RunRequest, context: ContextSnapshot): Promise<Model<any>> {
+    const zh = request.locale.startsWith("zh");
+    const providerId = this.settings.provider;
+
+    if (providerId === "demo") {
+      if (!this.faux) {
+        this.faux = fauxProvider({
+          provider: DEMO_PROVIDER_ID,
+          models: [{ id: DEMO_MODEL_ID, name: "Pi Graph Chat Guide", contextWindow: 128_000, maxTokens: 8_000 }],
+          tokensPerSecond: 180,
+          tokenSize: { min: 2, max: 8 },
+        });
+        this.modelRuntime.registerNativeProvider(this.faux.provider);
       }
-      provider = faux.provider;
-      model = faux.getModel();
-    } else if (this.settings.provider === "openai-codex") {
-      provider = openaiCodexProvider();
-      models.setProvider(provider);
-      model = models.getModel("openai-codex", this.settings.model) as Model<any>;
+      const finalAnswer = buildDemoAnswer(request, context);
+      this.faux.setResponses(
+        request.mode === "explore"
+          ? [
+              fauxAssistantMessage(fauxToolCall("graph_search", { query: request.prompt }), {
+                stopReason: "toolUse",
+              }),
+              fauxAssistantMessage(finalAnswer),
+            ]
+          : [fauxAssistantMessage(finalAnswer)],
+      );
+      const model = this.modelRuntime.getModel(DEMO_PROVIDER_ID, DEMO_MODEL_ID);
+      if (!model) throw new Error("The demo model is unavailable.");
+      return model;
+    }
+
+    if (providerId === CODEX_PROVIDER_ID) {
+      const model = this.modelRuntime.getModel(CODEX_PROVIDER_ID, this.settings.model);
       if (!model) {
         throw new Error(
-          request.locale.startsWith("zh")
+          zh
             ? `Pi 的 OpenAI Codex 模型目录中没有 ${this.settings.model}。`
             : `${this.settings.model} is not in Pi's OpenAI Codex model catalog.`,
         );
       }
-      if (!(await models.checkAuth("openai-codex"))) {
+      if ((await this.modelRuntime.checkAuth(CODEX_PROVIDER_ID))?.type !== "oauth") {
         throw new Error(
-          request.locale.startsWith("zh")
+          zh
             ? "请先在“模型与设置”中使用 ChatGPT 登录。"
             : "Sign in with ChatGPT from Models & settings first.",
         );
       }
-    } else if (this.settings.provider in CATALOG_PROVIDERS) {
-      const providerId = this.settings.provider as CatalogProviderId;
-      const catalog = CATALOG_PROVIDERS[providerId];
-      provider = catalog.create();
-      models.setProvider(provider);
-      model = models.getModel(providerId, this.settings.model) as Model<any>;
+      return model;
+    }
+
+    if (providerId in CATALOG_PROVIDERS) {
+      const catalog = CATALOG_PROVIDERS[providerId as CatalogProviderId];
+      const model = this.modelRuntime.getModel(providerId, this.settings.model);
       if (!model) {
         throw new Error(
-          request.locale.startsWith("zh")
+          zh
             ? `Pi 的 ${catalog.label} 模型目录中没有 ${this.settings.model}。`
             : `${this.settings.model} is not in Pi's ${catalog.label} model catalog.`,
         );
       }
-      const key = this.runtimeApiKeys.get(providerId) || process.env[catalog.envKey];
-      if (key) await credentials.modify(providerId, async () => ({ type: "api_key", key }));
-    } else {
-      const providerId = this.settings.provider;
-      const baseUrl =
-        this.settings.baseUrl ||
-        (providerId === "ollama" ? "http://127.0.0.1:11434/v1" : "");
-      if (!baseUrl) {
+      if (!this.modelRuntime.hasConfiguredAuth(providerId)) {
         throw new Error(
-          request.locale.startsWith("zh")
-            ? "自定义模型需要填写 Base URL。"
-            : "A custom model requires a Base URL.",
+          zh
+            ? `请先为 ${catalog.label} 提供 API Key（${catalog.envKey} 或在设置中输入）。`
+            : `Provide an API key for ${catalog.label} first (${catalog.envKey} or in settings).`,
         );
       }
-      model = {
-        id: this.settings.model,
-        name: this.settings.model,
-        api: "openai-completions",
-        provider: providerId,
-        baseUrl,
-        reasoning: providerId === "ollama",
-        input: ["text"],
-        cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-        contextWindow: 128_000,
-        maxTokens:
-          providerId === "ollama"
-            ? request.mode === "synthesize"
-              ? 512
-              : 256
-            : 16_000,
-        thinkingLevelMap:
-          providerId === "ollama"
-            ? { off: "none" }
-            : undefined,
-        compat: {
-          supportsDeveloperRole: false,
-          supportsReasoningEffort: providerId === "ollama",
-        },
-      };
-      provider = createProvider({
-        id: providerId,
-        name: providerId === "ollama" ? "Ollama" : "OpenAI-compatible",
-        baseUrl,
-        auth: {
-          apiKey: {
-            name: `${providerId} API key`,
-            resolve: async ({ credential }) => ({
-              auth: { apiKey: credential?.key || "local", baseUrl },
-              source: credential?.key ? "Pi Graph Chat session" : "Local endpoint",
-            }),
-          },
-        },
-        models: [model],
-        api: openAICompletionsApi(),
-      });
-      const key = this.runtimeApiKeys.get(providerId) || "local";
-      await credentials.modify(providerId, async () => ({ type: "api_key", key }));
+      return model;
     }
 
-    models.setProvider(provider);
-    const tools = this.createGraphTools(database, request.graphId, request.locale);
-    const agent = new Agent({
-      initialState: {
-        systemPrompt: `${request.locale.startsWith("zh") ? SYSTEM_PROMPTS.zh : SYSTEM_PROMPTS.en}
-
-Always respond in ${RESPONSE_LANGUAGES[request.locale]}.`,
-        model,
-        tools,
-        thinkingLevel: "off",
-      },
-      streamFn: (activeModel, activeContext, options) =>
-        models.streamSimple(activeModel, activeContext, {
-          ...options,
-          sessionId: `graphchat:${request.graphId}`,
-        }),
-      toolExecution: "parallel",
-      maxRetryDelayMs: 10_000,
+    // Ollama and OpenAI-compatible endpoints are registered as a Pi provider.
+    const baseUrl =
+      this.settings.baseUrl || (providerId === "ollama" ? "http://127.0.0.1:11434/v1" : "");
+    if (!baseUrl) {
+      throw new Error(zh ? "自定义模型需要填写 Base URL。" : "A custom model requires a Base URL.");
+    }
+    this.modelRuntime.registerProvider(providerId, {
+      name: providerId === "ollama" ? "Ollama" : "OpenAI-compatible",
+      baseUrl,
+      apiKey: this.runtimeApiKeys.get(providerId) || "local",
+      api: "openai-completions",
+      models: [
+        {
+          id: this.settings.model,
+          name: this.settings.model,
+          reasoning: providerId === "ollama",
+          input: ["text"],
+          cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+          contextWindow: 128_000,
+          maxTokens:
+            providerId === "ollama" ? (request.mode === "synthesize" ? 512 : 256) : 16_000,
+          thinkingLevelMap: providerId === "ollama" ? { off: "none" } : undefined,
+          compat: {
+            supportsDeveloperRole: false,
+            supportsReasoningEffort: providerId === "ollama",
+          },
+        },
+      ],
     });
-    return { agent };
+    const model = this.modelRuntime.getModel(providerId, this.settings.model);
+    if (!model) throw new Error(zh ? "无法注册自定义模型。" : "Unable to register the custom model.");
+    return model;
   }
 
   private createGraphTools(
     database: GraphDatabase,
     graphId: string,
     locale: RunRequest["locale"],
-  ): AgentTool[] {
-    const searchTool: AgentTool = {
+  ): ToolDefinition[] {
+    const zh = locale.startsWith("zh");
+    const searchTool: ToolDefinition = {
       name: "graph_search",
-      label: locale.startsWith("zh") ? "搜索知识图" : "Search knowledge graph",
-      description:
-        locale.startsWith("zh")
-          ? "在当前 Pi Graph Chat 知识图中搜索与查询相关的节点。"
-          : "Search the current Pi Graph Chat graph for nodes related to a query.",
+      label: zh ? "搜索知识图" : "Search knowledge graph",
+      description: zh
+        ? "在当前 Pi Graph Chat 知识图中搜索与查询相关的节点。"
+        : "Search the current Pi Graph Chat graph for nodes related to a query.",
+      promptSnippet: zh ? "搜索当前知识图的节点" : "Search the current knowledge graph",
       parameters: Type.Object({
         query: Type.String({
-          description:
-            locale.startsWith("zh")
-              ? "要搜索的概念、术语或问题"
-              : "Concept, term, or question to search for",
+          description: zh ? "要搜索的概念、术语或问题" : "Concept, term, or question to search for",
         }),
       }),
       execute: async (_toolCallId, params) => {
@@ -577,45 +633,39 @@ Always respond in ${RESPONSE_LANGUAGES[request.locale]}.`,
         const results = database.searchNodes(graphId, query);
         const text =
           results.length === 0
-            ? locale.startsWith("zh")
+            ? zh
               ? "没有找到匹配的图谱节点。"
               : "No matching graph nodes were found."
             : results
                 .map(
                   (node) =>
-                    `[${locale.startsWith("zh") ? "节点" : "Node"}: ${node.id}] ${node.title}\n${node.summary || summarize(node.content)}`,
+                    `[${zh ? "节点" : "Node"}: ${node.id}] ${node.title}\n${node.summary || summarize(node.content)}`,
                 )
                 .join("\n\n");
         return { content: [{ type: "text", text }], details: { resultCount: results.length } };
       },
     };
 
-    const getNodeTool: AgentTool = {
+    const getNodeTool: ToolDefinition = {
       name: "graph_get_node",
-      label: locale.startsWith("zh") ? "读取图谱节点" : "Read graph node",
-      description:
-        locale.startsWith("zh")
-          ? "按节点 ID 读取一个 Pi Graph Chat 节点的完整内容。"
-          : "Read the full content of one Pi Graph Chat node by ID.",
+      label: zh ? "读取图谱节点" : "Read graph node",
+      description: zh
+        ? "按节点 ID 读取一个 Pi Graph Chat 节点的完整内容。"
+        : "Read the full content of one Pi Graph Chat node by ID.",
+      promptSnippet: zh ? "按 ID 读取一个图谱节点" : "Read one graph node by id",
       parameters: Type.Object({
-        nodeId: Type.String({
-          description: locale.startsWith("zh") ? "图谱节点 ID" : "Graph node ID",
-        }),
+        nodeId: Type.String({ description: zh ? "图谱节点 ID" : "Graph node ID" }),
       }),
       execute: async (_toolCallId, params) => {
         const node = database.getNode(String((params as { nodeId: string }).nodeId));
         if (!node || node.graphId !== graphId) {
-          throw new Error(
-            locale.startsWith("zh")
-              ? "找不到这个图谱节点。"
-              : "This graph node does not exist.",
-          );
+          throw new Error(zh ? "找不到这个图谱节点。" : "This graph node does not exist.");
         }
         return {
           content: [
             {
               type: "text",
-              text: `[${locale.startsWith("zh") ? "节点" : "Node"}: ${node.id}] ${node.title}\n\n${node.content}`,
+              text: `[${zh ? "节点" : "Node"}: ${node.id}] ${node.title}\n\n${node.content}`,
             },
           ],
           details: { nodeId: node.id },
@@ -625,18 +675,16 @@ Always respond in ${RESPONSE_LANGUAGES[request.locale]}.`,
     return [searchTool, getNodeTool];
   }
 
-  private forwardAgentEvent(
-    event: AgentEvent,
+  private forwardSessionEvent(
+    event: AgentSessionEvent,
     queue: AsyncEventQueue<RunStreamEvent>,
     runId: string,
     nodeId: string,
     locale: RunRequest["locale"],
     onDelta: (delta: string) => void,
   ) {
-    if (
-      event.type === "message_update" &&
-      event.assistantMessageEvent.type === "text_delta"
-    ) {
+    const zh = locale.startsWith("zh");
+    if (event.type === "message_update" && event.assistantMessageEvent.type === "text_delta") {
       const delta = event.assistantMessageEvent.delta;
       onDelta(delta);
       queue.push({ type: "text_delta", runId, nodeId, delta });
@@ -648,12 +696,16 @@ Always respond in ${RESPONSE_LANGUAGES[request.locale]}.`,
         tool: event.toolName,
         label:
           event.toolName === "graph_search"
-            ? locale.startsWith("zh")
+            ? zh
               ? "正在搜索知识图"
               : "Searching the knowledge graph"
-            : locale.startsWith("zh")
-              ? "正在读取节点"
-              : "Reading a graph node",
+            : event.toolName === "graph_get_node"
+              ? zh
+                ? "正在读取节点"
+                : "Reading a graph node"
+              : zh
+                ? `正在运行 ${event.toolName}`
+                : `Running ${event.toolName}`,
       });
     } else if (event.type === "tool_execution_end") {
       queue.push({
@@ -662,12 +714,12 @@ Always respond in ${RESPONSE_LANGUAGES[request.locale]}.`,
         nodeId,
         tool: event.toolName,
         summary: event.isError
-          ? locale.startsWith("zh")
+          ? zh
             ? "工具执行失败"
-            : "Graph tool failed"
-          : locale.startsWith("zh")
-            ? "图谱信息已加入上下文"
-            : "Graph context added",
+            : "Tool failed"
+          : zh
+            ? "工具结果已加入上下文"
+            : "Tool result added to context",
       });
     }
   }

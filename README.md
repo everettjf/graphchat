@@ -39,8 +39,9 @@ not try to be one. Two ideas hold it together:
 | Area | Current implementation |
 | --- | --- |
 | Knowledge graphs | Infinite React Flow canvas, branch and continuation edges, cross-branch references, synthesis nodes, search |
+| Pi-backed graphs | Every graph is a Pi session file; a branch in the graph is a branch in the session tree, and **Open in terminal** resumes it with `pi --session` |
 | Precise follow-ups | Continue from any node, or select text inside an answer and branch from that phrase |
-| Context compiler | Bounded, traceable context built from the parent path, explicit references, and selected text |
+| Context | The parent path is the session's active branch; references and selected text are injected as a Pi `custom_message` entry |
 | Pi sessions | Read-only tree view of every Pi coding-agent session on this machine, auto-refreshing while Pi runs |
 | Models via Pi | ChatGPT subscription (Codex OAuth), OpenAI, Anthropic, Google Gemini, OpenRouter, Ollama, any OpenAI-compatible endpoint |
 | Local data | Bun/Node SQLite with FTS5, versioned JSON backup, Obsidian-friendly Markdown export |
@@ -98,27 +99,38 @@ Open **Models & settings** in the sidebar. Every provider is served by Pi's
 | Ollama | No key; `http://127.0.0.1:11434/v1` |
 | Custom | Any OpenAI-compatible endpoint, optional in-process key |
 
-API keys stay in the server process and are never written to SQLite, exports,
-or logs. ChatGPT OAuth credentials are stored in `.graphchat/auth.json` with
-mode `0600` where the platform supports it.
+Credentials are Pi's. ChatGPT sign-in from the settings dialog writes to Pi's
+own `~/.pi/agent/auth.json`, so a login made here also works in the terminal
+and a `pi /login` made in the terminal also works here. Keys typed into the
+settings dialog stay in the server process and are never written to SQLite,
+exports, logs, or `auth.json`. Set `PI_CODING_AGENT_DIR` to point both Pi and
+Pi Graph Chat at a different agent directory.
 
 ## Architecture
 
 ```mermaid
 flowchart LR
     UI["React 19 · React Flow"] --> API["Fastify API · NDJSON streaming"]
-    API --> CTX["Context compiler"]
-    CTX --> AGENT["pi-agent-core · tools · retry loop"]
-    AGENT --> MODELS["pi-ai providers"]
-    API --> DB[("SQLite · graphs · nodes · edges")]
-    API --> PI[("~/.pi/agent/sessions · read-only")]
-    PI --> SM["pi-coding-agent SessionManager"]
+    API --> CTX["Context compiler · references · selection"]
+    CTX --> AGENT["pi-coding-agent createAgentSession()"]
+    AGENT --> MODELS["ModelRuntime · pi-ai providers · Pi auth.json"]
+    AGENT --> SESSION[("~/.pi/agent/sessions · one file per graph")]
+    API --> DB[("SQLite · graph overlay · FTS · metadata · layout")]
+    API --> PI["Pi session index · read-only view"]
+    PI --> SESSION
 ```
+
+The Pi session file is the conversation of record. SQLite keeps what Pi does
+not know about: node positions, summaries, tags, mastery, references, and the
+full-text index. On the first answer in a graph, existing nodes are replayed
+into a new session so the tree matches; after that, each answer branches the
+session at the parent node's entry.
 
 Core code:
 
-- [`server/agent-runtime.ts`](./server/agent-runtime.ts) — Pi agent, provider routing, graph tools, streaming events
-- [`server/context-compiler.ts`](./server/context-compiler.ts) — graph context selection and budget
+- [`server/agent-runtime.ts`](./server/agent-runtime.ts) — `createAgentSession()` runs, provider routing through `ModelRuntime`, graph tools, streaming events
+- [`server/graph-session.ts`](./server/graph-session.ts) — opens or creates a graph's Pi session and replays nodes into it
+- [`server/context-compiler.ts`](./server/context-compiler.ts) — reference and selection context
 - [`server/pi-sessions.ts`](./server/pi-sessions.ts) — Pi session index and turn collapsing
 - [`server/openai-codex-auth.ts`](./server/openai-codex-auth.ts) — ChatGPT device-code OAuth lifecycle
 - [`src/components/graph-canvas.tsx`](./src/components/graph-canvas.tsx) — knowledge graph interactions
@@ -128,7 +140,7 @@ Core code:
 
 ```bash
 bun run typecheck  # TypeScript client and server
-bun run test       # Vitest: database, credentials, Pi runtime, Pi sessions, UI
+bun run test       # Vitest: database, Pi runtime, Pi auth, Pi sessions, UI
 bun run build      # production build
 bun run test:e2e   # Playwright
 bun run test:all   # everything above
@@ -144,10 +156,12 @@ The plan is to make Pi's session file the single source of truth and let Pi
 Graph Chat add the graph layer on top. In order:
 
 1. Read-only Pi session bridge — done.
-2. Run answers through `createAgentSession()` from `pi-coding-agent` so graph
-   branches are Pi session branches, and the same session opens in the terminal.
-3. Ship the graph tools, `/graph` command, and study skills as a Pi package.
-4. Root learning sessions in a codebase and reference nodes across sessions.
+2. Answers run through `createAgentSession()`; graph branches are Pi session
+   branches and the same session opens in the terminal — done.
+3. Ship the graph tools, `/graph` command, and study skills as a Pi package,
+   and load the user's Pi extensions and skills into graph runs.
+4. Root learning sessions in a codebase with Pi's read-only coding tools and
+   reference nodes across sessions.
 
 See [`docs/CORE_TESTING.md`](./docs/CORE_TESTING.md) for manual acceptance and
 [`docs/GRAPHCHAT_FORMAT.md`](./docs/GRAPHCHAT_FORMAT.md) for the backup format.

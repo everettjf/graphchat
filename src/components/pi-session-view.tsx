@@ -13,6 +13,7 @@ import {
   TerminalSquare,
 } from "lucide-react";
 import { api } from "@/lib/api";
+import { buildOpenInTerminalCommand } from "@/lib/pi-terminal";
 import { toggleTheme, useTheme } from "@/lib/theme";
 import { useWorkspace } from "@/store/workspace";
 import { useI18n } from "@/i18n";
@@ -22,14 +23,6 @@ import { PiSessionCanvas, type PiFlowInstance } from "./pi-session-canvas";
 import { PiSessionInspector } from "./pi-session-inspector";
 
 export const PI_SESSION_REFRESH_MS = 4_000;
-
-function shellQuote(value: string) {
-  return `'${value.replaceAll("'", "'\\''")}'`;
-}
-
-export function buildOpenInTerminalCommand(cwd: string, sessionPath: string) {
-  return `cd ${shellQuote(cwd)} && pi --session ${shellQuote(sessionPath)}`;
-}
 
 export function PiSessionView({
   sessionId,

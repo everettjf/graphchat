@@ -424,6 +424,11 @@ export default function App() {
           onFitView={() => flowRef.current?.fitView({ padding: 0.18, duration: 450 })}
           onOpenTools={() => setToolsOpen(true)}
           onUndo={() => void handleUndo()}
+          onToast={(message) => {
+            setToast(message);
+            setTimeout(() => setToast(""), 2_400);
+          }}
+          piCwd={bootstrap.data?.piCwd ?? ""}
           viewMode={viewMode}
           onViewModeChange={setViewMode}
         />

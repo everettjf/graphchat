@@ -42,6 +42,8 @@ export const graphNodeSchema = z.object({
   status: z.enum(nodeStatuses),
   provider: z.string().nullable(),
   model: z.string().nullable(),
+  /** Id of the Pi session entry that holds this node's answer, once synced. */
+  piEntryId: z.string().nullable().default(null),
   createdAt: z.string(),
   updatedAt: z.string(),
 });
@@ -64,6 +66,8 @@ export const graphMetaSchema = z.object({
   createdAt: z.string(),
   updatedAt: z.string(),
   archivedAt: z.string().nullable().default(null),
+  /** Pi session file backing this graph, once the first answer has run. */
+  piSessionPath: z.string().nullable().default(null),
 });
 
 export const graphDocumentSchema = z.object({

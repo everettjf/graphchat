@@ -20,7 +20,8 @@ Please avoid including real API keys, OAuth tokens, or private conversation data
 ## Credential model
 
 - Provider API keys are kept in the server process and are not written to the graph database.
-- ChatGPT OAuth credentials are stored locally in `.graphchat/auth.json`, outside exported graphs, with restrictive file permissions where the operating system supports them.
+- ChatGPT OAuth credentials are stored by Pi in its own agent directory (`~/.pi/agent/auth.json` by default), outside exported graphs. Pi Graph Chat reads and writes that file only through Pi's `ModelRuntime`.
+- Graph conversations are written to Pi session files under Pi's session directory. They contain prompts and answers, never credentials.
 - Authentication responses sent to the browser contain status metadata only, never access or refresh tokens.
 - Pi Graph Chat does not operate a hosted credential service in this release.
 
