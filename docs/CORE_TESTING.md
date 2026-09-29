@@ -35,7 +35,7 @@ npx playwright test tests/e2e/app.spec.ts -g "imports source notes"
 Start the app with an isolated data directory so existing data is untouched:
 
 ```powershell
-$env:GRAPHCHAT_DATA_DIR="$PWD\.graphchat-manual-test"
+$env:PI_GRAPH_CHAT_DATA_DIR="$PWD\.pi-graph-chat-manual-test"
 bun run launch
 ```
 
@@ -176,7 +176,7 @@ Verify:
 - the answer streams and is saved as a node with a reference edge;
 - the graph's session appears under **Pi sessions** with the graph's title;
 - the new prompt is a child of the embedding node's answer in that tree, and
-  a `graphchat.references` entry precedes it;
+  a `pi-graph-chat.references` entry precedes it;
 - the topbar terminal button copies a `pi --session` command, and running it
   resumes the conversation at the new answer.
 
@@ -194,7 +194,7 @@ Create a graph with a project directory that contains code. Verify:
 - in a terminal Pi session, **Use as reference** on a turn adds a chip, and the
   next answer's Context tab lists `Pi · …` with the turn title.
 
-Install the Pi package with `pi install ./packages/graphchat-pi`, run `pi` in
+Install the Pi package with `pi install ./packages/pi-extension`, run `pi` in
 any project, and verify `/graph status`, `/ref <words>`, and `graph_search`
 work against the running server.
 

@@ -441,7 +441,7 @@ function resolveInitialLocale(): Locale {
   const requested = new URL(window.location.href).searchParams.get("lang");
   if (locales.includes(requested as Locale)) return requested as Locale;
   try {
-    const saved = window.localStorage.getItem("graphchat-language");
+    const saved = window.localStorage.getItem("pi-graph-chat-language");
     if (locales.includes(saved as Locale)) return saved as Locale;
   } catch {
     // Storage can be unavailable in privacy-restricted contexts.
@@ -472,7 +472,7 @@ export function I18nProvider({ children }: { children: ReactNode }) {
   const setLocale = useCallback((next: Locale) => {
     setLocaleState(next);
     try {
-      window.localStorage.setItem("graphchat-language", next);
+      window.localStorage.setItem("pi-graph-chat-language", next);
     } catch {
       // The preference still applies for the current session.
     }

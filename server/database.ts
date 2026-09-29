@@ -53,10 +53,10 @@ export class GraphDatabase {
   private readonly db: SQLiteDatabase;
   private historyEnabled = false;
 
-  constructor(dataDirectory = process.env.GRAPHCHAT_DATA_DIR || ".graphchat") {
+  constructor(dataDirectory = process.env.PI_GRAPH_CHAT_DATA_DIR || ".pi-graph-chat") {
     const absoluteDirectory = path.resolve(dataDirectory);
     fs.mkdirSync(absoluteDirectory, { recursive: true });
-    this.db = new DatabaseConstructor(path.join(absoluteDirectory, "graphchat.sqlite"));
+    this.db = new DatabaseConstructor(path.join(absoluteDirectory, "pi-graph-chat.sqlite"));
     this.db.exec("PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;");
     migrateGraphDatabase(this.db);
     this.recoverInterruptedRuns();
@@ -132,7 +132,7 @@ export class GraphDatabase {
         y: 220,
         status: "complete",
         provider: "demo",
-        model: "graphchat-guide",
+        model: "pi-graph-chat-guide",
         createdAt: timestamp,
         updatedAt: timestamp,
       },
@@ -152,7 +152,7 @@ export class GraphDatabase {
         y: 40,
         status: "complete",
         provider: "demo",
-        model: "graphchat-guide",
+        model: "pi-graph-chat-guide",
         createdAt: timestamp,
         updatedAt: timestamp,
       },
@@ -172,7 +172,7 @@ export class GraphDatabase {
         y: 20,
         status: "complete",
         provider: "demo",
-        model: "graphchat-guide",
+        model: "pi-graph-chat-guide",
         createdAt: timestamp,
         updatedAt: timestamp,
       },
@@ -192,7 +192,7 @@ export class GraphDatabase {
         y: 360,
         status: "complete",
         provider: "demo",
-        model: "graphchat-guide",
+        model: "pi-graph-chat-guide",
         createdAt: timestamp,
         updatedAt: timestamp,
       },
@@ -212,7 +212,7 @@ export class GraphDatabase {
         y: 400,
         status: "complete",
         provider: "demo",
-        model: "graphchat-guide",
+        model: "pi-graph-chat-guide",
         createdAt: timestamp,
         updatedAt: timestamp,
       },
@@ -232,7 +232,7 @@ export class GraphDatabase {
         y: 215,
         status: "complete",
         provider: "demo",
-        model: "graphchat-guide",
+        model: "pi-graph-chat-guide",
         createdAt: timestamp,
         updatedAt: timestamp,
       },
@@ -765,7 +765,7 @@ export class GraphDatabase {
       process.env.NODE_ENV === "test"
         ? {
             provider: "demo",
-            model: "graphchat-guide",
+            model: "pi-graph-chat-guide",
             baseUrl: "",
             hasApiKey: false,
           }
@@ -1030,7 +1030,7 @@ export class GraphDatabase {
     const lines = [
       "---",
       `title: "${graph.graph.title.replaceAll('"', '\\"')}"`,
-      "type: graphchat-graph",
+      "type: pi-graph-chat-graph",
       "---",
       "",
       `# ${graph.graph.title}`,

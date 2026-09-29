@@ -11,7 +11,7 @@ import { GraphSessionSync, importSessionTurnsIntoGraph, openGraphSession } from 
 const directories: string[] = [];
 
 function setup() {
-  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "graphchat-session-sync-"));
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "pi-graph-chat-session-sync-"));
   directories.push(directory);
   const database = new GraphDatabase(path.join(directory, "data"));
   const sessionRoot = path.join(directory, "sessions");

@@ -6,7 +6,7 @@ description: Combine two or more branches of a Pi Graph Chat knowledge graph int
 # Synthesize graph branches
 
 Use this when several graph nodes or branches are in context, for example after
-`/ref` or when a `graphchat.references` message is present.
+`/ref` or when a `pi-graph-chat.references` message is present.
 
 1. Read every referenced node in full with `graph_get_node` before writing.
    Do not rely on summaries.

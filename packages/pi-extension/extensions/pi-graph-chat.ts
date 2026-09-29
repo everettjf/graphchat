@@ -9,11 +9,11 @@
  * - `/graph` opens the current session in the web app; `/graph use <id>`
  *   binds a plain terminal session to a graph; `/graph status` shows the link.
  * - `/ref <node id | search words>` injects a graph node into the model
- *   context as a `graphchat.references` entry, the same mechanism the web app
+ *   context as a `pi-graph-chat.references` entry, the same mechanism the web app
  *   uses for cross-branch references.
  *
  * When the extension is loaded inside the Pi Graph Chat server itself
- * (GRAPHCHAT_EMBEDDED=1) it stays silent, because the server registers the
+ * (PI_GRAPH_CHAT_EMBEDDED=1) it stays silent, because the server registers the
  * tools directly.
  */
 import { spawn } from "node:child_process";
@@ -24,9 +24,9 @@ import type {
   ExtensionContext,
 } from "@earendil-works/pi-coding-agent";
 
-export const DEFAULT_GRAPHCHAT_URL = "http://127.0.0.1:4317";
-export const GRAPH_BINDING_ENTRY = "graphchat.graph";
-export const REFERENCE_MESSAGE_TYPE = "graphchat.references";
+export const DEFAULT_PI_GRAPH_CHAT_URL = "http://127.0.0.1:4317";
+export const GRAPH_BINDING_ENTRY = "pi-graph-chat.graph";
+export const REFERENCE_MESSAGE_TYPE = "pi-graph-chat.references";
 
 type GraphMeta = { id: string; title: string; description: string };
 type GraphNode = {
@@ -39,7 +39,7 @@ type GraphNode = {
   sourceUrl: string;
 };
 
-export type GraphChatExtensionOptions = {
+export type PiGraphChatExtensionOptions = {
   baseUrl?: string;
   fetch?: typeof fetch;
   openUrl?: (url: string) => void;
@@ -72,10 +72,10 @@ export function formatReference(node: GraphNode, graph?: GraphMeta | null): stri
   return `[Node: ${node.id}] ${heading}${source}\n${node.content || node.summary}`;
 }
 
-export default function graphchatExtension(pi: ExtensionAPI, options: GraphChatExtensionOptions = {}) {
+export default function piGraphChatExtension(pi: ExtensionAPI, options: PiGraphChatExtensionOptions = {}) {
   const env = options.env ?? process.env;
-  if (env.GRAPHCHAT_EMBEDDED === "1") return;
-  const baseUrl = (options.baseUrl ?? env.GRAPHCHAT_URL ?? DEFAULT_GRAPHCHAT_URL).replace(/\/$/, "");
+  if (env.PI_GRAPH_CHAT_EMBEDDED === "1") return;
+  const baseUrl = (options.baseUrl ?? env.PI_GRAPH_CHAT_URL ?? DEFAULT_PI_GRAPH_CHAT_URL).replace(/\/$/, "");
   const doFetch = options.fetch ?? fetch;
   const openUrl = options.openUrl ?? openInBrowser;
   const graphCache = new Map<string, GraphMeta | null>();

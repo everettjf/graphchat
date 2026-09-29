@@ -1,4 +1,4 @@
-const baseUrl = process.env.GRAPHCHAT_SMOKE_URL || "http://127.0.0.1:4318";
+const baseUrl = process.env.PI_GRAPH_CHAT_SMOKE_URL || "http://127.0.0.1:4318";
 
 async function json(path, init) {
   const response = await fetch(`${baseUrl}${path}`, init);
@@ -124,7 +124,7 @@ async function smokeProvider({ provider, model, baseUrl: providerBaseUrl }) {
 
 const health = await json("/health");
 if (!health.ok) throw new Error("Pi Graph Chat smoke server is unhealthy");
-const selectedProvider = process.env.GRAPHCHAT_SMOKE_PROVIDER;
+const selectedProvider = process.env.PI_GRAPH_CHAT_SMOKE_PROVIDER;
 if (!selectedProvider || selectedProvider === "openai-codex") {
   const auth = await json("/api/auth/openai-codex");
   if (auth.state !== "authenticated") {
@@ -151,7 +151,7 @@ if (!selectedProvider || selectedProvider === "ollama") {
 if (selectedProvider === "deepseek") {
   await smokeProvider({
     provider: "deepseek",
-    model: process.env.GRAPHCHAT_SMOKE_MODEL || "deepseek-flash",
+    model: process.env.PI_GRAPH_CHAT_SMOKE_MODEL || "deepseek-flash",
     baseUrl: "",
   });
 }

@@ -7,7 +7,7 @@ Pi Graph Chat is a personal, local-first React/TypeScript learning workspace bui
 - `src/`: React UI, graph canvas, Pi session view, workspace state, and client services.
 - `server/`: local API, SQLite overlay store, Pi runtime integration (`agent-runtime.ts`, `graph-session.ts`), Pi session index, and exports.
 - `shared/`: types and schemas shared by client and server.
-- `packages/graphchat-pi/`: the Pi package (extension, skills, prompt templates) installed into the terminal `pi` with `pi install ./packages/graphchat-pi`.
+- `packages/pi-extension/`: the Pi package (extension, skills, prompt templates) installed into the terminal `pi` with `pi install ./packages/pi-extension`.
 - `tests/e2e/`: Playwright workflows, including the seeded Pi session and project fixtures. Specs share one server and database, so `workers` stays at 1 and every spec leaves only the example graph active.
 - `docs/`: data format and manual acceptance guide.
 - `scripts/`: launcher, provider smoke test, and seeding.
@@ -36,15 +36,15 @@ Run Vitest through the package scripts. The scripts force Bun's runtime because 
 - The Pi session view is read-only. Never write to session files the app did not create.
 - Credentials live in Pi's agent directory via `ModelRuntime`; there is no app-owned credential store. Tests must pass a temporary `agentDir` and `sessionRoot` so they never touch `~/.pi`.
 - Provider additions go through `CATALOG_PROVIDERS` in `server/agent-runtime.ts` plus the settings dialog and the provider enum in `shared/types.ts`.
-- Graph runs use `DefaultResourceLoader`, so the user's Pi extensions, skills, and packages load into the server process. The `graphchat-pi` extension checks `GRAPHCHAT_EMBEDDED=1` and stays silent there; keep that guard when changing either side.
+- Graph runs use `DefaultResourceLoader`, so the user's Pi extensions, skills, and packages load into the server process. The `pi-graph-chat-extension` extension checks `PI_GRAPH_CHAT_EMBEDDED=1` and stays silent there; keep that guard when changing either side.
 - Built-in Pi tools in graph runs are read-only: `read` for plain graphs, `read`/`grep`/`find`/`ls` for graphs with a project directory. Never enable `bash`, `edit`, or `write` from a graph run.
 - `GraphSessionSync` imports terminal turns on graph reads; it must skip graphs with an active run (`runtime.isRunning`) and any node the app creates must get its `pi_entry_id` set, including cancelled and failed runs, or the sync imports the turn a second time.
-- The terminal extension talks to the server over HTTP only through `/api/graphs/:id/search`, `/api/search`, `/api/nodes/:id`, and `/api/graphs/by-session/:sessionId`. Changing those routes means changing `packages/graphchat-pi` and its tests.
+- The terminal extension talks to the server over HTTP only through `/api/graphs/:id/search`, `/api/search`, `/api/nodes/:id`, and `/api/graphs/by-session/:sessionId`. Changing those routes means changing `packages/pi-extension` and its tests.
 
 ## Conventions
 
 - Keep OAuth credentials and API keys out of graph exports, SQLite content, logs, and browser storage.
-- Version persisted formats and provide migrations for existing `.graphchat` data.
+- Version persisted formats and provide migrations for existing `.pi-graph-chat` data.
 - Give graph nodes and edges stable identity; do not derive identity from mutable labels.
 - Keep the default bind address local-only and require an explicit choice for network exposure.
 - Add an end-to-end scenario when changing import, branching, synthesis, review, export, or the Pi session bridge.

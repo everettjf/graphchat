@@ -95,7 +95,7 @@ const providerNames: Record<ProviderSettings["provider"], string> = {
 };
 
 const defaultModels: Record<ProviderSettings["provider"], string> = {
-  demo: "graphchat-guide",
+  demo: "pi-graph-chat-guide",
   "openai-codex": "gpt-5.5",
   openai: "gpt-5.4-mini",
   anthropic: "claude-sonnet-5",

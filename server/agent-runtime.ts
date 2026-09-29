@@ -216,8 +216,8 @@ const CATALOG_PROVIDERS = {
 } as const;
 type CatalogProviderId = keyof typeof CATALOG_PROVIDERS;
 
-const DEMO_PROVIDER_ID = "graphchat-demo";
-const DEMO_MODEL_ID = "graphchat-guide";
+const DEMO_PROVIDER_ID = "pi-graph-chat-demo";
+const DEMO_MODEL_ID = "pi-graph-chat-guide";
 const CODEX_PROVIDER_ID = "openai-codex";
 
 export type GraphAgentRuntimeOptions = {
@@ -280,7 +280,7 @@ This knowledge graph is rooted in the code at ${projectDir}. Read-only tools are
 /**
  * Pi's normal resource discovery (the user's extensions, skills, prompt
  * templates, packages, and APPEND_SYSTEM.md) with Pi Graph Chat's learning
- * prompt in place of the coding-agent preamble. Set GRAPHCHAT_PI_EXTENSIONS=0
+ * prompt in place of the coding-agent preamble. Set PI_GRAPH_CHAT_PI_EXTENSIONS=0
  * to run without user extensions.
  */
 async function createGraphResourceLoader(options: {
@@ -293,7 +293,7 @@ async function createGraphResourceLoader(options: {
     cwd: options.cwd,
     agentDir: options.agentDir,
     settingsManager: options.settingsManager,
-    noExtensions: process.env.GRAPHCHAT_PI_EXTENSIONS === "0",
+    noExtensions: process.env.PI_GRAPH_CHAT_PI_EXTENSIONS === "0",
     noThemes: true,
     systemPromptOverride: () => options.systemPrompt,
   });
@@ -367,9 +367,9 @@ export class GraphAgentRuntime {
     options: GraphAgentRuntimeOptions,
   ): Promise<GraphAgentRuntime> {
     const agentDir = path.resolve(options.agentDir ?? getAgentDir());
-    // The graphchat-pi extension stays silent inside this process; the
+    // The pi-graph-chat-extension extension stays silent inside this process; the
     // runtime registers the graph tools itself.
-    process.env.GRAPHCHAT_EMBEDDED = "1";
+    process.env.PI_GRAPH_CHAT_EMBEDDED = "1";
     const modelRuntime = await ModelRuntime.create({
       authPath: path.join(agentDir, "auth.json"),
       modelsPath: path.join(agentDir, "models.json"),
@@ -570,7 +570,7 @@ export class GraphAgentRuntime {
         const extras = context.items.filter((item) => item.reason !== "main-path");
         if (extras.length > 0) {
           manager.appendCustomMessageEntry(
-            "graphchat.references",
+            "pi-graph-chat.references",
             contextToPrompt({ ...context, items: extras }, request.locale),
             true,
             { nodeIds: extras.map((item) => item.nodeId), targetNodeId: node.id },
@@ -842,7 +842,7 @@ Always respond in ${RESPONSE_LANGUAGES[request.locale]}.`;
 
   private async assertEndpointReachable(baseUrl: string, providerId: string, zh: boolean) {
     // Opt out for endpoints that are slow to answer or close unauthenticated connections.
-    if (process.env.GRAPHCHAT_SKIP_ENDPOINT_PROBE === "1") return;
+    if (process.env.PI_GRAPH_CHAT_SKIP_ENDPOINT_PROBE === "1") return;
     const timeoutMs = 4_000;
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -853,8 +853,8 @@ Always respond in ${RESPONSE_LANGUAGES[request.locale]}.`;
       const name = providerId === "ollama" ? "Ollama" : zh ? "自定义模型服务" : "The custom model endpoint";
       throw new Error(
         zh
-          ? `${timeoutMs / 1000} 秒内无法连接 ${name}（${baseUrl}）。请先启动它，或在“模型与设置”中换一个模型；如果该服务本身响应慢，设置 GRAPHCHAT_SKIP_ENDPOINT_PROBE=1 跳过这项检查。`
-          : `${name} did not respond at ${baseUrl} within ${timeoutMs / 1000} seconds. Start it, or pick another model in Models & settings; set GRAPHCHAT_SKIP_ENDPOINT_PROBE=1 if the endpoint is just slow.`,
+          ? `${timeoutMs / 1000} 秒内无法连接 ${name}（${baseUrl}）。请先启动它，或在“模型与设置”中换一个模型；如果该服务本身响应慢，设置 PI_GRAPH_CHAT_SKIP_ENDPOINT_PROBE=1 跳过这项检查。`
+          : `${name} did not respond at ${baseUrl} within ${timeoutMs / 1000} seconds. Start it, or pick another model in Models & settings; set PI_GRAPH_CHAT_SKIP_ENDPOINT_PROBE=1 if the endpoint is just slow.`,
       );
     } finally {
       clearTimeout(timer);

@@ -1,5 +1,5 @@
 {
-  "name": "graphchat-pi",
+  "name": "pi-graph-chat-extension",
   "version": "0.3.0",
   "private": true,
   "description": "Pi package for Pi Graph Chat: graph tools, /graph and /ref commands, and learning skills.",
@@ -7,7 +7,7 @@
   "keywords": ["pi-package", "pi-graph-chat", "learning"],
   "license": "MIT",
   "pi": {
-    "extensions": ["./extensions/graphchat.ts"],
+    "extensions": ["./extensions/pi-graph-chat.ts"],
     "skills": ["./skills"],
     "prompts": ["./prompts/*.md"]
   },

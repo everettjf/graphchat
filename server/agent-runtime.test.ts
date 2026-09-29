@@ -12,14 +12,14 @@ import { PiSessionIndex } from "./pi-sessions.js";
 const directories: string[] = [];
 
 async function setup() {
-  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "graphchat-runtime-"));
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "pi-graph-chat-runtime-"));
   directories.push(directory);
   const dataDirectory = path.join(directory, "data");
   const agentDir = path.join(directory, "agent");
   const sessionRoot = path.join(directory, "sessions");
   const database = new GraphDatabase(dataDirectory);
   const runtime = await GraphAgentRuntime.create(
-    { provider: "demo", model: "graphchat-guide", baseUrl: "", hasApiKey: false },
+    { provider: "demo", model: "pi-graph-chat-guide", baseUrl: "", hasApiKey: false },
     { dataDirectory, agentDir, sessionRoot, sessionIndex: new PiSessionIndex(sessionRoot) },
   );
   return { database, runtime, sessionRoot, agentDir };
@@ -170,7 +170,7 @@ describe("GraphAgentRuntime", () => {
 
     // The read-only Pi session index sees the graph session too.
     const index = new PiSessionIndex(sessionRoot);
-    const listed = index.list().find((session) => session.id === "graphchat-learning-rag");
+    const listed = index.list().find((session) => session.id === "pi-graph-chat-learning-rag");
     expect(listed?.name).toBe(graph.graph.title);
     expect(listed!.turnCount).toBeGreaterThanOrEqual(8);
     database.close();
@@ -249,7 +249,7 @@ export default function marker(pi) {
     const graph = database.getGraph("learning-rag")!;
     const entries = parseSessionEntries(fs.readFileSync(graph.graph.piSessionPath!, "utf8"));
     const reference = entries.find(
-      (entry) => entry.type === "custom_message" && entry.customType === "graphchat.references",
+      (entry) => entry.type === "custom_message" && entry.customType === "pi-graph-chat.references",
     );
     expect(reference).toBeTruthy();
     if (reference?.type === "custom_message") {
@@ -321,7 +321,7 @@ export default function marker(pi) {
 
   it("roots a graph in a codebase: session lives in the project and read-only tools are on", async () => {
     const { database, runtime, sessionRoot } = await setup();
-    const projectDir = fs.mkdtempSync(path.join(os.tmpdir(), "graphchat-project-"));
+    const projectDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-graph-chat-project-"));
     directories.push(projectDir);
     fs.writeFileSync(path.join(projectDir, "README.md"), "# Demo project\n");
     const created = database.createGraph({ title: "Code graph", description: "", projectDir });
@@ -404,7 +404,7 @@ export default function marker(pi) {
     expect(node.contextSnapshot!.items).toHaveLength(2);
 
     const entries = parseSessionEntries(fs.readFileSync(database.getGraph(other.graph.id)!.graph.piSessionPath!, "utf8"));
-    const reference = entries.find((entry) => entry.type === "custom_message" && entry.customType === "graphchat.references");
+    const reference = entries.find((entry) => entry.type === "custom_message" && entry.customType === "pi-graph-chat.references");
     expect(reference?.type === "custom_message" ? String(reference.content) : "").toContain("health check timed out");
     expect(reference?.type === "custom_message" ? String(reference.content) : "").toContain("semantic coordinates");
     database.close();
@@ -464,7 +464,7 @@ export default function marker(pi) {
 
   it("refuses to run a graph whose project directory disappeared", async () => {
     const { database, runtime } = await setup();
-    const projectDir = fs.mkdtempSync(path.join(os.tmpdir(), "graphchat-gone-"));
+    const projectDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-graph-chat-gone-"));
     const created = database.createGraph({ title: "Gone", description: "", projectDir });
     fs.rmSync(projectDir, { recursive: true, force: true });
     const events = await collect(runtime, database, baseRequest({ graphId: created.graph.id, parentNodeId: null, locale: "en" }));

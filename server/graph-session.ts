@@ -18,7 +18,7 @@ export function encodeSessionCwd(cwd: string): string {
 
 export function graphSessionId(graphId: string): string {
   const safe = graphId.replace(/[^A-Za-z0-9._-]/g, "-").replace(/^[^A-Za-z0-9]+|[^A-Za-z0-9]+$/g, "");
-  return `graphchat-${safe || "graph"}`;
+  return `pi-graph-chat-${safe || "graph"}`;
 }
 
 const structuralKinds = new Set(["branch", "continuation"]);
@@ -86,7 +86,7 @@ export function syncGraphIntoSession(
         role: "assistant",
         content: [{ type: "text", text: node.content }],
         api: "openai-completions",
-        provider: node.provider ?? "graphchat",
+        provider: node.provider ?? "pi-graph-chat",
         model: node.model ?? "imported",
         usage: {
           input: 0,
@@ -102,7 +102,7 @@ export function syncGraphIntoSession(
     } else {
       const heading = node.sourceUrl ? `# ${node.title}\n\nSource: ${node.sourceUrl}` : `# ${node.title}`;
       entryId = manager.appendCustomMessageEntry(
-        "graphchat.node",
+        "pi-graph-chat.node",
         `${heading}\n\n${node.content}`,
         true,
         { nodeId: node.id, kind: node.kind },

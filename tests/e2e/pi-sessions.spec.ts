@@ -8,7 +8,7 @@ test.describe("Pi sessions", () => {
     const seeded = list.sessions.find((session: { id: string }) => session.id === "e2e-pi-session-0001");
     expect(seeded).toMatchObject({
       id: "e2e-pi-session-0001",
-      cwd: "/home/user/graphchat-demo",
+      cwd: "/home/user/pi-graph-chat-demo",
       name: "Context compiler walkthrough",
       turnCount: 3,
       model: "claude-opus-5",
@@ -69,7 +69,7 @@ test.describe("Pi sessions", () => {
     await page.getByTestId("pi-open-terminal").click();
     await expect(page.getByText("Command copied to the clipboard")).toBeVisible();
     const clipboard = await page.evaluate(() => navigator.clipboard.readText());
-    expect(clipboard).toContain("cd '/home/user/graphchat-demo' && pi --session '");
+    expect(clipboard).toContain("cd '/home/user/pi-graph-chat-demo' && pi --session '");
     expect(clipboard).toContain("e2e-pi-session-0001.jsonl'");
 
     await page.getByRole("button", { name: "Back to knowledge graphs" }).click();

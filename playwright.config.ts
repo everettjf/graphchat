@@ -39,7 +39,7 @@ export default defineConfig({
     env: {
       NODE_ENV: "test",
       PORT: "4173",
-      GRAPHCHAT_DATA_DIR: path.join(os.tmpdir(), `graphchat-e2e-${process.pid}`),
+      PI_GRAPH_CHAT_DATA_DIR: path.join(os.tmpdir(), `pi-graph-chat-e2e-${process.pid}`),
       PI_CODING_AGENT_SESSION_DIR: piSessionDir,
       // Keep Pi auth and settings away from the developer's real ~/.pi.
       PI_CODING_AGENT_DIR: piAgentDir,

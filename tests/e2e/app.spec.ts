@@ -127,14 +127,14 @@ test.describe("Pi Graph Chat", () => {
 
     // The graph is now backed by a Pi session that mirrors its tree.
     const graph = await (await request.get("/api/graphs/learning-rag")).json();
-    expect(graph.graph.piSessionPath).toMatch(/graphchat-learning-rag\.jsonl$/);
+    expect(graph.graph.piSessionPath).toMatch(/pi-graph-chat-learning-rag\.jsonl$/);
     expect(createdNode.piEntryId).toBeTruthy();
     const piSessions = await (await request.get("/api/pi/sessions")).json();
     const backing = piSessions.sessions.find(
-      (session: { id: string }) => session.id === "graphchat-learning-rag",
+      (session: { id: string }) => session.id === "pi-graph-chat-learning-rag",
     );
     expect(backing).toMatchObject({ name: graph.graph.title });
-    const tree = await (await request.get("/api/pi/sessions/graphchat-learning-rag")).json();
+    const tree = await (await request.get("/api/pi/sessions/pi-graph-chat-learning-rag")).json();
     const answerTurn = tree.turns.find(
       (turn: { prompt: string }) =>
         turn.prompt === "How do embeddings and vector databases work together?",
@@ -273,7 +273,7 @@ test.describe("Pi Graph Chat", () => {
     await expect(page.locator("html")).toHaveAttribute("lang", "zh-CN");
     await expect(page).toHaveURL(/\?lang=zh$/);
     expect(
-      await page.evaluate(() => window.localStorage.getItem("graphchat-language")),
+      await page.evaluate(() => window.localStorage.getItem("pi-graph-chat-language")),
     ).toBe("zh");
 
     await page.reload();

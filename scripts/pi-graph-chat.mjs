@@ -67,8 +67,8 @@ if (!fs.existsSync(path.join(clientDirectory, "index.html"))) {
 process.env.NODE_ENV = "production";
 process.env.PORT = port;
 process.env.HOST = host;
-process.env.GRAPHCHAT_CLIENT_DIR = clientDirectory;
-if (dataDirectory) process.env.GRAPHCHAT_DATA_DIR = path.resolve(dataDirectory);
+process.env.PI_GRAPH_CHAT_CLIENT_DIR = clientDirectory;
+if (dataDirectory) process.env.PI_GRAPH_CHAT_DATA_DIR = path.resolve(dataDirectory);
 
 await import("../dist-server/server/index.js");
 

@@ -45,7 +45,7 @@ not try to be one. Two ideas hold it together:
 | Pi sessions | Read-only tree view of every Pi coding-agent session on this machine, auto-refreshing while Pi runs |
 | Codebase-rooted graphs | Give a graph a project directory: its Pi session lives in that project and answers get Pi's read-only `read`, `grep`, `find`, `ls` tools plus the project's `AGENTS.md` |
 | Cross-session references | Cite a node from another graph or a turn from any terminal Pi session in the next question; they travel as chips in the composer |
-| Pi package | `packages/graphchat-pi` gives the terminal `pi` the graph tools, `/graph`, `/ref`, four learning skills, and two prompt templates |
+| Pi package | `packages/pi-extension` gives the terminal `pi` the graph tools, `/graph`, `/ref`, four learning skills, and two prompt templates |
 | Your Pi setup | Graph runs load your own Pi extensions, skills, prompt templates, and packages through Pi's normal discovery |
 | Models via Pi | ChatGPT subscription (Codex OAuth), OpenAI, Anthropic, Google Gemini, OpenRouter, DeepSeek, Ollama, any OpenAI-compatible endpoint |
 | Local data | Bun/Node SQLite with FTS5, versioned JSON backup, Obsidian-friendly Markdown export |
@@ -109,23 +109,23 @@ Two ways to pull outside context into the next question:
   graph question.
 
 Both kinds are recorded in the node's context snapshot and injected into the Pi
-session as a `graphchat.references` entry, exactly like same-graph references.
+session as a `pi-graph-chat.references` entry, exactly like same-graph references.
 
 ### The Pi package
 
 ```bash
-pi install ./packages/graphchat-pi
+pi install ./packages/pi-extension
 ```
 
 This gives the terminal `pi` the `graph_search` and `graph_get_node` tools,
 `/graph` (open the current session in the web app, or bind a plain session to
 a graph), `/ref` (inject a graph node into context), the `graph-synthesize`,
 `graph-compare`, `explain-back`, and `study-cards` skills, and the `/branch`
-and `/synthesize` prompts. See [`packages/graphchat-pi/README.md`](./packages/graphchat-pi/README.md).
+and `/synthesize` prompts. See [`packages/pi-extension/README.md`](./packages/pi-extension/README.md).
 
 Graph runs in the web app go through Pi's normal resource discovery, so your
 `~/.pi/agent` extensions, skills, prompt templates, and installed packages are
-active there too. Set `GRAPHCHAT_PI_EXTENSIONS=0` to run graphs without
+active there too. Set `PI_GRAPH_CHAT_PI_EXTENSIONS=0` to run graphs without
 extensions.
 
 ## Quick start
@@ -144,7 +144,7 @@ bun run launch
 `bun run dev` and open [http://localhost:5173](http://localhost:5173).
 
 On first launch, Pi Graph Chat creates an example graph about RAG that runs
-without any credentials. Data lives in `.graphchat/`; set `GRAPHCHAT_DATA_DIR`
+without any credentials. Data lives in `.pi-graph-chat/`; set `PI_GRAPH_CHAT_DATA_DIR`
 to move it.
 
 ## Models
@@ -196,7 +196,7 @@ Core code:
 - [`server/graph-session.ts`](./server/graph-session.ts) — opens or creates a graph's Pi session and replays nodes into it
 - [`server/context-compiler.ts`](./server/context-compiler.ts) — reference and selection context
 - [`server/pi-sessions.ts`](./server/pi-sessions.ts) — Pi session index and turn collapsing
-- [`packages/graphchat-pi/extensions/graphchat.ts`](./packages/graphchat-pi/extensions/graphchat.ts) — the terminal-side extension
+- [`packages/pi-extension/extensions/pi-graph-chat.ts`](./packages/pi-extension/extensions/pi-graph-chat.ts) — the terminal-side extension
 - [`server/openai-codex-auth.ts`](./server/openai-codex-auth.ts) — ChatGPT device-code OAuth lifecycle
 - [`src/components/graph-canvas.tsx`](./src/components/graph-canvas.tsx) — knowledge graph interactions
 - [`src/components/pi-session-view.tsx`](./src/components/pi-session-view.tsx) — Pi session tree view
@@ -231,7 +231,7 @@ Graph Chat add the graph layer on top. In order:
    cards, and local embeddings for related-node suggestions across graphs.
 
 See [`docs/CORE_TESTING.md`](./docs/CORE_TESTING.md) for manual acceptance and
-[`docs/GRAPHCHAT_FORMAT.md`](./docs/GRAPHCHAT_FORMAT.md) for the backup format.
+[`docs/FORMAT.md`](./docs/FORMAT.md) for the backup format.
 
 ## License
 

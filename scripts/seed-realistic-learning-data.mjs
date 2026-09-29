@@ -1,11 +1,11 @@
 const baseUrl = (
-  process.env.GRAPHCHAT_BASE_URL ||
+  process.env.PI_GRAPH_CHAT_BASE_URL ||
   process.argv.find((argument) => argument.startsWith("--base-url="))?.split("=")[1] ||
   "http://127.0.0.1:4317"
 ).replace(/\/$/, "");
 
 const suppliedLabel =
-  process.env.GRAPHCHAT_SEED_LABEL ||
+  process.env.PI_GRAPH_CHAT_SEED_LABEL ||
   process.argv.find((argument) => argument.startsWith("--label="))?.split("=")[1];
 const runLabel =
   suppliedLabel ||

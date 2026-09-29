@@ -10,7 +10,7 @@ overhead, and adds a read-only bridge to Pi coding-agent sessions.
 
 ### Added
 
-- Added the `graphchat-pi` Pi package (`packages/graphchat-pi`): graph tools,
+- Added the `pi-graph-chat-extension` Pi package (`packages/pi-extension`): graph tools,
   `/graph` and `/ref` commands, four learning skills, and two prompt templates
   for the terminal `pi`. Graph runs in the web app now load the user's own Pi
   extensions, skills, prompt templates, and packages.
@@ -37,9 +37,23 @@ overhead, and adds a read-only bridge to Pi coding-agent sessions.
 - Added Anthropic and Google Gemini providers through Pi's `pi-ai` catalog.
 - Added light and dark themes with a system-preference default, a persistent
   top-right toggle, and a no-flash bootstrap script.
+- Nodes record the tools their answer ran: name, arguments, a result summary,
+  and whether the call failed. The node card shows the count, the inspector
+  lists each call, and calls appear while the answer is still streaming.
+  Turns imported from the terminal carry their tool calls too.
+- Added DeepSeek as a provider (`DEEPSEEK_API_KEY` or an in-process key).
 
 ### Changed
 
+- **Breaking:** every `graphchat` identifier is now `pi-graph-chat`, with no
+  fallback to the old names. Environment variables are `PI_GRAPH_CHAT_*`, the
+  default data directory is `.pi-graph-chat`, the Pi package is
+  `pi-graph-chat-extension` in `packages/pi-extension`, and browser storage
+  keys, session file names, and the demo model id changed with them. To keep
+  existing data, rename `.graphchat` to `.pi-graph-chat` and the
+  `graphchat.sqlite` files inside it to `pi-graph-chat.sqlite`; reinstall the
+  Pi package from its new path. The format reference moved to
+  `docs/FORMAT.md`.
 - Turns added to a graph's Pi session from the terminal are imported as graph
   nodes when the graph is next read. Cancelled and failed runs record the
   entry Pi persisted, deleted or undone nodes hide their turns, interrupted
@@ -55,7 +69,7 @@ overhead, and adds a read-only bridge to Pi coding-agent sessions.
   errors.
 - Credentials moved to Pi's own agent directory through `ModelRuntime`:
   ChatGPT sign-in from the settings dialog and `pi /login` now share one
-  `auth.json`. The app-owned `.graphchat/auth.json` and the Codex CLI
+  `auth.json`. The app-owned `.pi-graph-chat/auth.json` and the Codex CLI
   credential import were removed.
 - Database schema version 7 adds `graphs.pi_session_path`,
   `nodes.pi_entry_id`, `graphs.project_dir`, and `pi_ignored_entries`.
@@ -80,6 +94,11 @@ overhead, and adds a read-only bridge to Pi coding-agent sessions.
   development toolchain.
 
 ### Fixed
+
+- Graph runs now expose `graph_search` and `graph_get_node` to the model. They
+  were filtered out by the tool allowlist, so every call failed.
+- API keys set in the environment are recognized for catalog providers;
+  before, only keys entered in the settings dialog worked.
 
 - Fixed the composer overlapping the inspector footer action bar.
 

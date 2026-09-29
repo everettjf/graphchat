@@ -20,7 +20,7 @@ const TestDatabase: SQLiteConstructor = await (async () => {
 const directories: string[] = [];
 
 function createDatabase() {
-  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "graphchat-test-"));
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "pi-graph-chat-test-"));
   directories.push(directory);
   return new GraphDatabase(directory);
 }
@@ -214,7 +214,7 @@ describe("GraphDatabase", () => {
   });
 
   it("recovers unfinished streaming nodes after a restart", () => {
-    const directory = fs.mkdtempSync(path.join(os.tmpdir(), "graphchat-test-"));
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), "pi-graph-chat-test-"));
     directories.push(directory);
     const first = new GraphDatabase(directory);
     const node = first.createNode({
@@ -430,9 +430,9 @@ describe("GraphDatabase", () => {
   });
 
   it("migrates a v0.1.1 database in place and marks schema version 8", () => {
-    const directory = fs.mkdtempSync(path.join(os.tmpdir(), "graphchat-migration-"));
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), "pi-graph-chat-migration-"));
     directories.push(directory);
-    const filename = path.join(directory, "graphchat.sqlite");
+    const filename = path.join(directory, "pi-graph-chat.sqlite");
     const legacy = new TestDatabase(filename);
     legacy.exec(`
       CREATE TABLE graphs (

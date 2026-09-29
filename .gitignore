@@ -9,9 +9,9 @@ coverage/
 *.tsbuildinfo
 
 # Local Graph Chat data
-.graphchat/
-.graphchat-e2e*/
-.graphchat-debug*/
+.pi-graph-chat/
+.pi-graph-chat-e2e*/
+.pi-graph-chat-debug*/
 *.sqlite
 *.sqlite-shm
 *.sqlite-wal

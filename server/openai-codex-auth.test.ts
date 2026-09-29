@@ -9,7 +9,7 @@ import { OpenAICodexAuthManager } from "./openai-codex-auth.js";
 const directories: string[] = [];
 
 async function setup(credentials?: Record<string, unknown>) {
-  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "graphchat-auth-"));
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "pi-graph-chat-auth-"));
   directories.push(directory);
   const authPath = path.join(directory, "auth.json");
   if (credentials) fs.writeFileSync(authPath, JSON.stringify(credentials));

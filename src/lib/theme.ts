@@ -3,7 +3,7 @@ import { useSyncExternalStore } from "react";
 export type ThemePreference = "light" | "dark" | null;
 export type ResolvedTheme = "light" | "dark";
 
-const STORAGE_KEY = "graphchat-theme";
+const STORAGE_KEY = "pi-graph-chat-theme";
 const media = window.matchMedia("(prefers-color-scheme: dark)");
 
 let preference: ThemePreference = (() => {

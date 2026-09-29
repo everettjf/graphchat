@@ -31,9 +31,9 @@ function assistantText(text: string, model = "claude-sonnet-5") {
  */
 export function seedPiSessions(sessionDir: string) {
   fs.rmSync(sessionDir, { recursive: true, force: true });
-  const projectDir = path.join(sessionDir, "--home-user-graphchat-demo--");
+  const projectDir = path.join(sessionDir, "--home-user-pi-graph-chat-demo--");
   fs.mkdirSync(projectDir, { recursive: true });
-  const manager = SessionManager.create("/home/user/graphchat-demo", projectDir, {
+  const manager = SessionManager.create("/home/user/pi-graph-chat-demo", projectDir, {
     id: "e2e-pi-session-0001",
   });
   manager.appendModelChange("anthropic", "claude-sonnet-5");

@@ -4,7 +4,7 @@ Pi Graph Chat exports a versioned JSON document from `GET /api/export`.
 Version 2 is the first public knowledge-asset format.
 
 ```ts
-type GraphChatBackup = {
+type PiGraphChatBackup = {
   version: 2;
   exportedAt: string;
   graphs: Array<{

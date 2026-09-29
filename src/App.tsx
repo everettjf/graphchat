@@ -62,7 +62,7 @@ export default function App() {
     refetchInterval: 8_000,
   });
   const [conversationWidth, setConversationWidth] = useState(() => {
-    const saved = Number(window.localStorage.getItem("graphchat-conversation-width"));
+    const saved = Number(window.localStorage.getItem("pi-graph-chat-conversation-width"));
     return saved >= 30 && saved <= 75 ? saved : 50;
   });
   const selectedNodeId = useWorkspace((state) => state.selectedNodeId);
@@ -94,7 +94,7 @@ export default function App() {
 
   useEffect(() => {
     window.localStorage.setItem(
-      "graphchat-conversation-width",
+      "pi-graph-chat-conversation-width",
       String(conversationWidth),
     );
   }, [conversationWidth]);
@@ -115,7 +115,7 @@ export default function App() {
         url.searchParams.delete("graph");
         window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
       }
-      const savedId = linkedGraphId ?? window.localStorage.getItem("graphchat-active-graph");
+      const savedId = linkedGraphId ?? window.localStorage.getItem("pi-graph-chat-active-graph");
       const savedGraph = savedId
         ? bootstrap.data.graphs.find((graph) => graph.id === savedId)
         : null;
@@ -163,7 +163,7 @@ export default function App() {
       const next = await api.graph(id);
       carryReferences();
       setDocumentState(next);
-      window.localStorage.setItem("graphchat-active-graph", id);
+      window.localStorage.setItem("pi-graph-chat-active-graph", id);
       selectNode(
         window.matchMedia("(min-width: 1280px)").matches
           ? next.nodes[0]?.id ?? null
@@ -184,7 +184,7 @@ export default function App() {
       setGraphs((current) => [created.graph, ...current]);
       carryReferences();
       setDocumentState(created);
-      window.localStorage.setItem("graphchat-active-graph", created.graph.id);
+      window.localStorage.setItem("pi-graph-chat-active-graph", created.graph.id);
       selectNode(null);
       setViewMode("content");
     },

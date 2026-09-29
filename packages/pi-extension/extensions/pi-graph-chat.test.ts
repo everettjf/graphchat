@@ -1,9 +1,9 @@
 // @vitest-environment node
 import { describe, expect, it, vi } from "vitest";
-import graphchatExtension, {
+import piGraphChatExtension, {
   GRAPH_BINDING_ENTRY,
   REFERENCE_MESSAGE_TYPE,
-} from "./graphchat.js";
+} from "./pi-graph-chat.js";
 
 type Registered = {
   tools: Map<string, any>;
@@ -55,17 +55,17 @@ const node = {
   sourceUrl: "",
 };
 
-describe("graphchat Pi extension", () => {
+describe("pi-graph-chat Pi extension", () => {
   it("stays silent when loaded inside the Pi Graph Chat server", () => {
     const { pi, registered } = fakePi();
-    graphchatExtension(pi, { env: { GRAPHCHAT_EMBEDDED: "1" } });
+    piGraphChatExtension(pi, { env: { PI_GRAPH_CHAT_EMBEDDED: "1" } });
     expect(registered.tools.size).toBe(0);
     expect(registered.commands.size).toBe(0);
   });
 
   it("registers graph tools and commands", () => {
     const { pi, registered } = fakePi();
-    graphchatExtension(pi, { env: {} });
+    piGraphChatExtension(pi, { env: {} });
     expect([...registered.tools.keys()].sort()).toEqual(["graph_get_node", "graph_search"]);
     expect([...registered.commands.keys()].sort()).toEqual(["graph", "ref"]);
   });
@@ -74,18 +74,18 @@ describe("graphchat Pi extension", () => {
     const { pi, registered } = fakePi();
     const fetchMock = vi.fn(async (input: string | URL | Request) => {
       const url = String(input);
-      if (url.endsWith("/api/graphs/by-session/graphchat-learning-rag")) return jsonResponse(graph);
+      if (url.endsWith("/api/graphs/by-session/pi-graph-chat-learning-rag")) return jsonResponse(graph);
       if (url.includes("/api/graphs/learning-rag/search?q=embedding")) return jsonResponse({ nodes: [node] });
       throw new Error(`Unexpected request: ${url}`);
     });
-    graphchatExtension(pi, { env: {}, baseUrl: "http://graphchat.test", fetch: fetchMock as typeof fetch });
-    const { ctx } = fakeContext("graphchat-learning-rag");
+    piGraphChatExtension(pi, { env: {}, baseUrl: "http://pi-graph-chat.test", fetch: fetchMock as typeof fetch });
+    const { ctx } = fakeContext("pi-graph-chat-learning-rag");
     const result = await registered.tools.get("graph_search").execute("call", { query: "embedding" }, undefined, undefined, ctx);
     expect(result.details).toEqual({ resultCount: 1 });
     expect(result.content[0].text).toContain("[Node: embedding] Understanding RAG · What exactly is an embedding?");
     expect(fetchMock.mock.calls.map((call) => String(call[0]))).toEqual([
-      "http://graphchat.test/api/graphs/by-session/graphchat-learning-rag",
-      "http://graphchat.test/api/graphs/learning-rag/search?q=embedding",
+      "http://pi-graph-chat.test/api/graphs/by-session/pi-graph-chat-learning-rag",
+      "http://pi-graph-chat.test/api/graphs/learning-rag/search?q=embedding",
     ]);
   });
 
@@ -99,7 +99,7 @@ describe("graphchat Pi extension", () => {
       if (url.includes("/api/graphs/learning-rag/search?q=vector")) return jsonResponse({ nodes: [node] });
       throw new Error(`Unexpected request: ${url}`);
     });
-    graphchatExtension(pi, { env: {}, baseUrl: "http://graphchat.test", fetch: fetchMock as typeof fetch });
+    piGraphChatExtension(pi, { env: {}, baseUrl: "http://pi-graph-chat.test", fetch: fetchMock as typeof fetch });
     const { ctx, notifications } = fakeContext("plain-session");
     const global = await registered.tools.get("graph_search").execute("call", { query: "vector" }, undefined, undefined, ctx);
     expect(global.content[0].text).toContain("Understanding RAG · What exactly");
@@ -110,7 +110,7 @@ describe("graphchat Pi extension", () => {
 
     const bound = fakeContext("plain-session", [{ type: "custom", customType: GRAPH_BINDING_ENTRY, data: { graphId: "learning-rag" } }]);
     await registered.tools.get("graph_search").execute("call", { query: "vector" }, undefined, undefined, bound.ctx);
-    expect(String(fetchMock.mock.calls.at(-1)?.[0])).toBe("http://graphchat.test/api/graphs/learning-rag/search?q=vector");
+    expect(String(fetchMock.mock.calls.at(-1)?.[0])).toBe("http://pi-graph-chat.test/api/graphs/learning-rag/search?q=vector");
   });
 
   it("opens the web app for the session and injects references", async () => {
@@ -118,21 +118,21 @@ describe("graphchat Pi extension", () => {
     const opened: string[] = [];
     const fetchMock = vi.fn(async (input: string | URL | Request) => {
       const url = String(input);
-      if (url.endsWith("/api/graphs/by-session/graphchat-learning-rag")) return jsonResponse(graph);
+      if (url.endsWith("/api/graphs/by-session/pi-graph-chat-learning-rag")) return jsonResponse(graph);
       if (url.endsWith("/api/nodes/embedding")) return jsonResponse(node);
       if (url.endsWith("/api/nodes/similarity")) return jsonResponse({ message: "no" }, 404);
       if (url.includes("/api/graphs/learning-rag/search?q=similarity")) return jsonResponse({ nodes: [node] });
       throw new Error(`Unexpected request: ${url}`);
     });
-    graphchatExtension(pi, {
+    piGraphChatExtension(pi, {
       env: {},
-      baseUrl: "http://graphchat.test",
+      baseUrl: "http://pi-graph-chat.test",
       fetch: fetchMock as typeof fetch,
       openUrl: (url) => opened.push(url),
     });
-    const { ctx, notifications } = fakeContext("graphchat-learning-rag");
+    const { ctx, notifications } = fakeContext("pi-graph-chat-learning-rag");
     await registered.commands.get("graph").handler("", ctx);
-    expect(opened).toEqual(["http://graphchat.test/?graph=learning-rag"]);
+    expect(opened).toEqual(["http://pi-graph-chat.test/?graph=learning-rag"]);
 
     await registered.commands.get("ref").handler("embedding", ctx);
     expect(registered.messages).toHaveLength(1);
@@ -154,7 +154,7 @@ describe("graphchat Pi extension", () => {
     const fetchMock = vi.fn(async () => {
       throw new Error("ECONNREFUSED");
     });
-    graphchatExtension(pi, { env: {}, baseUrl: "http://graphchat.test", fetch: fetchMock as unknown as typeof fetch });
+    piGraphChatExtension(pi, { env: {}, baseUrl: "http://pi-graph-chat.test", fetch: fetchMock as unknown as typeof fetch });
     const { ctx, notifications } = fakeContext("plain-session");
     await registered.commands.get("graph").handler("status", ctx);
     expect(notifications.at(-1)).toEqual([expect.stringContaining("not reachable"), "error"]);

@@ -13,10 +13,10 @@ afterEach(() => {
   for (const directory of directories.splice(0)) fs.rmSync(directory, { recursive: true, force: true });
 });
 
-describe("graphchat-pi package", () => {
+describe("pi-graph-chat-extension package", () => {
   it("is discovered by Pi's resource loader with its extension, skills, and prompts", async () => {
-    const agentDir = fs.mkdtempSync(path.join(os.tmpdir(), "graphchat-pi-agent-"));
-    const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "graphchat-pi-cwd-"));
+    const agentDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-graph-chat-extension-agent-"));
+    const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "pi-graph-chat-extension-cwd-"));
     directories.push(agentDir, cwd);
     const settingsManager = SettingsManager.inMemory({ packages: [packageDir] });
     const loader = new DefaultResourceLoader({ cwd, agentDir, settingsManager });
@@ -24,7 +24,7 @@ describe("graphchat-pi package", () => {
 
     const { extensions, errors } = loader.getExtensions();
     expect(errors).toEqual([]);
-    expect(extensions.map((extension) => path.basename(extension.path))).toEqual(["graphchat.ts"]);
+    expect(extensions.map((extension) => path.basename(extension.path))).toEqual(["pi-graph-chat.ts"]);
 
     const skills = loader.getSkills().skills.map((skill) => skill.name).sort();
     expect(skills).toEqual(["explain-back", "graph-compare", "graph-synthesize", "study-cards"]);

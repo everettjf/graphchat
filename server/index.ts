@@ -33,7 +33,7 @@ if (typeof process.loadEnvFile === "function") {
 
 const app = Fastify({ logger: { level: process.env.NODE_ENV === "test" ? "silent" : "info" } });
 const usingSystemProxy = await configureSystemProxy();
-const dataDirectory = path.resolve(process.env.GRAPHCHAT_DATA_DIR || ".graphchat");
+const dataDirectory = path.resolve(process.env.PI_GRAPH_CHAT_DATA_DIR || ".pi-graph-chat");
 const database = new GraphDatabase(dataDirectory);
 const piSessionDir = resolvePiSessionDir();
 const piSessions = new PiSessionIndex(piSessionDir);
@@ -59,8 +59,8 @@ function resolveProjectDir(value: string | null | undefined): { projectDir: stri
   return { projectDir: resolved };
 }
 const rootDirectory = path.dirname(fileURLToPath(import.meta.url));
-const productionClientDirectory = process.env.GRAPHCHAT_CLIENT_DIR
-  ? path.resolve(process.env.GRAPHCHAT_CLIENT_DIR)
+const productionClientDirectory = process.env.PI_GRAPH_CHAT_CLIENT_DIR
+  ? path.resolve(process.env.PI_GRAPH_CHAT_CLIENT_DIR)
   : path.resolve(rootDirectory, "../../dist");
 
 if (usingSystemProxy) {
@@ -79,7 +79,7 @@ app.get("/api/diagnostics", async () => ({
   agentDir: runtime.agentDir,
   piSessionDir,
   extensionErrors: runtime.extensionErrors,
-  extensionsEnabled: process.env.GRAPHCHAT_PI_EXTENSIONS !== "0",
+  extensionsEnabled: process.env.PI_GRAPH_CHAT_PI_EXTENSIONS !== "0",
 }));
 
 app.get("/api/auth/openai-codex", async (_request, reply) => {
@@ -242,7 +242,7 @@ app.get<{ Params: { id: string } }>("/api/graphs/:id/export.md", async (request,
   const markdown = database.exportGraphMarkdown(request.params.id);
   if (markdown == null) return reply.code(404).send({ message: "Graph not found" });
   reply.header("Content-Type", "text/markdown; charset=utf-8");
-  reply.header("Content-Disposition", `attachment; filename="graphchat-${request.params.id}.md"`);
+  reply.header("Content-Disposition", `attachment; filename="pi-graph-chat-${request.params.id}.md"`);
   return markdown;
 });
 
@@ -381,7 +381,7 @@ app.get<{ Params: { id: string } }>("/api/pi/sessions/:id", async (request, repl
 });
 
 app.get("/api/export", async (_request, reply) => {
-  reply.header("Content-Disposition", `attachment; filename="graphchat-export.json"`);
+  reply.header("Content-Disposition", `attachment; filename="pi-graph-chat-export.json"`);
   return database.exportAll();
 });
 
@@ -424,7 +424,7 @@ app.delete<{ Params: { nodeId: string } }>("/api/runs/:nodeId", async (request, 
 });
 
 if (
-  process.env.GRAPHCHAT_CLIENT_DIR ||
+  process.env.PI_GRAPH_CHAT_CLIENT_DIR ||
   process.env.NODE_ENV === "production" ||
   process.argv[1]?.includes("dist-server")
 ) {

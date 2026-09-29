@@ -34,7 +34,7 @@ describe("I18nProvider", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "switch" }));
     expect(screen.getByTestId("locale")).toHaveTextContent("zh");
-    expect(window.localStorage.getItem("graphchat-language")).toBe("zh");
+    expect(window.localStorage.getItem("pi-graph-chat-language")).toBe("zh");
     expect(screen.getByText("已归档对话")).toBeVisible();
     expect(screen.getByText("自动布局")).toBeVisible();
     expect(window.location.search).toBe("?lang=zh");

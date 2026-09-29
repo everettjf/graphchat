@@ -54,7 +54,7 @@ test.describe("Codebase-rooted graphs and cross-session references", () => {
     expect(graph.projectDir).toBe(projectDir);
     expect(graph.piSessionPath).toContain(`--${projectDir.replace(/^[/\\]/, "").replace(/[/\\:]/g, "-")}--`);
     const sessions = await (await request.get("/api/pi/sessions")).json();
-    const backing = sessions.sessions.find((session: { id: string }) => session.id === `graphchat-${graph.id}`);
+    const backing = sessions.sessions.find((session: { id: string }) => session.id === `pi-graph-chat-${graph.id}`);
     expect(backing).toMatchObject({ cwd: projectDir, name: "Demo project graph", turnCount: 1 });
 
     await page.getByTestId("graph-open-terminal").click();
@@ -112,7 +112,7 @@ test.describe("Codebase-rooted graphs and cross-session references", () => {
     ).toBe(true);
 
     // The graph's own session appears in the Pi list and links back to the graph.
-    await page.getByTestId("pi-session-graphchat-learning-rag").click();
+    await page.getByTestId("pi-session-pi-graph-chat-learning-rag").click();
     await expect(page.getByTestId("pi-session-view")).toBeVisible();
     await page.getByTestId("pi-open-graph").click();
     await expect(page.getByTestId("pi-session-view")).toHaveCount(0);
