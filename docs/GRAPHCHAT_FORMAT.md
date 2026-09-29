@@ -47,6 +47,15 @@ type GraphNode = {
     estimatedTokens: number;
     omittedNodeIds: string[];
   } | null;
+  // Tools the answer ran, in call order. Optional on import; defaults to [].
+  // `arguments` and `result` are summaries cut at 2,000 and 4,000 characters.
+  toolCalls: Array<{
+    id: string;
+    name: string;
+    arguments: string;
+    result: string;
+    isError: boolean;
+  }>;
   selectedText: string | null;
   x: number;
   y: number;
@@ -72,6 +81,10 @@ type GraphEdge = {
 Restore is intentionally non-destructive. `POST /api/restore` accepts a backup
 and creates new graphs with `(restored)` appended to their titles. Node and edge
 IDs are remapped so restored material cannot overwrite existing data.
+
+Tool calls record what a model read while answering. In a graph rooted in a
+codebase that can include excerpts of project files, so review an export before
+sharing it.
 
 Credentials are not part of this format. API keys are process-only and ChatGPT
 OAuth credentials remain in the private local credential file.

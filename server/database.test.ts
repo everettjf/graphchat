@@ -160,6 +160,17 @@ describe("GraphDatabase", () => {
     expect(database.undoGraph("learning-rag")?.nodes.find((node) => node.id === "embedding")?.title)
       .toBe(before.nodes.find((node) => node.id === "embedding")?.title);
 
+    // Tool calls are not history: undo keeps them, and a backup carries them.
+    const toolCalls = [
+      { id: "call-1", name: "graph_search", arguments: '{"query":"rag"}', result: "1 node", isError: false },
+    ];
+    expect(database.setNodeToolCalls("embedding", toolCalls)).toBe(true);
+    database.updateNode("embedding", { rating: 1 });
+    database.setNodeToolCalls("vector-db", toolCalls);
+    const undone = database.undoGraph("learning-rag")!;
+    expect(undone.nodes.find((node) => node.id === "embedding")?.toolCalls).toEqual(toolCalls);
+    expect(undone.nodes.find((node) => node.id === "vector-db")?.toolCalls).toEqual(toolCalls);
+
     const edge = before.edges[0]!;
     rawDatabase(database)
       .prepare("UPDATE edges SET include_in_context = 0 WHERE id = ?")
@@ -171,6 +182,7 @@ describe("GraphDatabase", () => {
     expect(restored[0]?.graph.title).toContain("(restored)");
     expect(restored[0]?.nodes).toHaveLength(before.nodes.length);
     expect(restored[0]?.edges).toHaveLength(before.edges.length);
+    expect(restored[0]?.nodes.filter((node) => node.toolCalls.length === 1)).toHaveLength(2);
     const restoredSource = restored[0]!.nodes.find(
       (node) => node.title === before.nodes.find((item) => item.id === edge.source)!.title,
     )!;
@@ -417,7 +429,7 @@ describe("GraphDatabase", () => {
     database.close();
   });
 
-  it("migrates a v0.1.1 database in place and marks schema version 7", () => {
+  it("migrates a v0.1.1 database in place and marks schema version 8", () => {
     const directory = fs.mkdtempSync(path.join(os.tmpdir(), "graphchat-migration-"));
     directories.push(directory);
     const filename = path.join(directory, "graphchat.sqlite");
@@ -494,6 +506,7 @@ describe("GraphDatabase", () => {
       }),
     );
     expect(migrated.searchNodes("legacy-graph", "child content")[0]?.id).toBe("legacy-child");
+    expect(migratedGraph.nodes.every((node) => node.toolCalls.length === 0)).toBe(true);
     migrated.close();
 
     const inspected = new TestDatabase(filename);
@@ -503,7 +516,7 @@ describe("GraphDatabase", () => {
           user_version: number;
         }
       ).user_version,
-    ).toBe(7);
+    ).toBe(8);
     inspected.close();
   });
 

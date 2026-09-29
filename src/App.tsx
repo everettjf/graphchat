@@ -338,6 +338,23 @@ export default function App() {
             node.id === event.nodeId ? { ...node, content: node.content + event.delta } : node,
           ),
         }));
+      } else if (event.type === "tool_started" || event.type === "tool_finished") {
+        const call = event.call;
+        if (call) {
+          setDocument((current) => ({
+            ...current,
+            nodes: current.nodes.map((node) =>
+              node.id === event.nodeId
+                ? {
+                    ...node,
+                    toolCalls: node.toolCalls.some((existing) => existing.id === call.id)
+                      ? node.toolCalls.map((existing) => (existing.id === call.id ? call : existing))
+                      : [...node.toolCalls, call],
+                  }
+                : node,
+            ),
+          }));
+        }
       } else if (event.type === "run_finished") {
         setDocument((current) => ({
           ...current,

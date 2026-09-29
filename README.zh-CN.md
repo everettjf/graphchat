@@ -42,7 +42,7 @@ Pi Graph Chat 是我给自己做的学习工具，不是产品，也不打算做
 | 跨会话引用 | 下一个问题可以引用其他图的节点，或任意终端 Pi 会话的某个回合；它们以芯片的形式出现在输入框里 |
 | Pi package | `packages/graphchat-pi` 给终端 `pi` 提供图谱工具、`/graph`、`/ref`、四个学习 skills 和两个 prompt 模板 |
 | 你的 Pi 配置 | 图谱运行通过 Pi 的正常发现机制加载你自己的扩展、skills、prompt 模板和已安装的 package |
-| 通过 Pi 使用模型 | ChatGPT 订阅（Codex OAuth）、OpenAI、Anthropic、Google Gemini、OpenRouter、Ollama、任意 OpenAI-compatible endpoint |
+| 通过 Pi 使用模型 | ChatGPT 订阅（Codex OAuth）、OpenAI、Anthropic、Google Gemini、OpenRouter、DeepSeek、Ollama、任意 OpenAI-compatible endpoint |
 | 本地数据 | Bun/Node SQLite + FTS5、版本化 JSON 备份、Obsidian 友好的 Markdown 导出 |
 | 导入 | Markdown、纯文本、文本型 PDF |
 | 学习 | 知识元数据、学习卡片、本地图谱指标 |
@@ -121,6 +121,7 @@ bun run launch
 | Anthropic | `ANTHROPIC_API_KEY` 或进程内输入 |
 | Google Gemini | `GEMINI_API_KEY` 或进程内输入 |
 | OpenRouter | `OPENROUTER_API_KEY` 或进程内输入 |
+| DeepSeek | `DEEPSEEK_API_KEY` 或进程内输入 |
 | Ollama | 无需密钥；`http://127.0.0.1:11434/v1` |
 | 自定义 | 任意 OpenAI-compatible endpoint，可选进程内密钥 |
 

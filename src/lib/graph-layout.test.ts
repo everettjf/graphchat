@@ -18,6 +18,7 @@ function node(id: string): GraphNode {
     credibility: null,
     rating: 0,
     contextSnapshot: null,
+    toolCalls: [],
     selectedText: null,
     x: 0,
     y: 0,

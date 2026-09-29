@@ -11,6 +11,7 @@ import {
   ThumbsDown,
   ThumbsUp,
   WandSparkles,
+  Wrench,
   X,
 } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -18,6 +19,7 @@ import type { GraphDocument, GraphNode, UpdateNodeInput } from "@shared/types";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { Markdown } from "./markdown";
+import { ToolCallItem } from "./tool-call-item";
 import { useWorkspace } from "@/store/workspace";
 import { cn, formatRelativeTime } from "@/lib/utils";
 import { useI18n } from "@/i18n";
@@ -189,6 +191,30 @@ export function Inspector({
               {node.prompt}
             </p>
           </div>
+        )}
+
+        {node.toolCalls.length > 0 && (
+          <section className="mt-5" data-testid="node-tool-calls">
+            <div className="mb-2 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.13em] text-[var(--muted-light)]">
+              <Wrench className="size-3.5" />
+              {t("pi.toolCalls")} · {node.toolCalls.length}
+            </div>
+            <div className="space-y-1.5">
+              {node.toolCalls.map((call, index) => (
+                <ToolCallItem
+                  key={call.id}
+                  call={call}
+                  running={
+                    node.status === "streaming" &&
+                    index === node.toolCalls.length - 1 &&
+                    !call.result &&
+                    !call.isError &&
+                    !node.content
+                  }
+                />
+              ))}
+            </div>
+          </section>
         )}
 
         <div

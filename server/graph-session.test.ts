@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { SessionManager } from "@earendil-works/pi-coding-agent";
 import { afterEach, describe, expect, it } from "vitest";
+import { TOOL_CALL_RESULT_LIMIT } from "../shared/tool-calls.js";
 import { GraphDatabase } from "./database.js";
 import { GraphSessionSync, importSessionTurnsIntoGraph, openGraphSession } from "./graph-session.js";
 
@@ -149,6 +150,52 @@ describe("importSessionTurnsIntoGraph", () => {
     expect(restored.nodes.find((node) => node.id === "similarity")?.piEntryId).toBe(own);
     expect(importSessionTurnsIntoGraph(database, restored, SessionManager.open(manager.getSessionFile()!))).toEqual([]);
     expect(database.getGraph("learning-rag")!.nodes).toHaveLength(before.nodes.length);
+    database.close();
+  });
+
+  it("records the tools a terminal turn ran, with long results cut to a summary", () => {
+    const { database, manager } = setup();
+    manager.branch(database.getNode("embedding")!.piEntryId!);
+    manager.appendMessage({ role: "user", content: "Read the notes", timestamp: Date.now() });
+    manager.appendMessage({
+      role: "assistant",
+      content: [{ type: "toolCall", id: "call-1", name: "read", arguments: { path: "notes.md" } }],
+      api: "openai-completions",
+      provider: "terminal",
+      model: "terminal-model",
+      usage,
+      stopReason: "toolUse",
+      timestamp: Date.now(),
+    });
+    manager.appendMessage({
+      role: "toolResult",
+      toolCallId: "call-1",
+      toolName: "read",
+      content: [{ type: "text", text: "x".repeat(10_000) }],
+      isError: true,
+      timestamp: Date.now(),
+    });
+    manager.appendMessage({
+      role: "assistant",
+      content: [{ type: "text", text: "The notes could not be read." }],
+      api: "openai-completions",
+      provider: "terminal",
+      model: "terminal-model",
+      usage,
+      stopReason: "stop",
+      timestamp: Date.now(),
+    });
+
+    const [created] = importSessionTurnsIntoGraph(
+      database,
+      database.getGraph("learning-rag")!,
+      SessionManager.open(manager.getSessionFile()!),
+    );
+    const stored = database.getNode(created!.id)!;
+    expect(stored.toolCalls).toHaveLength(1);
+    expect(stored.toolCalls[0]).toMatchObject({ id: "call-1", name: "read", isError: true });
+    expect(JSON.parse(stored.toolCalls[0]!.arguments)).toEqual({ path: "notes.md" });
+    expect(stored.toolCalls[0]!.result).toHaveLength(TOOL_CALL_RESULT_LIMIT);
     database.close();
   });
 

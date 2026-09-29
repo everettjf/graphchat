@@ -21,6 +21,14 @@ export const contextSnapshotSchema = z.object({
   omittedNodeIds: z.array(z.string()),
 });
 
+export const toolCallSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  arguments: z.string().default(""),
+  result: z.string().default(""),
+  isError: z.boolean().default(false),
+});
+
 export const graphNodeSchema = z.object({
   id: z.string(),
   graphId: z.string(),
@@ -36,6 +44,8 @@ export const graphNodeSchema = z.object({
   credibility: z.number().int().min(1).max(5).nullable().default(null),
   rating: z.number().int().min(-1).max(1).default(0),
   contextSnapshot: contextSnapshotSchema.nullable().default(null),
+  /** Tools the answer actually ran, in call order. */
+  toolCalls: z.array(toolCallSchema).default([]),
   selectedText: z.string().nullable().default(null),
   x: z.number(),
   y: z.number(),
@@ -86,6 +96,7 @@ export const providerSettingsSchema = z.object({
     "anthropic",
     "google",
     "openrouter",
+    "deepseek",
     "ollama",
     "custom",
   ]),
@@ -111,6 +122,7 @@ export const createNodeSchema = z.object({
   credibility: z.number().int().min(1).max(5).nullable().default(null),
   rating: z.number().int().min(-1).max(1).default(0),
   contextSnapshot: contextSnapshotSchema.nullable().default(null),
+  toolCalls: z.array(toolCallSchema).default([]),
   selectedText: z.string().nullable().default(null),
   x: z.number(),
   y: z.number(),
@@ -259,6 +271,8 @@ export type RunStreamEvent =
       nodeId: string;
       tool: string;
       label: string;
+      /** The call as recorded on the node; its result arrives with tool_finished. */
+      call?: PiToolCall;
     }
   | {
       type: "tool_finished";
@@ -266,6 +280,7 @@ export type RunStreamEvent =
       nodeId: string;
       tool: string;
       summary: string;
+      call?: PiToolCall;
     }
   | { type: "run_finished"; runId: string; nodeId: string; node: GraphNode }
   | {
@@ -314,13 +329,7 @@ export type PiSessionSummary = {
   model: string | null;
 };
 
-export type PiToolCall = {
-  id: string;
-  name: string;
-  arguments: string;
-  result: string;
-  isError: boolean;
-};
+export type PiToolCall = z.infer<typeof toolCallSchema>;
 
 export type PiTurnKind =
   | "user"

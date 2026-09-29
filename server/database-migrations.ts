@@ -89,6 +89,7 @@ export function migrateGraphDatabase(db: SQLiteDatabase) {
     ["rating", "INTEGER NOT NULL DEFAULT 0"],
     ["context_snapshot", "TEXT"],
     ["pi_entry_id", "TEXT"],
+    ["tool_calls", "TEXT NOT NULL DEFAULT '[]'"],
   ] as const;
   for (const [name, definition] of additions) {
     if (!nodeColumns.some((column) => column.name === name)) {

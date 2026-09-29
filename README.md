@@ -47,7 +47,7 @@ not try to be one. Two ideas hold it together:
 | Cross-session references | Cite a node from another graph or a turn from any terminal Pi session in the next question; they travel as chips in the composer |
 | Pi package | `packages/graphchat-pi` gives the terminal `pi` the graph tools, `/graph`, `/ref`, four learning skills, and two prompt templates |
 | Your Pi setup | Graph runs load your own Pi extensions, skills, prompt templates, and packages through Pi's normal discovery |
-| Models via Pi | ChatGPT subscription (Codex OAuth), OpenAI, Anthropic, Google Gemini, OpenRouter, Ollama, any OpenAI-compatible endpoint |
+| Models via Pi | ChatGPT subscription (Codex OAuth), OpenAI, Anthropic, Google Gemini, OpenRouter, DeepSeek, Ollama, any OpenAI-compatible endpoint |
 | Local data | Bun/Node SQLite with FTS5, versioned JSON backup, Obsidian-friendly Markdown export |
 | Import | Markdown, plain text, and text-based PDF |
 | Study | Knowledge metadata, study cards, local graph metrics |
@@ -159,6 +159,7 @@ Open **Models & settings** in the sidebar. Every provider is served by Pi's
 | Anthropic | `ANTHROPIC_API_KEY` or an in-process key |
 | Google Gemini | `GEMINI_API_KEY` or an in-process key |
 | OpenRouter | `OPENROUTER_API_KEY` or an in-process key |
+| DeepSeek | `DEEPSEEK_API_KEY` or an in-process key |
 | Ollama | No key; `http://127.0.0.1:11434/v1` |
 | Custom | Any OpenAI-compatible endpoint, optional in-process key |
 

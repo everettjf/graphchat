@@ -71,6 +71,26 @@ describe("GraphAgentRuntime", () => {
     database.close();
   });
 
+  it("picks up a catalog provider's API key from the environment", async () => {
+    const previous = process.env.DEEPSEEK_API_KEY;
+    process.env.DEEPSEEK_API_KEY = "environment-test-key";
+    try {
+      const { database, runtime, agentDir } = await setup();
+      expect(runtime.hasApiKey("deepseek")).toBe(true);
+      expect(runtime.hasApiKey("openrouter")).toBe(Boolean(process.env.OPENROUTER_API_KEY));
+      expect(runtime.modelRuntime.getModel("deepseek", "deepseek-flash")).toBeTruthy();
+      // The key stays in the environment: nothing is written to Pi's credential file.
+      const authPath = path.join(agentDir, "auth.json");
+      expect(fs.existsSync(authPath) ? fs.readFileSync(authPath, "utf8") : "").not.toContain(
+        "environment-test-key",
+      );
+      database.close();
+    } finally {
+      if (previous === undefined) delete process.env.DEEPSEEK_API_KEY;
+      else process.env.DEEPSEEK_API_KEY = previous;
+    }
+  });
+
   it("streams a Pi-backed demo answer and persists the final node", async () => {
     const { database, runtime } = await setup();
     const events = await collect(
@@ -257,6 +277,24 @@ export default function marker(pi) {
     expect(eventTypes).toContain("tool_started");
     expect(eventTypes).toContain("tool_finished");
     expect(eventTypes.at(-1)).toBe("run_finished");
+
+    const started = events.find((event) => event.type === "tool_started");
+    const finished = events.find((event) => event.type === "tool_finished");
+    expect(started?.type === "tool_started" && started.call).toMatchObject({
+      name: "graph_search",
+      result: "",
+    });
+    const last = events.at(-1);
+    const stored = last?.type === "run_finished" ? database.getNode(last.node.id) : null;
+    expect(last?.type === "run_finished" && last.node.toolCalls).toEqual(stored?.toolCalls);
+    expect(stored?.toolCalls).toHaveLength(1);
+    expect(stored?.toolCalls[0]).toMatchObject({
+      id: finished?.type === "tool_finished" ? finished.call?.id : undefined,
+      name: "graph_search",
+      isError: false,
+    });
+    expect(JSON.parse(stored!.toolCalls[0]!.arguments)).toEqual({ query: "向量数据库" });
+    expect(stored!.toolCalls[0]!.result.length).toBeGreaterThan(0);
     database.close();
   });
 
@@ -293,8 +331,15 @@ export default function marker(pi) {
       baseRequest({ graphId: created.graph.id, parentNodeId: null, prompt: "What does this repo do?", locale: "en" }),
     );
     expect(events.at(-1)?.type).toBe("run_finished");
-    // Built-in tools only; the graph tools are custom tools registered separately.
-    expect(runtime.lastRunToolNames.sort()).toEqual(["find", "grep", "ls", "read"]);
+    // Read-only built-ins plus the graph tools; never bash, edit, or write.
+    expect(runtime.lastRunToolNames.sort()).toEqual([
+      "find",
+      "graph_get_node",
+      "graph_search",
+      "grep",
+      "ls",
+      "read",
+    ]);
 
     const graph = database.getGraph(created.graph.id)!;
     expect(graph.graph.projectDir).toBe(projectDir);
@@ -310,7 +355,7 @@ export default function marker(pi) {
 
     // A plain graph only exposes `read` (for skills) plus the graph tools.
     await collect(runtime, database, baseRequest({ locale: "en" }));
-    expect(runtime.lastRunToolNames).toEqual(["read"]);
+    expect(runtime.lastRunToolNames.sort()).toEqual(["graph_get_node", "graph_search", "read"]);
     database.close();
   });
 

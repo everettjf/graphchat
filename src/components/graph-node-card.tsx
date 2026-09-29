@@ -10,6 +10,7 @@ import {
   MessageCircleQuestion,
   Sparkles,
   StickyNote,
+  Wrench,
 } from "lucide-react";
 import type { GraphNode } from "@shared/types";
 import { cn } from "@/lib/utils";
@@ -107,6 +108,15 @@ export function GraphNodeCard({ data, selected }: NodeProps) {
           <Cpu className="size-3" />
           {node.model || t("node.manualNote")}
         </span>
+        {node.toolCalls.length > 0 && (
+          <span
+            data-testid="node-tool-count"
+            title={t("pi.toolCalls")}
+            className="ml-auto mr-1.5 flex items-center gap-1 rounded-md bg-[var(--paper-deep)] px-1.5 py-0.5 text-[9px] font-semibold text-[var(--muted)]"
+          >
+            <Wrench className="size-2.5" /> {node.toolCalls.length}
+          </span>
+        )}
         {referenced && (
           <span className="rounded-md bg-[var(--accent-soft)] px-2 py-0.5 text-[9px] font-semibold text-[var(--accent-fg)]">
             {t("node.referenced")}

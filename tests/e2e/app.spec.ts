@@ -28,7 +28,7 @@ test.describe("Pi Graph Chat", () => {
       ok: true,
       service: "pi-graph-chat",
       version: "0.3.0",
-      databaseSchemaVersion: 7,
+      databaseSchemaVersion: 8,
     });
     await page.goto("/");
     await expect(page.locator("html")).toHaveAttribute("lang", "en");
@@ -144,6 +144,51 @@ test.describe("Pi Graph Chat", () => {
 
     await page.getByTestId("graph-open-terminal").click();
     await expect(page.getByText("Command copied to the clipboard")).toBeVisible();
+  });
+
+  test("records the tools an answer ran and shows them on the card and in the inspector", async ({
+    page,
+    request,
+  }) => {
+    await page.goto("/");
+    await openGraphView(page);
+    await page.getByTestId("graph-node-vector-db").click();
+
+    const prompt = "Which nodes explain similarity search?";
+    await page.getByTestId("composer-input").fill(prompt);
+    await page.getByText("Explore graph").click();
+    await page.getByTestId("composer-submit").click();
+
+    // The call shows up while the answer is still being produced.
+    const calls = page.getByTestId("node-tool-calls");
+    await expect(calls.getByTestId("tool-call-item")).toHaveCount(1, { timeout: 15_000 });
+    await expect(calls).toContainText("graph_search");
+    await expect(
+      page.getByText("Answer saved to the knowledge graph"),
+    ).toBeVisible({ timeout: 15_000 });
+
+    const graph = await (await request.get("/api/graphs/learning-rag")).json();
+    const created = graph.nodes.find((node: { prompt: string }) => node.prompt === prompt);
+    expect(created.toolCalls).toHaveLength(1);
+    expect(created.toolCalls[0]).toMatchObject({ name: "graph_search", isError: false });
+    expect(JSON.parse(created.toolCalls[0].arguments)).toEqual({ query: prompt });
+    expect(created.toolCalls[0].result).not.toBe("");
+
+    await page.reload();
+    await openGraphView(page);
+    await expect(
+      page.getByTestId(`graph-node-${created.id}`).getByTestId("node-tool-count"),
+    ).toHaveText("1");
+    await page.getByTestId(`graph-node-${created.id}`).click();
+    await page.getByTestId("node-tool-calls").getByTestId("tool-call-item").click();
+    await expect(page.getByTestId("node-tool-calls")).toContainText("Arguments");
+    await expect(page.getByTestId("node-tool-calls")).toContainText("Result");
+
+    const exported = await (await request.get("/api/export")).json();
+    const exportedNode = exported.graphs
+      .flatMap((item: { nodes: Array<{ id: string }> }) => item.nodes)
+      .find((node: { id: string }) => node.id === created.id);
+    expect(exportedNode.toolCalls).toEqual(created.toolCalls);
   });
 
   test("keeps streaming deltas attached to their run node when selection changes", async ({

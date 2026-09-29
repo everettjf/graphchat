@@ -84,7 +84,9 @@ async function smokeProvider({ provider, model, baseUrl: providerBaseUrl }) {
     mode: "explore",
   });
   console.log(
-    `[${provider}] explore: ${explore.node.content.length} chars, events=${explore.events.map((event) => event.type).join(",")}`,
+    `[${provider}] explore: ${explore.node.content.length} chars, tools=${explore.node.toolCalls
+      .map((call) => `${call.name}${call.isError ? "(error)" : ""}`)
+      .join(",") || "none"}`,
   );
 
   const synthesis = await run({
@@ -122,17 +124,12 @@ async function smokeProvider({ provider, model, baseUrl: providerBaseUrl }) {
 
 const health = await json("/health");
 if (!health.ok) throw new Error("Pi Graph Chat smoke server is unhealthy");
-const auth = await json("/api/auth/openai-codex");
-if (auth.state !== "authenticated") {
-  throw new Error(`Codex authentication is ${auth.state}, expected authenticated`);
-}
-const ollama = await json("/api/providers/ollama/models");
-if (!ollama.models.includes("qwen3.5:4b")) {
-  throw new Error("qwen3.5:4b is not available in Ollama");
-}
-
 const selectedProvider = process.env.GRAPHCHAT_SMOKE_PROVIDER;
 if (!selectedProvider || selectedProvider === "openai-codex") {
+  const auth = await json("/api/auth/openai-codex");
+  if (auth.state !== "authenticated") {
+    throw new Error(`Codex authentication is ${auth.state}, expected authenticated`);
+  }
   await smokeProvider({
     provider: "openai-codex",
     model: "gpt-5.5",
@@ -140,10 +137,22 @@ if (!selectedProvider || selectedProvider === "openai-codex") {
   });
 }
 if (!selectedProvider || selectedProvider === "ollama") {
+  const ollama = await json("/api/providers/ollama/models");
+  if (!ollama.models.includes("qwen3.5:4b")) {
+    throw new Error("qwen3.5:4b is not available in Ollama");
+  }
   await smokeProvider({
     provider: "ollama",
     model: "qwen3.5:4b",
     baseUrl: "http://127.0.0.1:11434/v1",
+  });
+}
+// Opt-in: needs DEEPSEEK_API_KEY in the server's environment.
+if (selectedProvider === "deepseek") {
+  await smokeProvider({
+    provider: "deepseek",
+    model: process.env.GRAPHCHAT_SMOKE_MODEL || "deepseek-flash",
+    baseUrl: "",
   });
 }
 console.log("\nAll real-provider smoke checks passed.");

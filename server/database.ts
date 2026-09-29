@@ -112,6 +112,7 @@ export class GraphDatabase {
       credibility: null,
       rating: 0,
       contextSnapshot: null,
+      toolCalls: [],
       piEntryId: null,
     };
     const nodes: GraphNode[] = [
@@ -481,6 +482,14 @@ export class GraphDatabase {
     return Number(result?.changes ?? 0) > 0;
   }
 
+  /** Record the tools a node's answer ran. Not part of undo history. */
+  setNodeToolCalls(nodeId: string, toolCalls: GraphNode["toolCalls"]): boolean {
+    const result = this.db
+      .prepare("UPDATE nodes SET tool_calls = ? WHERE id = ?")
+      .run(JSON.stringify(toolCalls), nodeId) as { changes?: number };
+    return Number(result?.changes ?? 0) > 0;
+  }
+
   getNode(id: string): GraphNode | null {
     const row = this.db.prepare("SELECT * FROM nodes WHERE id = ?").get(id) as Record<string, unknown> | undefined;
     return row ? this.mapNode(row) : null;
@@ -504,6 +513,13 @@ export class GraphDatabase {
       credibility: input.credibility ?? null,
       rating: input.rating ?? 0,
       contextSnapshot: input.contextSnapshot ?? null,
+      toolCalls: (input.toolCalls ?? []).map((call) => ({
+        id: call.id,
+        name: call.name,
+        arguments: call.arguments ?? "",
+        result: call.result ?? "",
+        isError: call.isError ?? false,
+      })),
       selectedText: input.selectedText ?? null,
       x: input.x,
       y: input.y,
@@ -519,8 +535,8 @@ export class GraphDatabase {
         INSERT INTO nodes (
           id, graph_id, kind, title, prompt, content, summary, tags,
           knowledge_status, mastery, source_url, credibility, rating, context_snapshot,
-          selected_text, x, y, status, provider, model, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          tool_calls, selected_text, x, y, status, provider, model, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `)
       .run(
         node.id,
@@ -537,6 +553,7 @@ export class GraphDatabase {
         node.credibility,
         node.rating,
         node.contextSnapshot == null ? null : JSON.stringify(node.contextSnapshot),
+        JSON.stringify(node.toolCalls),
         node.selectedText,
         node.x,
         node.y,
@@ -867,6 +884,7 @@ export class GraphDatabase {
           credibility: node.credibility,
           rating: node.rating,
           contextSnapshot: node.contextSnapshot,
+          toolCalls: node.toolCalls,
           selectedText: node.selectedText,
           x: node.x,
           y: node.y,
@@ -1070,13 +1088,17 @@ export class GraphDatabase {
       const currentEntry = new Map(
         (current?.nodes ?? []).map((node) => [node.id, node.piEntryId] as const),
       );
+      // Same for tool calls: snapshots taken before a run finished lack them.
+      const currentToolCalls = new Map(
+        (current?.nodes ?? []).map((node) => [node.id, node.toolCalls] as const),
+      );
       this.db.prepare("DELETE FROM nodes WHERE graph_id = ?").run(graphId);
       const insertNode = this.db.prepare(`
         INSERT INTO nodes (
           id, graph_id, kind, title, prompt, content, summary, tags,
           knowledge_status, mastery, source_url, credibility, rating, context_snapshot,
-          selected_text, x, y, status, provider, model, pi_entry_id, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          tool_calls, selected_text, x, y, status, provider, model, pi_entry_id, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `);
       for (const node of snapshot.nodes) {
         insertNode.run(
@@ -1084,6 +1106,9 @@ export class GraphDatabase {
           node.summary, JSON.stringify(node.tags), node.knowledgeStatus, node.mastery,
           node.sourceUrl, node.credibility, node.rating,
           node.contextSnapshot == null ? null : JSON.stringify(node.contextSnapshot),
+          JSON.stringify(
+            node.toolCalls?.length ? node.toolCalls : (currentToolCalls.get(node.id) ?? []),
+          ),
           node.selectedText,
           node.x, node.y, node.status, node.provider, node.model,
           node.piEntryId ?? currentEntry.get(node.id) ?? null,
@@ -1164,6 +1189,13 @@ export class GraphDatabase {
         return JSON.parse(String(row.context_snapshot)) as GraphNode["contextSnapshot"];
       } catch {
         return null;
+      }
+    })(),
+    toolCalls: (() => {
+      try {
+        return JSON.parse(String(row.tool_calls || "[]")) as GraphNode["toolCalls"];
+      } catch {
+        return [];
       }
     })(),
     selectedText: row.selected_text == null ? null : String(row.selected_text),

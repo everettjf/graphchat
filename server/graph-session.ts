@@ -2,6 +2,11 @@ import fs from "node:fs";
 import path from "node:path";
 import { SessionManager } from "@earendil-works/pi-coding-agent";
 import type { GraphDocument, GraphNode } from "../shared/types.js";
+import {
+  clipToolText,
+  TOOL_CALL_ARGUMENTS_LIMIT,
+  TOOL_CALL_RESULT_LIMIT,
+} from "../shared/tool-calls.js";
 import type { GraphDatabase } from "./database.js";
 import { buildTurns } from "./pi-sessions.js";
 
@@ -265,6 +270,11 @@ export function importSessionTurnsIntoGraph(
         content: turn.response,
         summary: summarizeText(turn.response),
         tags: ["pi-terminal"],
+        toolCalls: turn.toolCalls.map((call) => ({
+          ...call,
+          arguments: clipToolText(call.arguments, TOOL_CALL_ARGUMENTS_LIMIT),
+          result: clipToolText(call.result, TOOL_CALL_RESULT_LIMIT),
+        })),
         selectedText: null,
         x: position.x,
         y: position.y,

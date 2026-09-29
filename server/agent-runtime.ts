@@ -25,10 +25,16 @@ import type {
   ContextItem,
   ContextSnapshot,
   GraphDocument,
+  PiToolCall,
   ProviderSettings,
   RunRequest,
   RunStreamEvent,
 } from "../shared/types.js";
+import {
+  clipToolText,
+  TOOL_CALL_ARGUMENTS_LIMIT,
+  TOOL_CALL_RESULT_LIMIT,
+} from "../shared/tool-calls.js";
 import { stripTrailingMainThreadSection } from "../shared/answer-content.js";
 import { compileContext, contextToPrompt } from "./context-compiler.js";
 import type { GraphDatabase } from "./database.js";
@@ -206,6 +212,7 @@ const CATALOG_PROVIDERS = {
   openrouter: { envKey: "OPENROUTER_API_KEY", label: "OpenRouter" },
   anthropic: { envKey: "ANTHROPIC_API_KEY", label: "Anthropic" },
   google: { envKey: "GEMINI_API_KEY", label: "Google Gemini" },
+  deepseek: { envKey: "DEEPSEEK_API_KEY", label: "DeepSeek" },
 } as const;
 type CatalogProviderId = keyof typeof CATALOG_PROVIDERS;
 
@@ -225,6 +232,32 @@ export type GraphAgentRuntimeOptions = {
 };
 
 const PROJECT_TOOLS = ["read", "grep", "find", "ls"] as const;
+
+function toolArgumentsText(args: unknown) {
+  if (args == null) return "";
+  let text: string;
+  try {
+    text = typeof args === "string" ? args : JSON.stringify(args, null, 2);
+  } catch {
+    text = String(args);
+  }
+  return clipToolText(text, TOOL_CALL_ARGUMENTS_LIMIT);
+}
+
+function toolResultText(result: unknown) {
+  const content = (result as { content?: unknown } | null | undefined)?.content;
+  const text = Array.isArray(content)
+    ? content
+        .map((block: { type?: string; text?: string }) =>
+          block?.type === "text" ? (block.text ?? "") : block?.type ? `[${block.type}]` : "",
+        )
+        .filter(Boolean)
+        .join("\n")
+    : typeof result === "string"
+      ? result
+      : "";
+  return clipToolText(text, TOOL_CALL_RESULT_LIMIT);
+}
 
 function estimateTokens(text: string) {
   return Math.max(1, Math.ceil(text.length / 3));
@@ -342,6 +375,10 @@ export class GraphAgentRuntime {
       modelsPath: path.join(agentDir, "models.json"),
       refreshOnCreate: false,
     });
+    // Pi learns which providers have credentials during a refresh. Without it
+    // keys from the environment (OPENAI_API_KEY, DEEPSEEK_API_KEY, ...) are
+    // never seen. Offline: this reads local state only.
+    await modelRuntime.refresh({ allowNetwork: false, providers: Object.keys(CATALOG_PROVIDERS) });
     return new GraphAgentRuntime(settings, modelRuntime, { ...options, agentDir });
   }
 
@@ -490,6 +527,7 @@ export class GraphAgentRuntime {
 
     const events = new AsyncEventQueue<RunStreamEvent>();
     let fullText = "";
+    const toolCalls: PiToolCall[] = [];
     let session: AgentSession | undefined;
     const sessionLeaf: { manager: SessionManager | null; before: string | null } = { manager: null, before: null };
 
@@ -560,6 +598,7 @@ Always respond in ${RESPONSE_LANGUAGES[request.locale]}.`;
         }
         sessionLeaf.manager = manager;
         sessionLeaf.before = manager.getLeafId();
+        const graphTools = this.createGraphTools(database, request.graphId, request.locale);
         const created = await createAgentSession({
           cwd,
           agentDir: this.agentDir,
@@ -570,8 +609,10 @@ Always respond in ${RESPONSE_LANGUAGES[request.locale]}.`;
           resourceLoader,
           // `read` lets the model open skill files, which is how Pi skills work.
           // A graph rooted in a codebase also gets Pi's other read-only tools.
-          tools: projectDir ? [...PROJECT_TOOLS] : ["read"],
-          customTools: this.createGraphTools(database, request.graphId, request.locale),
+          // `tools` is an allowlist that also covers custom tools, so the graph
+          // tools have to be named here or the model's calls to them fail.
+          tools: [...(projectDir ? PROJECT_TOOLS : ["read"]), ...graphTools.map((tool) => tool.name)],
+          customTools: graphTools,
           settingsManager,
         });
         session = created.session;
@@ -596,7 +637,7 @@ Always respond in ${RESPONSE_LANGUAGES[request.locale]}.`;
           signal.addEventListener("abort", () => void activeSession.abort(), { once: true });
         }
         activeSession.subscribe((event) => {
-          this.forwardSessionEvent(event, events, runId, node.id, request.locale, (delta) => {
+          this.forwardSessionEvent(event, events, runId, node.id, request.locale, toolCalls, (delta) => {
             fullText += delta;
           });
         });
@@ -619,6 +660,7 @@ Always respond in ${RESPONSE_LANGUAGES[request.locale]}.`;
         }
         const completedContent = stripTrailingMainThreadSection(answerText);
         database.setNodePiEntry(node.id, manager.getLeafId());
+        database.setNodeToolCalls(node.id, toolCalls);
         const completed = database.updateNode(node.id, {
           content: completedContent,
           summary: summarize(completedContent),
@@ -652,6 +694,7 @@ Always respond in ${RESPONSE_LANGUAGES[request.locale]}.`;
         if (sessionLeaf.manager && sessionLeaf.manager.getLeafId() !== sessionLeaf.before) {
           database.setNodePiEntry(node.id, sessionLeaf.manager.getLeafId());
         }
+        database.setNodeToolCalls(node.id, toolCalls);
         const updated = database.updateNode(node.id, {
           status: cancelled ? "cancelled" : "error",
           content:
@@ -889,6 +932,7 @@ Always respond in ${RESPONSE_LANGUAGES[request.locale]}.`;
     runId: string,
     nodeId: string,
     locale: RunRequest["locale"],
+    toolCalls: PiToolCall[],
     onDelta: (delta: string) => void,
   ) {
     const zh = locale.startsWith("zh");
@@ -897,11 +941,20 @@ Always respond in ${RESPONSE_LANGUAGES[request.locale]}.`;
       onDelta(delta);
       queue.push({ type: "text_delta", runId, nodeId, delta });
     } else if (event.type === "tool_execution_start") {
+      const call: PiToolCall = {
+        id: event.toolCallId,
+        name: event.toolName,
+        arguments: toolArgumentsText(event.args),
+        result: "",
+        isError: false,
+      };
+      toolCalls.push(call);
       queue.push({
         type: "tool_started",
         runId,
         nodeId,
         tool: event.toolName,
+        call: { ...call },
         label:
           event.toolName === "graph_search"
             ? zh
@@ -916,11 +969,19 @@ Always respond in ${RESPONSE_LANGUAGES[request.locale]}.`;
                 : `Running ${event.toolName}`,
       });
     } else if (event.type === "tool_execution_end") {
+      let call = toolCalls.find((candidate) => candidate.id === event.toolCallId);
+      if (!call) {
+        call = { id: event.toolCallId, name: event.toolName, arguments: "", result: "", isError: false };
+        toolCalls.push(call);
+      }
+      call.result = toolResultText(event.result);
+      call.isError = Boolean(event.isError);
       queue.push({
         type: "tool_finished",
         runId,
         nodeId,
         tool: event.toolName,
+        call: { ...call },
         summary: event.isError
           ? zh
             ? "工具执行失败"

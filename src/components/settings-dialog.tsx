@@ -14,6 +14,7 @@ import {
   Server,
   ShieldCheck,
   Sparkles,
+  Waves,
 } from "lucide-react";
 import type { CodexAuthStatus, ProviderSettings } from "@shared/types";
 import {
@@ -62,6 +63,12 @@ const providers = [
     icon: Server,
   },
   {
+    id: "deepseek",
+    label: null,
+    description: "settings.deepseekDescription",
+    icon: Waves,
+  },
+  {
     id: "ollama",
     label: null,
     description: "settings.ollamaDescription",
@@ -82,6 +89,7 @@ const providerNames: Record<ProviderSettings["provider"], string> = {
   anthropic: "Anthropic",
   google: "Gemini",
   openrouter: "OpenRouter",
+  deepseek: "DeepSeek",
   ollama: "Ollama",
   custom: "Custom",
 };
@@ -93,6 +101,7 @@ const defaultModels: Record<ProviderSettings["provider"], string> = {
   anthropic: "claude-sonnet-5",
   google: "gemini-3.5-flash",
   openrouter: "openai/gpt-5.4-mini",
+  deepseek: "deepseek-flash",
   ollama: "qwen3.5:4b",
   custom: "your-model",
 };
