@@ -32,8 +32,7 @@ final class ServerProcess {
     func start() {
         stopping = false
         let process = Process()
-        let command = locations.expand(manifest.server.command)
-        process.executableURL = URL(fileURLWithPath: command.hasPrefix("/") ? command : locations.resources.appendingPathComponent(command).path)
+        process.executableURL = URL(fileURLWithPath: resolveCommand(locations.expand(manifest.server.command)))
         process.arguments = (manifest.server.args ?? []).map(locations.expand)
         process.currentDirectoryURL = URL(fileURLWithPath: locations.expand(manifest.server.cwd ?? "${APP_SUPPORT}"))
 
@@ -88,6 +87,16 @@ final class ServerProcess {
             self?.state = .stopped("Stopped")
             completion?()
         }
+    }
+
+    /// Absolute paths are used as is; relative ones live in Contents/MacOS (signed as
+    /// executables) or, for older bundles, in Contents/Resources.
+    private func resolveCommand(_ command: String) -> String {
+        if command.hasPrefix("/") { return command }
+        let macos = Bundle.main.executableURL?.deletingLastPathComponent() ?? locations.resources
+        let candidate = macos.appendingPathComponent(command).path
+        if FileManager.default.isExecutableFile(atPath: candidate) { return candidate }
+        return locations.resources.appendingPathComponent(command).path
     }
 
     private func handleExit(_ finished: Process) {

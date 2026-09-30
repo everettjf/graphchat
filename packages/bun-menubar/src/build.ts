@@ -5,6 +5,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { buildManifest, type MenubarConfig } from "./config.js";
 import { executableName, renderInfoPlist } from "./plist.js";
+import { notarizeApp, resolveNotarization, resolveSigning, signApp } from "./sign.js";
 
 const packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const shellPackage = path.join(packageRoot, "shell");
@@ -20,11 +21,20 @@ export function ensureShellBinary(log: Logger = () => {}): string {
   const prebuilt = path.join(packageRoot, "bin", "MenuBarShell");
   if (fs.existsSync(prebuilt)) return prebuilt;
   const built = path.join(shellPackage, ".build", "release", "MenuBarShell");
-  if (!fs.existsSync(built)) {
-    log("Building the native shell with swift build (first run only)…");
+  if (!fs.existsSync(built) || newestSource(path.join(shellPackage, "Sources")) > fs.statSync(built).mtimeMs) {
+    log("Building the native shell with swift build…");
     run("swift", ["build", "-c", "release", "--package-path", shellPackage]);
   }
   return built;
+}
+
+function newestSource(directory: string): number {
+  let newest = 0;
+  for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+    const file = path.join(directory, entry.name);
+    newest = Math.max(newest, entry.isDirectory() ? newestSource(file) : fs.statSync(file).mtimeMs);
+  }
+  return newest;
 }
 
 /** `bun build --compile` the entry into a single Mach-O for this machine's architecture. */
@@ -74,8 +84,9 @@ export function assembleApp(config: MenubarConfig, options: AssembleOptions): st
 
   fs.copyFileSync(options.shellBinary, path.join(macos, executableName(config.name)));
   fs.chmodSync(path.join(macos, executableName(config.name)), 0o755);
-  fs.copyFileSync(options.serverBinary, path.join(resources, "server"));
-  fs.chmodSync(path.join(resources, "server"), 0o755);
+  // Executables belong in Contents/MacOS so they are sealed as code, not as resources.
+  fs.copyFileSync(options.serverBinary, path.join(macos, "server"));
+  fs.chmodSync(path.join(macos, "server"), 0o755);
 
   for (const [published, source] of Object.entries(config.resources)) {
     const from = path.resolve(options.root, source);
@@ -104,11 +115,6 @@ export function assembleApp(config: MenubarConfig, options: AssembleOptions): st
   return bundle;
 }
 
-export function signApp(config: MenubarConfig, bundle: string, log: Logger = () => {}) {
-  log(config.sign.identity === "-" ? "Signing ad hoc…" : `Signing with ${config.sign.identity}…`);
-  run("codesign", ["--force", "--deep", "--sign", config.sign.identity, bundle]);
-}
-
 export function zipApp(bundle: string, log: Logger = () => {}) {
   const zip = bundle.replace(/\.app$/, ".zip");
   fs.rmSync(zip, { force: true });
@@ -117,15 +123,32 @@ export function zipApp(bundle: string, log: Logger = () => {}) {
   return zip;
 }
 
-/** The whole pipeline: compile, build the shell if needed, assemble, sign, zip. */
-export function buildApp(config: MenubarConfig, root: string, log: Logger = () => {}) {
+export type BuildOptions = {
+  /** Override the signing identity (CLI --identity). */
+  identity?: string;
+  /** Skip notarization even when configured (CLI --skip-notarize). */
+  skipNotarize?: boolean;
+};
+
+/** The whole pipeline: compile, build the shell if needed, assemble, sign, notarize, zip. */
+export function buildApp(config: MenubarConfig, root: string, log: Logger = () => {}, options: BuildOptions = {}) {
+  const signing = resolveSigning(config, root, process.env, { identity: options.identity });
+  const notarization = options.skipNotarize ? null : resolveNotarization(config);
+  if (notarization && signing.adHoc) {
+    throw new Error("Notarization needs a Developer ID identity; set sign.identity or MENUBAR_SIGN_IDENTITY.");
+  }
   const work = path.resolve(root, config.outDir, ".work");
   fs.mkdirSync(work, { recursive: true });
   const serverBinary = compileServer(config, root, path.join(work, "server"), log);
   const shellBinary = ensureShellBinary(log);
   const bundle = assembleApp(config, { root, shellBinary, serverBinary, log });
-  signApp(config, bundle, log);
-  const zip = zipApp(bundle, log);
+  signApp(config, bundle, signing, log);
+  let zip = zipApp(bundle, log);
+  if (notarization) {
+    notarizeApp(bundle, zip, notarization, log);
+    // The stapled ticket lives inside the bundle; ship a zip that contains it.
+    if (notarization.staple) zip = zipApp(bundle, log);
+  }
   fs.rmSync(work, { recursive: true, force: true });
   return { bundle, zip };
 }

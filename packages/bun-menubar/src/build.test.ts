@@ -100,7 +100,8 @@ describe("assembleApp", () => {
     const contents = path.join(bundle, "Contents");
     expect(fs.readFileSync(path.join(contents, "MacOS", "DemoApp"), "utf8")).toContain("echo shell");
     expect(fs.statSync(path.join(contents, "MacOS", "DemoApp")).mode & 0o111).toBeTruthy();
-    expect(fs.readFileSync(path.join(contents, "Resources", "server"), "utf8")).toContain("echo server");
+    expect(fs.readFileSync(path.join(contents, "MacOS", "server"), "utf8")).toContain("echo server");
+    expect(fs.existsSync(path.join(contents, "Resources", "server"))).toBe(false);
     expect(fs.readFileSync(path.join(contents, "Resources", "static", "index.html"), "utf8")).toBe("<h1>hi</h1>");
     expect(fs.existsSync(path.join(contents, "Resources", "MenuBarIcon.png"))).toBe(true);
     expect(fs.existsSync(path.join(contents, "Resources", "AppIcon.icns"))).toBe(true);

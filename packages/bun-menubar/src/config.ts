@@ -47,10 +47,26 @@ export const menubarConfigSchema = z.object({
   minimumSystemVersion: z.string().default("12.0"),
   sign: z
     .object({
-      /** Developer ID identity; ad-hoc ("-") when omitted. */
-      identity: z.string().default("-"),
+      /** Developer ID identity; ad-hoc ("-") when omitted. `MENUBAR_SIGN_IDENTITY` overrides it. */
+      identity: z.string().min(1).default("-"),
+      /** Sign with the hardened runtime (required for notarization). Defaults to on for a real identity. */
+      hardenedRuntime: z.boolean().optional(),
+      /** Entitlements plist for the server binary; defaults to the entitlements Bun's JIT needs. */
+      entitlements: z.string().optional(),
     })
     .prefault({}),
+  /** Notarize with Apple after signing. Needs a real identity. */
+  notarize: z
+    .object({
+      /** Profile saved with `xcrun notarytool store-credentials`. `MENUBAR_NOTARY_PROFILE` overrides it. */
+      keychainProfile: z.string().min(1).optional(),
+      /** Alternatively an Apple ID and team; the app-specific password comes from `MENUBAR_NOTARY_PASSWORD`. */
+      appleId: z.string().min(1).optional(),
+      teamId: z.string().min(1).optional(),
+      /** Staple the ticket to the app so it opens offline. */
+      staple: z.boolean().default(true),
+    })
+    .optional(),
 });
 
 export type MenubarConfig = z.infer<typeof menubarConfigSchema>;
@@ -70,6 +86,7 @@ export function buildManifest(config: MenubarConfig) {
   return {
     name: config.name,
     server: {
+      // Lives next to the shell in Contents/MacOS; the shell resolves it there.
       command: "server",
       args: config.server.args,
       env: config.server.env,

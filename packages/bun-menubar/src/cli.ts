@@ -8,10 +8,14 @@ import { parseConfig } from "./config.js";
 const usage = `bun-menubar — wrap a Bun program as a macOS menu bar app
 
 Usage:
-  bun-menubar build [--config <file>] [--root <dir>]
+  bun-menubar build [--config <file>] [--root <dir>] [--identity <name>] [--skip-notarize]
 
 Reads menubar.config.ts (or .js/.json) from the project root, compiles the
 entry with \`bun build --compile\`, and writes <outDir>/<name>.app plus a zip.
+
+Signing:   sign.identity or MENUBAR_SIGN_IDENTITY (ad hoc when unset)
+Notarizing: notarize.keychainProfile or MENUBAR_NOTARY_PROFILE, or
+            notarize.appleId + teamId with MENUBAR_NOTARY_PASSWORD in the environment
 `;
 
 async function loadConfig(root: string, explicit?: string) {
@@ -45,7 +49,10 @@ async function main(argv: string[]) {
   if (process.platform !== "darwin") throw new Error("bun-menubar builds macOS apps and must run on macOS.");
   const root = path.resolve(option(args, "--root") ?? process.cwd());
   const config = await loadConfig(root, option(args, "--config"));
-  const { bundle, zip } = buildApp(config, root, (message) => console.log(`• ${message}`));
+  const { bundle, zip } = buildApp(config, root, (message) => console.log(`• ${message}`), {
+    identity: option(args, "--identity"),
+    skipNotarize: args.includes("--skip-notarize"),
+  });
   console.log(`\n${config.name}.app is ready:\n  ${bundle}\n  ${zip}`);
 }
 

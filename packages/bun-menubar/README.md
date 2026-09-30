@@ -8,7 +8,7 @@ icon, no Electron.
 ```
 My App.app/
 ├── Contents/MacOS/MyApp            the Swift shell
-├── Contents/Resources/server       your program, one Mach-O
+├── Contents/MacOS/server           your program, one Mach-O
 ├── Contents/Resources/menubar.json what the shell needs to know
 ├── Contents/Resources/static/      anything you listed under `resources`
 └── Contents/Info.plist             LSUIElement = true
@@ -55,7 +55,7 @@ tools required); later builds reuse it.
 
 ## What the shell does
 
-- Starts `Resources/server` with your `env`, `args`, and `cwd`. Values may use
+- Starts `Contents/MacOS/server` with your `env`, `args`, and `cwd`. Values may use
   `${RESOURCES}`, `${APP_SUPPORT}` (`~/Library/Application Support/<name>`),
   `${LOGS}` (`~/Library/Logs/<name>`), and `${HOME}`. The same paths are also
   exported as `MENUBAR_RESOURCES`, `MENUBAR_APP_SUPPORT`, and `MENUBAR_LOGS`.
@@ -70,18 +70,45 @@ tools required); later builds reuse it.
   program (SIGTERM, then SIGKILL after three seconds).
 - Runs as a single instance and as an accessory app (no Dock icon).
 
-## Signing
+## Signing and notarization
 
-Builds are signed ad hoc by default, which runs on the machine that built it.
-For distribution set `sign.identity` to a Developer ID certificate; notarization
-is not automated yet.
+Builds are signed ad hoc by default, which runs on the machine that built it
+(the server binary gets the entitlements Bun's JIT needs either way). For
+distribution:
+
+```ts
+sign: {
+  identity: "Developer ID Application: Your Name (TEAMID)", // or MENUBAR_SIGN_IDENTITY
+  // hardenedRuntime: true,   default for a real identity; notarization requires it
+  // entitlements: "…",       your own plist instead of the built-in Bun JIT set
+},
+notarize: {
+  keychainProfile: "my-notary", // or MENUBAR_NOTARY_PROFILE
+  // or: appleId + teamId, with the app-specific password in MENUBAR_NOTARY_PASSWORD
+  staple: true,
+},
+```
+
+Store the notarization credentials once, outside the repository:
+
+```bash
+xcrun notarytool store-credentials my-notary --apple-id you@example.com --team-id TEAMID
+```
+
+The build then signs inside-out (server binary, then the bundle; no `--deep`),
+verifies the signature, zips, submits with `notarytool submit --wait`, staples
+the ticket, and zips again. `bun-menubar build --skip-notarize` skips the
+Apple round trip; `--identity` overrides the certificate for one build.
+Passwords are only ever read from the environment and are handed to
+`notarytool` as `@env:`, never on the command line.
 
 ## Layout
 
 - `shell/` — SwiftPM package for the native shell (`swift build -c release`).
 - `src/config.ts` — config schema and the runtime manifest.
-- `src/build.ts` — compile, assemble, sign, zip.
+- `src/build.ts` — compile, assemble, zip.
+- `src/sign.ts` — codesign, entitlements, notarytool, stapler.
 - `src/cli.ts` — `bun-menubar build`.
 
-macOS only. Universal binaries, an embedded WKWebView window, a stdio channel
-for dynamic menus, and notarization are planned.
+macOS only. Universal binaries, an embedded WKWebView window, and a stdio
+channel for dynamic menus are planned.
