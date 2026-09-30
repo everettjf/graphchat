@@ -114,7 +114,7 @@ bun run launch
 
 ## 模型
 
-打开侧边栏的「模型与设置」。所有 provider 都由 Pi 的 `pi-ai` 层提供。
+打开侧边栏的「模型与设置」。所有 provider 都由 Pi 的 `pi-ai` 层提供；模型输入框会列出 Pi 知道的该 provider 的模型（Pi 的内置目录加上你的 `models.json`），也可以直接输入其他 id。Ollama 列出的是本机已安装的模型。
 
 | Provider | 认证方式 |
 | --- | --- |

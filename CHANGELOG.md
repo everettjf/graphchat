@@ -10,6 +10,9 @@ overhead, and adds a read-only bridge to Pi coding-agent sessions.
 
 ### Added
 
+- The model field in settings suggests the models Pi knows for the selected
+  provider via `GET /api/providers/:provider/models`; Ollama keeps listing the
+  models installed locally.
 - The Pi session list no longer shows the sessions the app created for its own
   graphs, and permanently deleting an archived graph removes its session file.
   Terminal sessions bound with `/graph use` are still listed and never deleted.

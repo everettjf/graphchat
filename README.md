@@ -155,7 +155,9 @@ to move it.
 ## Models
 
 Open **Models & settings** in the sidebar. Every provider is served by Pi's
-`pi-ai` layer.
+`pi-ai` layer, and the model field suggests the models Pi knows for the chosen
+provider (Pi's catalog plus your `models.json`); any other id can be typed.
+Ollama lists the models installed locally instead.
 
 | Provider | Authentication |
 | --- | --- |

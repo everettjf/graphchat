@@ -392,6 +392,16 @@ export class GraphAgentRuntime {
     }
   }
 
+  /** Models Pi knows for a provider, from its built-in catalog and models.json. */
+  listModels(provider: ProviderSettings["provider"]): Array<{ id: string; name: string }> {
+    const providerId = provider === "openai-codex" ? CODEX_PROVIDER_ID : provider;
+    if (providerId !== CODEX_PROVIDER_ID && !(providerId in CATALOG_PROVIDERS)) return [];
+    return this.modelRuntime
+      .getModels(providerId)
+      .map((model) => ({ id: model.id, name: model.name }))
+      .sort((a, b) => a.id.localeCompare(b.id));
+  }
+
   hasApiKey(provider: ProviderSettings["provider"] = this.settings.provider) {
     if (this.runtimeApiKeys.has(provider)) return true;
     if (provider in CATALOG_PROVIDERS) return this.modelRuntime.hasConfiguredAuth(provider);

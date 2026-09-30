@@ -309,6 +309,11 @@ test.describe("Pi Graph Chat", () => {
       ).toBeVisible();
     }
     await expect(page.getByLabel("Model ID")).toHaveValue("gpt-5.5");
+    // Pi's catalog feeds the model suggestions for every hosted provider.
+    await expect(page.getByText(/\d+ models in Pi's catalog/)).toBeVisible();
+    await expect(page.getByTestId("model-options").locator("option[value='gpt-5.5']")).toHaveCount(1);
+    await page.getByRole("button", { name: "Anthropic" }).click();
+    await expect(page.getByTestId("model-options").locator("option[value='claude-sonnet-5']")).toHaveCount(1);
     await page.getByRole("button", { name: "Cancel" }).click();
 
     expect(["authenticated", "signed_out"]).toContain(authStatus.state);

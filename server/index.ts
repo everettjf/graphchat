@@ -87,7 +87,13 @@ app.get("/api/auth/openai-codex", async (_request, reply) => {
   return codexAuth.getStatus();
 });
 
-app.get("/api/providers/ollama/models", async (_request, reply) => {
+app.get<{ Params: { provider: string } }>("/api/providers/:provider/models", async (request, reply) => {
+  reply.header("Cache-Control", "no-store");
+  const provider = providerSettingsSchema.shape.provider.safeParse(request.params.provider);
+  if (!provider.success) return reply.code(404).send({ message: "Unknown provider" });
+  if (provider.data !== "ollama") {
+    return { models: runtime.listModels(provider.data).map((model) => model.id) };
+  }
   try {
     const response = await fetch("http://127.0.0.1:11434/api/tags");
     if (!response.ok) throw new Error(`Ollama returned ${response.status}`);

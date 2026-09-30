@@ -71,6 +71,21 @@ describe("GraphAgentRuntime", () => {
     database.close();
   });
 
+  it("lists Pi's catalog models per provider without needing credentials", async () => {
+    const { database, runtime } = await setup();
+    const anthropic = runtime.listModels("anthropic").map((model) => model.id);
+    expect(anthropic).toContain("claude-sonnet-5");
+    expect(anthropic).toEqual([...anthropic].sort());
+    expect(runtime.listModels("openai").map((model) => model.id)).toContain("gpt-5.4-mini");
+    expect(runtime.listModels("openai-codex").map((model) => model.id)).toContain("gpt-5.5");
+    expect(runtime.listModels("deepseek").length).toBeGreaterThan(0);
+    // Ollama, custom endpoints, and the demo guide have no catalog in Pi.
+    expect(runtime.listModels("ollama")).toEqual([]);
+    expect(runtime.listModels("custom")).toEqual([]);
+    expect(runtime.listModels("demo")).toEqual([]);
+    database.close();
+  });
+
   it("picks up a catalog provider's API key from the environment", async () => {
     const previous = process.env.DEEPSEEK_API_KEY;
     process.env.DEEPSEEK_API_KEY = "environment-test-key";

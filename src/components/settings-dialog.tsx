@@ -123,28 +123,36 @@ export function SettingsDialog({
     state: "signed_out",
   });
   const [authBusy, setAuthBusy] = useState(false);
-  const [ollamaModels, setOllamaModels] = useState<string[]>([]);
-  const [ollamaError, setOllamaError] = useState("");
+  const [models, setModels] = useState<string[]>([]);
+  const [modelsError, setModelsError] = useState("");
 
   useEffect(() => setDraft(settings), [settings]);
 
+  // Model suggestions: Pi's catalog for hosted providers, the local list for Ollama.
   useEffect(() => {
-    if (!settingsOpen || draft.provider !== "ollama") return;
+    if (!settingsOpen) return;
+    const provider = draft.provider;
+    if (provider === "demo" || provider === "custom") {
+      setModels([]);
+      setModelsError("");
+      return;
+    }
     let active = true;
-    setOllamaError("");
+    setModelsError("");
     void api
-      .ollamaModels()
+      .providerModels(provider)
       .then(({ models }) => {
         if (!active) return;
-        setOllamaModels(models);
-        if (models.length && !models.includes(draft.model)) {
+        setModels(models);
+        // Only Ollama's list is exhaustive; a catalog id may be newer than Pi's list.
+        if (provider === "ollama" && models.length && !models.includes(draft.model)) {
           setDraft((current) => ({ ...current, model: models[0] }));
         }
       })
       .catch((error) => {
         if (!active) return;
-        setOllamaModels([]);
-        setOllamaError(
+        setModels([]);
+        setModelsError(
           error instanceof Error ? error.message : "Unable to connect to Ollama.",
         );
       });
@@ -289,20 +297,22 @@ export function SettingsDialog({
               id="model"
               value={draft.model}
               onChange={(event) => setDraft({ ...draft, model: event.target.value })}
-              list={draft.provider === "ollama" ? "ollama-models" : undefined}
+              list={draft.provider === "demo" || draft.provider === "custom" ? undefined : "model-options"}
             />
-            {draft.provider === "ollama" && (
+            {draft.provider !== "demo" && draft.provider !== "custom" && (
               <>
-                <datalist id="ollama-models">
-                  {ollamaModels.map((model) => (
+                <datalist id="model-options" data-testid="model-options">
+                  {models.map((model) => (
                     <option key={model} value={model} />
                   ))}
                 </datalist>
                 <p className="mt-1.5 text-[10px] text-[var(--muted-light)]">
-                  {ollamaError ||
-                    (ollamaModels.length
-                      ? `${ollamaModels.length} local model${ollamaModels.length === 1 ? "" : "s"} available`
-                      : "Checking local Ollama models…")}
+                  {modelsError ||
+                    (draft.provider === "ollama"
+                      ? models.length
+                        ? t("settings.ollamaModels", { count: models.length })
+                        : t("settings.ollamaChecking")
+                      : t("settings.catalogModels", { count: models.length }))}
                 </p>
               </>
             )}
