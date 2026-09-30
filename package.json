@@ -39,6 +39,7 @@
     "start": "node dist-server/server/index.js",
     "start:bun": "bun dist-server/server/index.js",
     "launch": "bun run build && bun ./scripts/pi-graph-chat.mjs",
+    "app:build": "bun run build && bun ./packages/bun-menubar/src/cli.ts build",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.server.json --noEmit && tsc -p tsconfig.packages.json",
     "test": "bun x --bun vitest run",
     "test:watch": "bun x --bun vitest",

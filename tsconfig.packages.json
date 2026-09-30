@@ -4,6 +4,6 @@
     "noEmit": true,
     "rootDir": "."
   },
-  "include": ["packages", "shared"],
+  "include": ["packages", "shared", "menubar.config.ts"],
   "exclude": []
 }

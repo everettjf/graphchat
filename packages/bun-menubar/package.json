@@ -1,0 +1,16 @@
+{
+  "name": "bun-menubar",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Wrap a Bun program as a macOS menu bar app: compile with `bun build --compile`, bundle it behind a tiny native shell, sign it.",
+  "type": "module",
+  "keywords": ["bun", "macos", "menubar", "status-item", "desktop"],
+  "license": "MIT",
+  "bin": {
+    "bun-menubar": "./src/cli.ts"
+  },
+  "files": ["src", "shell/Package.swift", "shell/Sources", "README.md"],
+  "peerDependencies": {
+    "zod": "*"
+  }
+}

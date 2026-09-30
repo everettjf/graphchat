@@ -8,6 +8,7 @@ Pi Graph Chat is a personal, local-first React/TypeScript learning workspace bui
 - `server/`: local API, SQLite overlay store, Pi runtime integration (`agent-runtime.ts`, `graph-session.ts`), Pi session index, and exports.
 - `shared/`: types and schemas shared by client and server.
 - `packages/pi-extension/`: the Pi package (extension, skills, prompt templates) installed into the terminal `pi` with `pi install ./packages/pi-extension`.
+- `packages/bun-menubar/`: macOS menu bar packaging. A Swift shell (`shell/`) runs the `bun build --compile` server; `bun run app:build` reads `menubar.config.ts` and writes `dist-app/Pi Graph Chat.app`. macOS only.
 - `tests/e2e/`: Playwright workflows, including the seeded Pi session and project fixtures. Specs share one server and database, so `workers` stays at 1 and every spec leaves only the example graph active.
 - `docs/`: data format and manual acceptance guide.
 - `scripts/`: launcher, provider smoke test, and seeding.

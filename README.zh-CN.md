@@ -110,6 +110,8 @@ bun run launch
 
 `bun run launch` 会构建应用、在 `http://127.0.0.1:4317` 启动本地服务并打开浏览器。需要热更新时运行 `bun run dev`，再打开 [http://localhost:5173](http://localhost:5173)。
 
+`bun run app:build` 会把同一个服务打包成 macOS 菜单栏 app，输出到 `dist-app/Pi Graph Chat.app`：它常驻状态栏，数据保存在 `~/Library/Application Support/Pi Graph Chat`，点击即打开浏览器（见 [`packages/bun-menubar`](./packages/bun-menubar/README.md)）。
+
 首次运行会创建一张关于 RAG 的示例图，不需要任何凭据。数据保存在 `.pi-graph-chat/`，可用 `PI_GRAPH_CHAT_DATA_DIR` 更改位置。
 
 ## 模型

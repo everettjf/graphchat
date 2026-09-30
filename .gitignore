@@ -4,6 +4,8 @@ node_modules.failed-install/
 # Build and tool caches
 dist/
 dist-server/
+dist-app/
+packages/bun-menubar/shell/.build/
 coverage/
 .vite/
 *.tsbuildinfo

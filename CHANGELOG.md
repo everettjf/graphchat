@@ -10,6 +10,10 @@ overhead, and adds a read-only bridge to Pi coding-agent sessions.
 
 ### Added
 
+- Added `packages/bun-menubar`, a macOS menu bar packager for Bun programs:
+  a small AppKit shell runs the `bun build --compile` server, polls its
+  health, restarts it on crashes, and opens the browser. `bun run app:build`
+  produces `dist-app/Pi Graph Chat.app`.
 - The model field in settings suggests the models Pi knows for the selected
   provider via `GET /api/providers/:provider/models`; Ollama keeps listing the
   models installed locally.

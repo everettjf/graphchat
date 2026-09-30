@@ -148,6 +148,11 @@ bun run launch
 `http://127.0.0.1:4317`, and opens it in your browser. For hot reload use
 `bun run dev` and open [http://localhost:5173](http://localhost:5173).
 
+`bun run app:build` packages the same server as a macOS menu bar app in
+`dist-app/Pi Graph Chat.app`: it lives in the status bar, keeps its data in
+`~/Library/Application Support/Pi Graph Chat`, and opens the browser on click
+(see [`packages/bun-menubar`](./packages/bun-menubar/README.md)).
+
 On first launch, Pi Graph Chat creates an example graph about RAG that runs
 without any credentials. Data lives in `.pi-graph-chat/`; set `PI_GRAPH_CHAT_DATA_DIR`
 to move it.
