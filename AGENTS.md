@@ -8,7 +8,7 @@ Pi Graph Chat is a personal, local-first React/TypeScript learning workspace bui
 - `server/`: local API, SQLite overlay store, Pi runtime integration (`agent-runtime.ts`, `graph-session.ts`), Pi session index, and exports.
 - `shared/`: types and schemas shared by client and server.
 - `packages/pi-extension/`: the Pi package (extension, skills, prompt templates) installed into the terminal `pi` with `pi install ./packages/pi-extension`.
-- `packages/bun-menubar/`: macOS menu bar packaging. A Swift shell (`shell/`) runs the `bun build --compile` server; `bun run app:build` reads `menubar.config.ts` and writes `dist-app/Pi Graph Chat.app`. macOS only.
+- `packages/bun-menubar/`: macOS menu bar packaging. A Swift shell (`shell/`) runs the `bun build --compile` server from `Contents/MacOS/server`; `bun run app:build` reads `menubar.config.ts` and writes `dist-app/Pi Graph Chat.app`. macOS only.
 - `tests/e2e/`: Playwright workflows, including the seeded Pi session and project fixtures. Specs share one server and database, so `workers` stays at 1 and every spec leaves only the example graph active.
 - `docs/`: data format and manual acceptance guide.
 - `scripts/`: launcher, provider smoke test, and seeding.
@@ -28,6 +28,13 @@ bun run test:e2e
 Use `bun run test:all` before pushing.
 
 Run Vitest through the package scripts. The scripts force Bun's runtime because the database relies on SQLite FTS5; invoking `vitest` under Node may use a SQLite build without FTS5 and produce misleading failures.
+
+## Menu bar app
+
+- The server binary must stay in `Contents/MacOS` and be signed before the bundle, without `--deep`; notarization rejects executables sealed as resources.
+- Signing and notarization settings are `sign` and `notarize` in `menubar.config.ts`, overridden by `MENUBAR_SIGN_IDENTITY`, `MENUBAR_NOTARY_PROFILE`, and `MENUBAR_NOTARY_PASSWORD`. Never write a certificate name, Team ID, or password into the repository; the password is passed to `notarytool` as `@env:`, not on the command line.
+- The default entitlements in `packages/bun-menubar/src/sign.ts` are the ones Bun's JIT needs under the hardened runtime; a signed build must still complete a demo answer and load a `~/.pi` extension.
+- Test with a copy of the config on another port and `openOnLaunch: false`; the real app shares port 4317 with `bun run launch`. Clean up `~/Library/Application Support/<name>` and `~/Library/Logs/<name>` after probe apps.
 
 ## Pi
 

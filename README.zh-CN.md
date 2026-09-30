@@ -110,7 +110,35 @@ bun run launch
 
 `bun run launch` 会构建应用、在 `http://127.0.0.1:4317` 启动本地服务并打开浏览器。需要热更新时运行 `bun run dev`，再打开 [http://localhost:5173](http://localhost:5173)。
 
-`bun run app:build` 会把同一个服务打包成 macOS 菜单栏 app，输出到 `dist-app/Pi Graph Chat.app`：它常驻状态栏，数据保存在 `~/Library/Application Support/Pi Graph Chat`，点击即打开浏览器（见 [`packages/bun-menubar`](./packages/bun-menubar/README.md)）。
+### macOS 菜单栏 app
+
+```bash
+bun run app:build
+```
+
+这会把同一个服务打包成菜单栏 app，输出到 `dist-app/Pi Graph Chat.app`（另有一份 zip）：它常驻状态栏、不显示 Dock 图标，数据保存在 `~/Library/Application Support/Pi Graph Chat`，日志写到 `~/Library/Logs/Pi Graph Chat/server.log`，服务崩溃会自动重启，点击即打开浏览器。打包逻辑在 [`packages/bun-menubar`](./packages/bun-menubar/README.md)，配置在 [`menubar.config.ts`](./menubar.config.ts)。第一次构建需要 Xcode 命令行工具来编译原生壳。
+
+默认构建是 ad-hoc 签名，只能在构建它的机器上打开。要分发给别人，需要签名和公证：
+
+1. 用 Developer ID 证书签名。身份从环境变量读取，不会进入仓库：
+
+   ```bash
+   MENUBAR_SIGN_IDENTITY="Developer ID Application: Your Name (TEAMID)" bun run app:build
+   ```
+
+   这会开启 hardened runtime、给签名加时间戳，并给 server 二进制加上 Bun JIT 所需的 entitlements。
+
+2. 把公证凭据存进钥匙串（密码用 appleid.apple.com 生成的 App 专用密码），之后带上 profile 构建：
+
+   ```bash
+   xcrun notarytool store-credentials pi-graph-chat --apple-id you@example.com --team-id TEAMID
+   MENUBAR_SIGN_IDENTITY="Developer ID Application: Your Name (TEAMID)" \
+   MENUBAR_NOTARY_PROFILE=pi-graph-chat bun run app:build
+   ```
+
+   构建会把 zip 提交给 Apple、等待结果、把票据 staple 到 app 里，再重新打 zip。给 CLI 传 `--skip-notarize` 可跳过这一步。同样的设置也可以写在 `menubar.config.ts` 的 `sign` 和 `notarize` 里；密码只会从 `MENUBAR_NOTARY_PASSWORD` 读取。
+
+app 和 `bun run launch` 一样使用 4317 端口，两者不要同时运行。
 
 首次运行会创建一张关于 RAG 的示例图，不需要任何凭据。数据保存在 `.pi-graph-chat/`，可用 `PI_GRAPH_CHAT_DATA_DIR` 更改位置。
 

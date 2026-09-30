@@ -148,10 +148,50 @@ bun run launch
 `http://127.0.0.1:4317`, and opens it in your browser. For hot reload use
 `bun run dev` and open [http://localhost:5173](http://localhost:5173).
 
-`bun run app:build` packages the same server as a macOS menu bar app in
-`dist-app/Pi Graph Chat.app`: it lives in the status bar, keeps its data in
-`~/Library/Application Support/Pi Graph Chat`, and opens the browser on click
-(see [`packages/bun-menubar`](./packages/bun-menubar/README.md)).
+### macOS menu bar app
+
+```bash
+bun run app:build
+```
+
+This packages the same server as a menu bar app in `dist-app/Pi Graph Chat.app`
+(plus a zip): it lives in the status bar with no Dock icon, keeps its data in
+`~/Library/Application Support/Pi Graph Chat`, writes logs to
+`~/Library/Logs/Pi Graph Chat/server.log`, restarts the server if it crashes,
+and opens the browser on click. The packaging lives in
+[`packages/bun-menubar`](./packages/bun-menubar/README.md) and is configured
+by [`menubar.config.ts`](./menubar.config.ts). Xcode command line tools are
+needed the first time, to build the native shell.
+
+The default build is signed ad hoc, which only opens on the machine that built
+it. To sign and notarize for distribution:
+
+1. Sign with your Developer ID certificate. The identity comes from the
+   environment so it never lands in the repository:
+
+   ```bash
+   MENUBAR_SIGN_IDENTITY="Developer ID Application: Your Name (TEAMID)" bun run app:build
+   ```
+
+   This turns on the hardened runtime, timestamps the signature, and gives the
+   server binary the entitlements Bun's JIT needs.
+
+2. Store notarization credentials once in the keychain (an app-specific
+   password from appleid.apple.com), then build with the profile:
+
+   ```bash
+   xcrun notarytool store-credentials pi-graph-chat --apple-id you@example.com --team-id TEAMID
+   MENUBAR_SIGN_IDENTITY="Developer ID Application: Your Name (TEAMID)" \
+   MENUBAR_NOTARY_PROFILE=pi-graph-chat bun run app:build
+   ```
+
+   The build submits the zip to Apple, waits for the verdict, staples the
+   ticket to the app, and zips again. Pass `--skip-notarize` to the CLI to skip
+   the round trip. The same settings can be written under `sign` and
+   `notarize` in `menubar.config.ts`; passwords are only ever read from
+   `MENUBAR_NOTARY_PASSWORD`.
+
+The app uses port 4317, like `bun run launch`; stop one before starting the other.
 
 On first launch, Pi Graph Chat creates an example graph about RAG that runs
 without any credentials. Data lives in `.pi-graph-chat/`; set `PI_GRAPH_CHAT_DATA_DIR`
