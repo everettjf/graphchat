@@ -19,7 +19,7 @@ import { APP_VERSION, DATABASE_SCHEMA_VERSION } from "../shared/version.js";
 import { GraphAgentRuntime } from "./agent-runtime.js";
 import { GraphDatabase } from "./database.js";
 import { OpenAICodexAuthManager } from "./openai-codex-auth.js";
-import { GraphSessionSync } from "./graph-session.js";
+import { GraphSessionSync, isAppSessionId, removeGraphSessionFile } from "./graph-session.js";
 import { PiSessionIndex, resolvePiSessionDir } from "./pi-sessions.js";
 import { configureSystemProxy } from "./system-proxy.js";
 
@@ -201,13 +201,17 @@ app.delete<{ Params: { id: string } }>(
     if (!graph) {
       return reply.code(404).send({ message: "Archived graph not found" });
     }
+    removeGraphSessionFile(graph);
     return graph;
   },
 );
 
-app.delete("/api/archived-graphs", async () => ({
-  deleted: database.deleteAllArchivedGraphs(),
-}));
+app.delete("/api/archived-graphs", async () => {
+  const archived = database.listArchivedGraphs();
+  const deleted = database.deleteAllArchivedGraphs();
+  for (const graph of archived) removeGraphSessionFile(graph);
+  return { deleted };
+});
 
 app.get<{ Params: { id: string } }>("/api/graphs/:id", async (request, reply) => {
   const graph = database.getGraph(request.params.id);
@@ -370,7 +374,12 @@ app.post("/api/settings", async (request, reply) => {
 
 app.get("/api/pi/sessions", async (_request, reply) => {
   reply.header("Cache-Control", "no-store");
-  return { sessionDir: piSessionDir, sessions: piSessions.list() };
+  // Sessions the app created for its graphs are reached through the graph list.
+  const graphSessions = new Set(database.listGraphSessionPaths().map((file) => path.resolve(file)));
+  const sessions = piSessions
+    .list()
+    .filter((session) => !(isAppSessionId(session.id) && graphSessions.has(path.resolve(session.path))));
+  return { sessionDir: piSessionDir, sessions };
 });
 
 app.get<{ Params: { id: string } }>("/api/pi/sessions/:id", async (request, reply) => {

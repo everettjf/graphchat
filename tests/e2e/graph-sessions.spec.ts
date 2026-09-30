@@ -27,7 +27,8 @@ test.describe("Codebase-rooted graphs and cross-session references", () => {
     }
   });
 
-  test("roots a graph in a project directory and rejects a missing one", async ({ page, request }) => {
+  test("roots a graph in a project directory and rejects a missing one", async ({ page, request, context }) => {
+    await context.grantPermissions(["clipboard-read", "clipboard-write"]);
     await openExampleGraph(page);
     await page.getByRole("button", { name: "New graph" }).click();
     await page.getByLabel("Title").fill("Broken project");
@@ -53,12 +54,23 @@ test.describe("Codebase-rooted graphs and cross-session references", () => {
     const graph = bootstrap.graphs.find((candidate: { title: string }) => candidate.title === "Demo project graph");
     expect(graph.projectDir).toBe(projectDir);
     expect(graph.piSessionPath).toContain(`--${projectDir.replace(/^[/\\]/, "").replace(/[/\\:]/g, "-")}--`);
+    // The graph's own session is reachable by id but stays out of the Pi session list.
+    const backingId = `pi-graph-chat-${graph.id}`;
     const sessions = await (await request.get("/api/pi/sessions")).json();
-    const backing = sessions.sessions.find((session: { id: string }) => session.id === `pi-graph-chat-${graph.id}`);
-    expect(backing).toMatchObject({ cwd: projectDir, name: "Demo project graph", turnCount: 1 });
+    expect(sessions.sessions.some((session: { id: string }) => session.id === backingId)).toBe(false);
+    const backing = await (await request.get(`/api/pi/sessions/${backingId}`)).json();
+    expect(backing.session).toMatchObject({ cwd: projectDir, name: "Demo project graph", turnCount: 1 });
+    await expect(page.getByTestId("pi-session-list")).not.toContainText("Demo project graph");
 
     await page.getByTestId("graph-open-terminal").click();
     await expect(page.getByText("Command copied to the clipboard")).toBeVisible();
+
+    // Deleting the graph for good removes the session file the app created.
+    expect(fs.existsSync(graph.piSessionPath)).toBe(true);
+    await request.delete(`/api/graphs/${graph.id}`);
+    await request.delete(`/api/archived-graphs/${graph.id}`);
+    expect(fs.existsSync(graph.piSessionPath)).toBe(false);
+    expect((await request.get(`/api/pi/sessions/${backingId}`)).status()).toBe(404);
   });
 
   test("turns continued in the terminal become graph nodes, and the Pi view links back to the graph", async ({
@@ -111,8 +123,10 @@ test.describe("Codebase-rooted graphs and cross-session references", () => {
       ),
     ).toBe(true);
 
-    // The graph's own session appears in the Pi list and links back to the graph.
-    await page.getByTestId("pi-session-pi-graph-chat-learning-rag").click();
+    // The graph's own session is hidden from the Pi list; the /graph deep link
+    // still opens it, and the view links back to the graph.
+    await expect(page.getByTestId("pi-session-pi-graph-chat-learning-rag")).toHaveCount(0);
+    await page.goto("/?pi=pi-graph-chat-learning-rag");
     await expect(page.getByTestId("pi-session-view")).toBeVisible();
     await page.getByTestId("pi-open-graph").click();
     await expect(page.getByTestId("pi-session-view")).toHaveCount(0);

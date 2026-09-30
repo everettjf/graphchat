@@ -10,6 +10,9 @@ overhead, and adds a read-only bridge to Pi coding-agent sessions.
 
 ### Added
 
+- The Pi session list no longer shows the sessions the app created for its own
+  graphs, and permanently deleting an archived graph removes its session file.
+  Terminal sessions bound with `/graph use` are still listed and never deleted.
 - Added the `pi-graph-chat-extension` Pi package (`packages/pi-extension`): graph tools,
   `/graph` and `/ref` commands, four learning skills, and two prompt templates
   for the terminal `pi`. Graph runs in the web app now load the user's own Pi

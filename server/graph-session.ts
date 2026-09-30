@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { SessionManager } from "@earendil-works/pi-coding-agent";
-import type { GraphDocument, GraphNode } from "../shared/types.js";
+import type { GraphDocument, GraphMeta, GraphNode } from "../shared/types.js";
 import {
   clipToolText,
   TOOL_CALL_ARGUMENTS_LIMIT,
@@ -19,6 +19,28 @@ export function encodeSessionCwd(cwd: string): string {
 export function graphSessionId(graphId: string): string {
   const safe = graphId.replace(/[^A-Za-z0-9._-]/g, "-").replace(/^[^A-Za-z0-9]+|[^A-Za-z0-9]+$/g, "");
   return `pi-graph-chat-${safe || "graph"}`;
+}
+
+/** Session ids the app assigns; a plain terminal session bound with `/graph use` never has one. */
+export function isAppSessionId(sessionId: string): boolean {
+  return sessionId.startsWith("pi-graph-chat-");
+}
+
+/**
+ * Whether a session file was created by the app for this graph. Only those may
+ * be removed; a terminal session bound to a graph belongs to Pi.
+ */
+export function isGraphOwnedSessionPath(graphId: string, sessionPath: string | null): boolean {
+  if (!sessionPath) return false;
+  return path.basename(sessionPath).endsWith(`_${graphSessionId(graphId)}.jsonl`);
+}
+
+/** Delete the session file the app created for a graph; returns whether a file was removed. */
+export function removeGraphSessionFile(graph: GraphMeta): boolean {
+  if (!isGraphOwnedSessionPath(graph.id, graph.piSessionPath)) return false;
+  if (!fs.existsSync(graph.piSessionPath!)) return false;
+  fs.rmSync(graph.piSessionPath!);
+  return true;
 }
 
 const structuralKinds = new Set(["branch", "continuation"]);

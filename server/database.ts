@@ -451,6 +451,15 @@ export class GraphDatabase {
     return count;
   }
 
+  /** Session files backing any graph, archived ones included. */
+  listGraphSessionPaths(): string[] {
+    return (
+      this.db
+        .prepare("SELECT pi_session_path FROM graphs WHERE pi_session_path IS NOT NULL")
+        .all() as Array<{ pi_session_path: string }>
+    ).map((row) => String(row.pi_session_path));
+  }
+
   /** Record the Pi session file that backs a graph. Not part of undo history. */
   setGraphSession(graphId: string, sessionPath: string | null): boolean {
     const result = this.db

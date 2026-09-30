@@ -76,6 +76,11 @@ time the graph is opened: each prompt becomes a node under the node whose
 answer it continued, tagged `pi-terminal`. The Pi session view shows
 **Open graph** for any session that backs a graph.
 
+Sessions the app created for its graphs stay out of the **Pi sessions** list;
+they are reached through the graph itself. Deleting an archived graph for good
+also deletes that session file. A terminal session bound to a graph with
+`/graph use` keeps showing in the list and is never deleted by the app.
+
 Do not keep `pi` open on a graph's session while asking questions in the web
 app. Pi session files are append-only and single-writer, and two writers can
 interleave entries. Finish in one place, then continue in the other.

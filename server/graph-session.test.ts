@@ -6,7 +6,13 @@ import { SessionManager } from "@earendil-works/pi-coding-agent";
 import { afterEach, describe, expect, it } from "vitest";
 import { TOOL_CALL_RESULT_LIMIT } from "../shared/tool-calls.js";
 import { GraphDatabase } from "./database.js";
-import { GraphSessionSync, importSessionTurnsIntoGraph, openGraphSession } from "./graph-session.js";
+import {
+  GraphSessionSync,
+  importSessionTurnsIntoGraph,
+  isGraphOwnedSessionPath,
+  openGraphSession,
+  removeGraphSessionFile,
+} from "./graph-session.js";
 
 const directories: string[] = [];
 
@@ -220,5 +226,35 @@ describe("importSessionTurnsIntoGraph", () => {
     // Unchanged file: no re-parse, no new nodes.
     expect(sync.sync(after).nodes).toHaveLength(after.nodes.length);
     database.close();
+  });
+});
+
+describe("removeGraphSessionFile", () => {
+  it("deletes the session file the app created for a graph", () => {
+    const { database, manager } = setup();
+    const graph = database.getGraph("learning-rag")!.graph;
+    const file = manager.getSessionFile()!;
+    expect(graph.piSessionPath).toBe(file);
+    expect(isGraphOwnedSessionPath(graph.id, file)).toBe(true);
+
+    expect(removeGraphSessionFile(graph)).toBe(true);
+    expect(fs.existsSync(file)).toBe(false);
+    expect(removeGraphSessionFile(graph)).toBe(false);
+  });
+
+  it("leaves a terminal session bound to a graph alone", () => {
+    const { database, sessionRoot, directory } = setup();
+    // A plain `pi` session bound with `/graph use` keeps Pi's own id.
+    const terminal = SessionManager.create(directory, sessionRoot);
+    terminalTurn(terminal, "Terminal prompt", "Terminal answer");
+    const file = terminal.getSessionFile()!;
+    const graph = database.createGraph({ title: "Bound graph", description: "" }).graph;
+    database.setGraphSession(graph.id, file);
+
+    const bound = database.getGraph(graph.id)!.graph;
+    expect(isGraphOwnedSessionPath(bound.id, file)).toBe(false);
+    expect(removeGraphSessionFile(bound)).toBe(false);
+    expect(fs.existsSync(file)).toBe(true);
+    expect(removeGraphSessionFile({ ...bound, piSessionPath: null })).toBe(false);
   });
 });

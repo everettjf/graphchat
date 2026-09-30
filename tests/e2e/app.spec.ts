@@ -129,12 +129,13 @@ test.describe("Pi Graph Chat", () => {
     const graph = await (await request.get("/api/graphs/learning-rag")).json();
     expect(graph.graph.piSessionPath).toMatch(/pi-graph-chat-learning-rag\.jsonl$/);
     expect(createdNode.piEntryId).toBeTruthy();
+    // The app's own session is hidden from the list but readable by id.
     const piSessions = await (await request.get("/api/pi/sessions")).json();
-    const backing = piSessions.sessions.find(
-      (session: { id: string }) => session.id === "pi-graph-chat-learning-rag",
-    );
-    expect(backing).toMatchObject({ name: graph.graph.title });
+    expect(
+      piSessions.sessions.some((session: { id: string }) => session.id === "pi-graph-chat-learning-rag"),
+    ).toBe(false);
     const tree = await (await request.get("/api/pi/sessions/pi-graph-chat-learning-rag")).json();
+    expect(tree.session).toMatchObject({ name: graph.graph.title });
     const answerTurn = tree.turns.find(
       (turn: { prompt: string }) =>
         turn.prompt === "How do embeddings and vector databases work together?",
