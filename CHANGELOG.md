@@ -2,7 +2,7 @@
 
 All notable Pi Graph Chat changes are documented here.
 
-## 0.3.0 - Unreleased
+## 0.3.0 - 2026-09-30
 
 Pi Graph Chat is now a personal tool built on the Pi agent ecosystem. This
 release renames the project from Graph Chat, drops product and release
