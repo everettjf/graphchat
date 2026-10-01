@@ -112,6 +112,8 @@ bun run launch
 
 ### macOS 菜单栏 app
 
+每个 [release](https://github.com/everettjf/pi-graph-chat/releases/latest) 都附带已签名并公证的 Apple Silicon 版本：解压后把 `Pi Graph Chat.app` 拖进「应用程序」即可运行。自己构建：
+
 ```bash
 bun run app:build
 ```

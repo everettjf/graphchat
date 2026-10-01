@@ -150,6 +150,10 @@ bun run launch
 
 ### macOS menu bar app
 
+A signed and notarized Apple Silicon build is attached to every
+[release](https://github.com/everettjf/pi-graph-chat/releases/latest): unzip,
+move `Pi Graph Chat.app` to Applications, and launch. To build it yourself:
+
 ```bash
 bun run app:build
 ```
